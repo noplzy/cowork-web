@@ -1,4 +1,5 @@
 import { TopNav } from "@/components/TopNav";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function PrivacyPage() {
   return (
@@ -41,6 +42,7 @@ export default function PrivacyPage() {
           </p>
         </article>
       </section>
+      <SiteFooter />
     </main>
   );
 }

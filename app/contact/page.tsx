@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -106,6 +107,8 @@ export default function ContactPage() {
           </ul>
         </article>
       </section>
+
+      <SiteFooter />
     </main>
   );
 }

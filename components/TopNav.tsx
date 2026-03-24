@@ -68,7 +68,10 @@ export function TopNav({ email, onSignOut }: Props) {
           <nav className="cc-navlinks" aria-label="Primary">
             <Link className="cc-navlink" href="/">首頁</Link>
             <Link className="cc-navlink" href="/rooms">Rooms</Link>
-            {isLoggedIn ? <Link className="cc-navlink" href="/account">方案 / 額度</Link> : null}
+            <Link className="cc-navlink" href="/buddies">搭子 / 安感夥伴</Link>
+            <Link className="cc-navlink" href="/pricing">方案 / 價格</Link>
+            <Link className="cc-navlink" href="/contact">客服</Link>
+            {isLoggedIn ? <Link className="cc-navlink" href="/account">額度</Link> : null}
           </nav>
         </div>
 

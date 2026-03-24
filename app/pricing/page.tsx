@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function PricingPage() {
   return (
@@ -73,11 +74,13 @@ export default function PricingPage() {
             <div>提供年費方案 NT$2,000 / 年</div>
           </div>
           <div className="cc-action-row">
-            <Link href="/contact" className="cc-btn-primary">聯絡客服了解付款開通</Link>
+            <Link href="/service-delivery" className="cc-btn-primary">查看服務交付說明</Link>
             <Link href="/refund-policy" className="cc-btn">查看退款與取消政策</Link>
           </div>
         </article>
       </section>
+
+      <SiteFooter />
     </main>
   );
 }
