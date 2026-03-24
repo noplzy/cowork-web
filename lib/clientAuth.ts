@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { isRecoverableAuthSessionError, recoverFromBrokenBrowserSession } from "@/lib/authRecovery";
 
 export type ClientSessionSnapshot = {
   user: User;
@@ -13,17 +14,27 @@ let cachedSession: { value: ClientSessionSnapshot | null; expiresAt: number } | 
 let inflightSession: Promise<ClientSessionSnapshot | null> | null = null;
 
 async function readSessionFromSupabase(): Promise<ClientSessionSnapshot | null> {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
 
-  const session = data.session;
-  if (!session?.user) return null;
+    const session = data.session;
+    if (!session?.user) return null;
 
-  return {
-    user: session.user,
-    email: session.user.email ?? "",
-    accessToken: session.access_token ?? null,
-  };
+    return {
+      user: session.user,
+      email: session.user.email ?? "",
+      accessToken: session.access_token ?? null,
+    };
+  } catch (error) {
+    if (isRecoverableAuthSessionError(error)) {
+      await recoverFromBrokenBrowserSession();
+      cachedSession = null;
+      inflightSession = null;
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function getClientSessionSnapshot(options?: { force?: boolean }) {
