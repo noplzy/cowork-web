@@ -1,4 +1,5 @@
 import { TopNav } from "@/components/TopNav";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function RefundPolicyPage() {
   return (
@@ -52,6 +53,8 @@ export default function RefundPolicyPage() {
           </p>
         </article>
       </section>
+
+      <SiteFooter />
     </main>
   );
 }

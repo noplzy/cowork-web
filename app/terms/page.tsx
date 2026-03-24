@@ -1,4 +1,5 @@
 import { TopNav } from "@/components/TopNav";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function TermsPage() {
   return (
@@ -14,7 +15,7 @@ export default function TermsPage() {
         <article className="cc-card cc-card-soft cc-stack-sm">
           <h2 className="cc-h3">1. 服務內容</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            安感島提供專注共工房間、帳號方案權益與相關客服支援。實際服務內容以網站當下公開顯示的頁面與方案說明為準。
+            安感島提供專注共工房間、帳號方案權益、陪伴型服務與相關客服支援。實際服務內容以網站當下公開顯示的頁面與方案說明為準。
           </p>
         </article>
 
@@ -41,6 +42,7 @@ export default function TermsPage() {
           </ul>
         </article>
       </section>
+      <SiteFooter />
     </main>
   );
 }
