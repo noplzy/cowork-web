@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthSessionGuard } from "@/components/AuthSessionGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "安感島｜安靜共工與陪伴型數位空間",
-  description: "安感島是一個為孤獨經濟使用者設計的數位避風港，提供低壓力共工、陪伴式搭子與可持續使用的專注空間。",
+  description: "安感島提供低壓力專注共工與清楚易懂的帳號登入流程。",
 };
 
 export default function RootLayout({
@@ -25,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased cc-shell`}>
+        <AuthSessionGuard />
         {children}
       </body>
     </html>

@@ -68,7 +68,7 @@ function AuthCallbackContent() {
       if (!finished) {
         router.replace("/auth/login?reason=session-expired");
       }
-    }, 5000);
+    }, 8000);
 
     return () => {
       data.subscription.unsubscribe();
