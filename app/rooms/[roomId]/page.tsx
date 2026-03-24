@@ -14,6 +14,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { clearAccountStatusCache, fetchAccountStatus } from "@/lib/accountStatusClient";
+import { getClientSessionSnapshot, invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
 
 type Room = {
   id: string;
@@ -45,6 +47,9 @@ const FULLBLUR_PRESETS: Record<FullBlurPreset, { w: number; h: number; fps: numb
   "480p": { w: 854, h: 480, fps: 24 },
 };
 
+function roomModeLabel(mode?: Room["mode"]) {
+  return mode === "pair" ? "雙人專注" : "小組共工";
+}
 
 function getVideoTrack(p: any): MediaStreamTrack | null {
   const v = p?.tracks?.video;
@@ -112,6 +117,47 @@ function CameraIcon({ off = false }: { off?: boolean }) {
       <path d="m16 10 4-2.5v9L16 14" />
       {off ? <path d="M3.5 4.5 20 19" /> : null}
     </svg>
+  );
+}
+
+function ExtendSessionNotice({
+  tokenExp,
+  tokenBusy,
+  onRefresh,
+}: {
+  tokenExp: number;
+  tokenBusy: boolean;
+  onRefresh: () => void;
+}) {
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!tokenExp) {
+      setSecondsLeft(0);
+      return;
+    }
+
+    const sync = () => {
+      const now = Math.floor(Date.now() / 1000);
+      setSecondsLeft(Math.max(0, tokenExp - now));
+    };
+
+    sync();
+    const id = window.setInterval(sync, 1000);
+    return () => clearInterval(id);
+  }, [tokenExp]);
+
+  if (!tokenExp || secondsLeft <= 0 || secondsLeft > 120) {
+    return null;
+  }
+
+  return (
+    <div className="cc-alert cc-alert-warn cc-spread" style={{ flexWrap: "wrap" }}>
+      <div>這一場快結束了，剩下 {secondsLeft} 秒。需要的話可以直接續下一場。</div>
+      <button disabled={tokenBusy} onClick={onRefresh} className="cc-btn" type="button">
+        續下一場
+      </button>
+    </div>
   );
 }
 
@@ -236,6 +282,7 @@ export default function RoomPage() {
 
   const [email, setEmail] = useState("");
   const [uid, setUid] = useState("");
+  const [accessToken, setAccessToken] = useState("");
 
   const [room, setRoom] = useState<Room | null>(null);
   const [isMember, setIsMember] = useState(false);
@@ -342,8 +389,8 @@ export default function RoomPage() {
     if (!effectsMvpDisabled) return;
     setBgMode("off");
     setFullBlurOn(false);
-    setBgMsg("手機/平板（MVP）禁用背景模糊與全畫面模糊。");
-    setFullBlurMsg("手機/平板（MVP）禁用全畫面模糊。");
+    setBgMsg("這台裝置目前提供穩定通話，背景效果暫不提供。");
+    setFullBlurMsg("這台裝置目前不提供全畫面模糊。");
   }, [effectsMvpDisabled]);
 
   const callUrl = useMemo(() => {
@@ -353,17 +400,6 @@ export default function RoomPage() {
   }, [room?.daily_room_url, dailyToken]);
 
   const canShowCall = useMemo(() => Boolean(room?.daily_room_url) && isMember && Boolean(dailyToken), [room?.daily_room_url, isMember, dailyToken]);
-
-  const [secondsLeft, setSecondsLeft] = useState<number>(0);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (!tokenExp) return setSecondsLeft(0);
-      const now = Math.floor(Date.now() / 1000);
-      setSecondsLeft(Math.max(0, tokenExp - now));
-    }, 1000);
-    return () => clearInterval(t);
-  }, [tokenExp]);
 
   const syncCallState = () => {
     const call = dailyCallRef.current;
@@ -409,10 +445,6 @@ export default function RoomPage() {
         dailyCallRef.current = call;
         setDailyReady(true);
 
-        try {
-          console.log("[Daily] supportedBrowser:", Daily.supportedBrowser?.());
-        } catch {}
-
         const onAny = () => syncCallState();
         const onError = (ev: any) => console.warn("[Daily] error:", ev);
         const onNonfatal = (ev: any) => console.warn("[Daily] nonfatal-error:", ev);
@@ -450,11 +482,11 @@ export default function RoomPage() {
         pollId = window.setInterval(() => {
           if (cancelled) return;
           syncCallState();
-        }, 1200);
+        }, 1600);
       } catch (e: any) {
         if (cancelled) return;
         console.error("[Daily] desktop custom init failed:", e);
-        setMsg((prev) => prev || e?.message || "桌機自訂視訊初始化失敗");
+        setMsg((prev) => prev || e?.message || "目前無法啟動視訊，請稍後再試一次。");
       }
     })();
 
@@ -486,15 +518,15 @@ export default function RoomPage() {
     const call = dailyCallRef.current;
     if (!call) return;
     if (effectsMvpDisabled) {
-      setBgMsg("手機/平板（MVP）禁用模糊功能。");
+      setBgMsg("這台裝置目前不提供背景效果。");
       return;
     }
     if (!joinedMeeting) {
-      setBgMsg("尚未成功加入桌機自訂通話。");
+      setBgMsg("加入視訊後才能調整背景效果。");
       return;
     }
     if (fullBlurOn && (next?.mode ?? bgMode) !== "off") {
-      setBgMsg("全畫面模糊啟用中，請先關閉全畫面模糊再使用背景模糊。");
+      setBgMsg("全畫面模糊啟用中，請先關閉後再使用背景模糊。");
       return;
     }
 
@@ -531,18 +563,18 @@ export default function RoomPage() {
     if (!call) return;
 
     if (effectsMvpDisabled) {
-      setFullBlurMsg("手機/平板（MVP）禁用全畫面模糊。");
+      setFullBlurMsg("這台裝置目前不提供全畫面模糊。");
       setFullBlurOn(false);
       return;
     }
     if (!joinedMeeting) {
-      setFullBlurMsg("尚未成功加入桌機自訂通話，不能啟用全畫面模糊。");
+      setFullBlurMsg("加入視訊後才能啟用全畫面模糊。");
       setFullBlurOn(false);
       return;
     }
     if (fullBlurPipelineRef.current) return;
     if (!runtimeCaps?.supportsCanvasCaptureStream || !runtimeCaps?.supportsCanvasFilter) {
-      setFullBlurMsg("這台桌機瀏覽器不支援 canvas full-blur 所需能力。");
+      setFullBlurMsg("這個瀏覽器暫時不支援全畫面模糊。");
       setFullBlurOn(false);
       return;
     }
@@ -570,10 +602,6 @@ export default function RoomPage() {
       let ownedSourceStream: MediaStream | null = null;
       let sourceTrack: MediaStreamTrack | null = null;
 
-      // IMPORTANT:
-      // 不要拿目前已發布的 local track 當作 full-blur 的來源。
-      // 一旦 Daily 把 outgoing input 切成 canvas/custom track，它可能會停掉或替換原本的 published camera track，
-      // 進而讓 canvas 來源直接變黑。這裡固定自己再開一條 camera stream 當 blur source。
       ownedSourceStream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: preset.w },
@@ -666,7 +694,7 @@ export default function RoomPage() {
         }
       }
 
-      if (!switched) throw new Error("桌機自訂通話仍無法把 full-blur track 切成 outgoing video。");
+      if (!switched) throw new Error("目前無法把全畫面模糊套用到輸出畫面。");
     } catch (e: any) {
       console.error("[FullBlur] start failed:", e);
       setFullBlurMsg(e?.message || "全畫面模糊啟用失敗。");
@@ -747,55 +775,81 @@ export default function RoomPage() {
   }, [dailyReady, joinedMeeting, fullBlurOn, fullBlurPreset, effectsMvpDisabled]);
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       if (!roomId) return;
 
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
-      if (!user) {
+      const session = await getClientSessionSnapshot();
+      if (!session) {
         router.replace("/auth/login");
         return;
       }
 
-      setUid(user.id);
-      setEmail(user.email ?? "");
+      if (cancelled) return;
+      setUid(session.user.id);
+      setEmail(session.email);
+      setAccessToken(session.accessToken ?? "");
 
-      const { data: roomData, error: roomErr } = await supabase
-        .from("rooms")
-        .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url")
-        .eq("id", roomId)
-        .single();
+      const [roomResult, memberResult] = await Promise.all([
+        supabase
+          .from("rooms")
+          .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url")
+          .eq("id", roomId)
+          .single(),
+        supabase
+          .from("room_members")
+          .select("room_id,user_id")
+          .eq("room_id", roomId)
+          .eq("user_id", session.user.id)
+          .maybeSingle(),
+      ]);
 
-      if (roomErr) {
-        setMsg(roomErr.message);
+      if (cancelled) return;
+
+      if (roomResult.error) {
+        setMsg(roomResult.error.message);
         setChecking(false);
         return;
       }
 
-      setRoom(roomData as Room);
+      if (memberResult.error) {
+        setMsg(memberResult.error.message);
+      }
 
-      const { data: memData, error: memErr } = await supabase
-        .from("room_members")
-        .select("room_id,user_id")
-        .eq("room_id", roomId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (memErr) setMsg(memErr.message);
-      setIsMember(Boolean(memData));
+      setRoom(roomResult.data as Room);
+      setIsMember(Boolean(memberResult.data));
       setChecking(false);
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, roomId]);
 
   async function refreshRoom() {
     if (!roomId) return;
-    const { data, error } = await supabase
-      .from("rooms")
-      .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url")
-      .eq("id", roomId)
-      .single();
-    if (error) return setMsg(error.message);
-    setRoom(data as Room);
+    const [roomResult, session] = await Promise.all([
+      supabase
+        .from("rooms")
+        .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url")
+        .eq("id", roomId)
+        .single(),
+      getClientSessionSnapshot(),
+    ]);
+
+    if (roomResult.error) return setMsg(roomResult.error.message);
+    setRoom(roomResult.data as Room);
+
+    if (session?.accessToken) {
+      setAccessToken(session.accessToken);
+      try {
+        const nextStatus = await fetchAccountStatus(session.accessToken, { force: true });
+        setIsVip(Boolean(nextStatus.is_vip));
+        setRemainingCredits(nextStatus.credits_remaining ?? null);
+        setMonthlyAllowance(nextStatus.free_monthly_allowance ?? 4);
+      } catch {}
+    }
   }
 
   async function join() {
@@ -803,9 +857,9 @@ export default function RoomPage() {
     setBusy(true);
     setMsg("");
 
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-    if (!user) {
+    const session = uid ? null : await getClientSessionSnapshot();
+    const userId = uid || session?.user.id;
+    if (!userId) {
       setBusy(false);
       router.replace("/auth/login");
       return;
@@ -813,7 +867,7 @@ export default function RoomPage() {
 
     const { error } = await supabase
       .from("room_members")
-      .upsert({ room_id: roomId, user_id: user.id }, { onConflict: "room_id,user_id" });
+      .upsert({ room_id: roomId, user_id: userId }, { onConflict: "room_id,user_id" });
 
     setBusy(false);
     if (error) return setMsg(error.message);
@@ -833,9 +887,9 @@ export default function RoomPage() {
       await dailyCallRef.current?.leave?.();
     } catch {}
 
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-    if (!user) {
+    const session = uid ? null : await getClientSessionSnapshot();
+    const userId = uid || session?.user.id;
+    if (!userId) {
       setBusy(false);
       router.replace("/auth/login");
       return;
@@ -845,7 +899,7 @@ export default function RoomPage() {
       .from("room_members")
       .delete()
       .eq("room_id", roomId)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     setBusy(false);
     if (error) return setMsg(error.message);
@@ -857,6 +911,8 @@ export default function RoomPage() {
 
   async function signOut() {
     await supabase.auth.signOut();
+    invalidateClientSessionSnapshotCache();
+    clearAccountStatusCache();
     router.replace("/auth/login");
   }
 
@@ -867,7 +923,7 @@ export default function RoomPage() {
 
     if (room.created_by !== uid) {
       setBusy(false);
-      return setMsg("只有房主可以建立視訊房間（MVP 先這樣）。");
+      return setMsg("目前只有房主可以開啟視訊房間。");
     }
 
     const dailyName = `cowork_${roomId.replaceAll("-", "")}`;
@@ -881,13 +937,13 @@ export default function RoomPage() {
     const json = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       setBusy(false);
-      return setMsg((json as any)?.error ?? "建立 Daily 房間失敗");
+      return setMsg((json as any)?.error ?? "建立視訊房間失敗");
     }
 
     const url = (json as any)?.url as string | undefined;
     if (!url) {
       setBusy(false);
-      return setMsg("Daily 沒回傳 room url");
+      return setMsg("目前還無法取得視訊房間連結，請稍後再試。");
     }
 
     const { error } = await supabase.from("rooms").update({ daily_room_url: url }).eq("id", roomId);
@@ -903,18 +959,23 @@ export default function RoomPage() {
     setTokenBusy(true);
     setMsg("");
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const access = sessionData.session?.access_token;
-    if (!access) {
+    let bearer = accessToken;
+    if (!bearer) {
+      const session = await getClientSessionSnapshot({ force: true });
+      bearer = session?.accessToken ?? "";
+      if (bearer) setAccessToken(bearer);
+    }
+
+    if (!bearer) {
       setTokenBusy(false);
-      return setMsg("Missing Supabase session token（請重新登入）");
+      return setMsg("登入狀態已過期，請重新登入後再試一次。");
     }
 
     const resp = await fetch("/api/daily/meeting-token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${access}`,
+        Authorization: `Bearer ${bearer}`,
       },
       body: JSON.stringify({ roomId }),
     });
@@ -926,11 +987,11 @@ export default function RoomPage() {
         setDailyToken("");
         setTokenExp(0);
         setTokenBusy(false);
-        return setMsg("本月免費額度已用完（可升級 VIP 或等下月重置）。");
+        return setMsg("本月免費額度已用完，可升級 VIP 或等下月重置後再使用。");
       }
 
       setTokenBusy(false);
-      return setMsg(json?.error ?? "取得 Daily token 失敗");
+      return setMsg(json?.error ?? "目前無法進入視訊，請稍後再試。");
     }
 
     const tr = json as TokenResp;
@@ -994,16 +1055,19 @@ export default function RoomPage() {
     });
   }, [participantsMap]);
 
-  const showExtendBanner =
-    isMember && !!room?.daily_room_url && !!dailyToken && secondsLeft > 0 && secondsLeft <= 120;
+  const connectionLabel = joinedMeeting
+    ? "已連線"
+    : meetingState === "joining-meeting"
+    ? "連線中"
+    : "準備中";
 
   if (!roomId) {
     return (
       <main className="cc-container">
         <section className="cc-card cc-empty-state">
           <div className="cc-stack-sm">
-            <div className="cc-h3">正在讀取房間參數</div>
-            <div className="cc-muted">路由參數還沒就緒，稍後會接上實際 roomId。</div>
+            <div className="cc-h3">正在準備房間資訊</div>
+            <div className="cc-muted">稍後會帶你進入正確的房間。</div>
           </div>
         </section>
       </main>
@@ -1015,8 +1079,8 @@ export default function RoomPage() {
       <main className="cc-container">
         <section className="cc-card cc-empty-state">
           <div className="cc-stack-sm">
-            <div className="cc-h3">正在檢查房間與權限</div>
-            <div className="cc-muted">前端正在確認登入狀態、房間資料與可加入規則。</div>
+            <div className="cc-h3">正在檢查房間資訊</div>
+            <div className="cc-muted">請稍等，系統正在確認你的登入狀態與房間權限。</div>
           </div>
         </section>
       </main>
@@ -1032,14 +1096,14 @@ export default function RoomPage() {
               <Link href="/rooms" className="cc-btn-link">
                 ← 回到 Rooms
               </Link>
-              <span className="cc-pill-soft">{effectsMvpDisabled ? "Mobile / Prebuilt" : "Desktop / Custom"}</span>
+              <span className="cc-pill-soft">{effectsMvpDisabled ? "行動裝置" : "桌機"}</span>
             </div>
             <h1 className="cc-h2" style={{ fontSize: "clamp(1.7rem, 3vw, 2.8rem)" }}>{room?.title ?? "Room"}</h1>
             {room ? (
               <div className="cc-page-meta">
-                <span className="cc-pill-soft">{room.mode}</span>
-                <span className="cc-pill-soft">{room.duration_minutes}m</span>
-                <span className="cc-pill-soft">max {room.max_size}</span>
+                <span className="cc-pill-soft">{roomModeLabel(room.mode)}</span>
+                <span className="cc-pill-soft">{room.duration_minutes} 分鐘</span>
+                <span className="cc-pill-soft">最多 {room.max_size} 人</span>
               </div>
             ) : null}
           </div>
@@ -1047,66 +1111,61 @@ export default function RoomPage() {
           <div className="cc-navmeta">
             {email ? <span className="cc-pill-soft">{email}</span> : null}
             <Link href="/account" className="cc-btn">方案 / 額度</Link>
-            <button onClick={signOut} className="cc-btn">登出</button>
+            <button onClick={signOut} className="cc-btn" type="button">登出</button>
           </div>
         </div>
 
         <div className="cc-room-status">
           {isVip ? (
             <div className="cc-note">
-              <strong>VIP：</strong> 續場 ∞（時間盒 {room?.duration_minutes ?? 25}m / 場）
+              <strong>VIP：</strong> 這一場可持續續場，不受每月場次限制。
             </div>
           ) : pairVipCarry ? (
             <div className="cc-note">
-              <strong>Pair VIP 例外：</strong> 由同房 VIP 續命，你目前仍可繼續續場。
+              <strong>續場支援：</strong> 房內有 VIP 使用者時，這一場仍可繼續續場。
             </div>
           ) : (
             <div className="cc-note">
-              <strong>免費方案：</strong> 本場消耗 {costCredits} 場；剩餘 {remainingCredits ?? "?"}/{monthlyAllowance} 場（每月重置）。
+              <strong>本場資訊：</strong> 本場會消耗 {costCredits} 場；目前剩餘 {remainingCredits ?? "?"}/{monthlyAllowance} 場。
             </div>
           )}
         </div>
 
         <div className="cc-action-row">
           {!isMember ? (
-            <button disabled={busy} onClick={join} className="cc-btn-primary">
+            <button disabled={busy} onClick={join} className="cc-btn-primary" type="button">
               加入房間
             </button>
           ) : (
-            <button disabled={busy} onClick={leave} className="cc-btn">
+            <button disabled={busy} onClick={leave} className="cc-btn" type="button">
               離開房間
             </button>
           )}
 
-          <button disabled={busy} onClick={refreshRoom} className="cc-btn">
+          <button disabled={busy} onClick={refreshRoom} className="cc-btn" type="button">
             重新整理
           </button>
 
           {room?.daily_room_url ? (
-            <span className="cc-pill-success">已建立視訊房間</span>
-          ) : (
-            <button disabled={busy} onClick={createDailyRoom} className="cc-btn">
-              建立視訊房間（Daily）
+            <span className="cc-pill-success">視訊已開啟</span>
+          ) : room?.created_by === uid ? (
+            <button disabled={busy} onClick={createDailyRoom} className="cc-btn" type="button">
+              開啟視訊
             </button>
+          ) : (
+            <span className="cc-pill-soft">等待房主開啟視訊</span>
           )}
 
           {isMember && room?.daily_room_url ? (
-            <button disabled={tokenBusy} onClick={fetchMeetingToken} className="cc-btn">
-              重新取得 token
+            <button disabled={tokenBusy} onClick={fetchMeetingToken} className="cc-btn" type="button">
+              重新連線
             </button>
           ) : null}
         </div>
 
         {msg ? <div className="cc-alert cc-alert-error">{msg}</div> : null}
 
-        {showExtendBanner ? (
-          <div className="cc-alert cc-alert-warn cc-spread" style={{ flexWrap: "wrap" }}>
-            <div>本場即將結束（剩 {secondsLeft}s）。要續下一場嗎？</div>
-            <button disabled={tokenBusy} onClick={fetchMeetingToken} className="cc-btn">
-              續下一場
-            </button>
-          </div>
-        ) : null}
+        <ExtendSessionNotice tokenExp={tokenExp} tokenBusy={tokenBusy} onRefresh={fetchMeetingToken} />
       </section>
 
       <hr className="cc-soft-divider" />
@@ -1114,35 +1173,34 @@ export default function RoomPage() {
       <section className="cc-card cc-stack-md">
         <div className="cc-page-header" style={{ marginBottom: 0 }}>
           <div>
-            <p className="cc-card-kicker">視訊區</p>
-            <h2 className="cc-h2">{effectsMvpDisabled ? "Daily Prebuilt / Mobile" : "Daily Custom / Desktop"}</h2>
+            <p className="cc-card-kicker">視訊空間</p>
+            <h2 className="cc-h2">{effectsMvpDisabled ? "行動裝置視訊" : "桌機視訊"}</h2>
           </div>
-          <span className="cc-caption cc-mono">
-            build={__BUILD_TAG} / meetingState={meetingState} / joined={String(joinedMeeting)}
-          </span>
+          <span className="cc-pill-soft">{connectionLabel}</span>
         </div>
 
         {!isMember ? (
-          <div className="cc-note">你必須先加入房間才會顯示視訊，避免路人直接吃 RTC 成本。</div>
+          <div className="cc-note">先加入房間後，這裡才會顯示視訊內容。</div>
         ) : null}
 
         {isMember && !room?.daily_room_url ? (
-          <div className="cc-note">尚未建立 Daily 房間。若你是房主，點上面「建立視訊房間（Daily）」。</div>
+          <div className="cc-note">
+            {room?.created_by === uid ? "視訊還沒開啟，點上方的「開啟視訊」即可開始。" : "房主尚未開啟視訊，請稍後再試。"}
+          </div>
         ) : null}
 
         {isMember && room?.daily_room_url && !dailyToken ? (
           <div className="cc-note">
-            {tokenBusy ? "正在取得進入權杖（token）…" : "缺少 token（通常是額度用完 / 方案限制 / 或環境變數缺漏）"}
+            {tokenBusy ? "正在準備進入視訊…" : "目前正在確認進房資格，請稍後。"}
           </div>
         ) : null}
 
         {canShowCall && effectsMvpDisabled ? (
           <div className="cc-stack-md">
             <div className="cc-panel cc-stack-sm">
-              <div className="cc-h3">Mobile / Tablet MVP</div>
+              <div className="cc-h3">穩定通話模式</div>
               <div className="cc-muted" style={{ lineHeight: 1.7 }}>
-                為了先把手機 / 平板的共工流程跑穩，行動端暫時禁用背景模糊與全畫面模糊。
-                你仍可正常加入通話、扣場、續場與使用 VIP。
+                為了讓這台裝置的通話更穩定，背景效果暫時不提供；基本音訊與視訊功能可正常使用。
               </div>
             </div>
 
@@ -1160,8 +1218,8 @@ export default function RoomPage() {
             <div className="cc-panel cc-stack-sm">
               <div className="cc-card-row">
                 <div>
-                  <div className="cc-h3">桌機自訂通話</div>
-                  <div className="cc-caption">背景模糊 / 全畫面模糊只在桌機模式開啟。</div>
+                  <div className="cc-h3">鏡頭與麥克風</div>
+                  <div className="cc-caption">加入視訊後，你可以在這裡快速切換自己的裝置狀態。</div>
                 </div>
                 <div className="cc-action-row" style={{ marginTop: 0 }}>
                   <button
@@ -1171,6 +1229,7 @@ export default function RoomPage() {
                     aria-pressed={localAudioOn}
                     aria-label={audioToggleBusy ? "麥克風切換中" : localAudioOn ? "麥克風已開啟，點擊關閉" : "麥克風已關閉，點擊開啟"}
                     title={audioToggleBusy ? "麥克風切換中" : localAudioOn ? "麥克風已開啟" : "麥克風已關閉"}
+                    type="button"
                   >
                     <span className="cc-icon-toggle__badge" aria-hidden="true" />
                     <span className="cc-icon-toggle__icon" aria-hidden="true">
@@ -1184,6 +1243,7 @@ export default function RoomPage() {
                     aria-pressed={localVideoOn}
                     aria-label={videoToggleBusy ? "鏡頭切換中" : localVideoOn ? "鏡頭已開啟，點擊關閉" : "鏡頭已關閉，點擊開啟"}
                     title={videoToggleBusy ? "鏡頭切換中" : localVideoOn ? "鏡頭已開啟" : "鏡頭已關閉"}
+                    type="button"
                   >
                     <span className="cc-icon-toggle__badge" aria-hidden="true" />
                     <span className="cc-icon-toggle__icon" aria-hidden="true">
@@ -1198,14 +1258,14 @@ export default function RoomPage() {
               <div className="cc-panel cc-stack-sm">
                 <div className="cc-field">
                   <div className="cc-h3">背景效果</div>
-                  <span className="cc-field-label">選擇是否保留原背景，或只對背景做模糊處理。</span>
+                  <span className="cc-field-label">桌機可選擇保留原畫面，或僅對背景做柔和模糊。</span>
                 </div>
                 <select
                   className="cc-select"
                   value={bgMode}
                   onChange={(e) => setBgMode(e.target.value as BgMode)}
                   disabled={!dailyReady || !joinedMeeting || bgApplying || fullBlurOn}
->
+                >
                   <option value="off">關閉</option>
                   <option value="blur">背景模糊</option>
                 </select>
@@ -1226,7 +1286,7 @@ export default function RoomPage() {
                 ) : null}
 
                 <div className="cc-caption">
-                  {!dailyReady ? "載入中…" : !joinedMeeting ? "尚未加入桌機通話" : "背景模糊僅在桌機開啟"}
+                  {!dailyReady ? "載入中…" : !joinedMeeting ? "加入視訊後可調整" : "背景模糊僅在桌機提供"}
                 </div>
               </div>
 
@@ -1239,7 +1299,7 @@ export default function RoomPage() {
                     onChange={(e) => setFullBlurOn(e.target.checked)}
                     disabled={!dailyReady || !joinedMeeting || fullBlurApplying}
                   />
-                  <span className="cc-field-label">啟用（遠端也必須看到你變糊）</span>
+                  <span className="cc-field-label">啟用後，遠端看到的畫面也會一併變柔和。</span>
                 </label>
 
                 <label className="cc-field">
@@ -1275,10 +1335,10 @@ export default function RoomPage() {
                   {!dailyReady
                     ? "載入中…"
                     : !joinedMeeting
-                    ? "尚未加入桌機通話"
+                    ? "加入視訊後可調整"
                     : fullBlurApplying
                     ? "切換中…"
-                    : "右上角會顯示處理後預覽；最終以遠端是否也變糊為準"}
+                    : "啟用時右上角會顯示效果預覽"}
                 </div>
               </div>
             </div>
@@ -1314,7 +1374,7 @@ export default function RoomPage() {
               }}
             >
               {participantList.length === 0 ? (
-                <div className="cc-card cc-empty-state">連線中，正在等待桌機自訂通話初始化…</div>
+                <div className="cc-card cc-empty-state">正在連線，請稍等一下…</div>
               ) : (
                 participantList.map(([id, participant]) => (
                   <MediaTile key={id} participant={participant} isLocal={id === "local"} />
