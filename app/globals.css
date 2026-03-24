@@ -4,10 +4,10 @@
   color-scheme: light;
   --background: #f6efe6;
   --foreground: #1f2430;
-  --cc-bg-top: rgba(255, 239, 222, 0.92);
-  --cc-bg-bottom: rgba(235, 244, 238, 0.88);
-  --cc-surface: rgba(255, 252, 247, 0.72);
-  --cc-surface-strong: rgba(255, 250, 244, 0.9);
+  --cc-bg-top: rgba(255, 239, 222, 0.94);
+  --cc-bg-bottom: rgba(235, 244, 238, 0.92);
+  --cc-surface: rgba(255, 252, 247, 0.84);
+  --cc-surface-strong: rgba(255, 250, 244, 0.92);
   --cc-surface-hover: rgba(255, 248, 240, 0.96);
   --cc-surface-active: rgba(250, 238, 228, 0.98);
   --cc-border: rgba(79, 93, 103, 0.12);
@@ -45,11 +45,11 @@
     color-scheme: dark;
     --background: #16181d;
     --foreground: #f4ede6;
-    --cc-bg-top: rgba(42, 45, 54, 0.96);
-    --cc-bg-bottom: rgba(28, 35, 36, 0.94);
-    --cc-surface: rgba(255, 248, 241, 0.06);
-    --cc-surface-strong: rgba(255, 248, 241, 0.10);
-    --cc-surface-hover: rgba(255, 248, 241, 0.13);
+    --cc-bg-top: rgba(42, 45, 54, 0.98);
+    --cc-bg-bottom: rgba(28, 35, 36, 0.96);
+    --cc-surface: rgba(255, 248, 241, 0.08);
+    --cc-surface-strong: rgba(255, 248, 241, 0.12);
+    --cc-surface-hover: rgba(255, 248, 241, 0.15);
     --cc-surface-active: rgba(255, 248, 241, 0.18);
     --cc-border: rgba(255, 241, 231, 0.11);
     --cc-border-strong: rgba(255, 241, 231, 0.18);
@@ -64,9 +64,9 @@
     --cc-success: #93b19a;
     --cc-warning: #e0b37f;
     --cc-danger: #f19c9c;
-    --cc-shadow-lg: 0 26px 60px rgba(0, 0, 0, 0.34);
-    --cc-shadow-md: 0 16px 36px rgba(0, 0, 0, 0.28);
-    --cc-shadow-sm: 0 10px 20px rgba(0, 0, 0, 0.18);
+    --cc-shadow-lg: 0 26px 60px rgba(0, 0, 0, 0.32);
+    --cc-shadow-md: 0 16px 36px rgba(0, 0, 0, 0.24);
+    --cc-shadow-sm: 0 10px 20px rgba(0, 0, 0, 0.16);
   }
 }
 
@@ -79,10 +79,10 @@ body {
   min-height: 100vh;
   margin: 0;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(255, 213, 181, 0.34), transparent 34%),
-    radial-gradient(circle at top right, rgba(168, 181, 162, 0.22), transparent 28%),
+    radial-gradient(circle at top left, rgba(255, 213, 181, 0.26), transparent 34%),
+    radial-gradient(circle at top right, rgba(168, 181, 162, 0.18), transparent 28%),
     linear-gradient(180deg, var(--cc-bg-top), var(--cc-bg-bottom));
 }
 
@@ -92,9 +92,9 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 24%),
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.10), transparent 18%);
-  opacity: 0.9;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 22%),
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.06), transparent 18%);
+  opacity: 0.55;
 }
 
 * {
@@ -157,7 +157,8 @@ textarea:focus-visible {
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .cc-kicker::before {
@@ -240,7 +241,8 @@ textarea:focus-visible {
   border-radius: var(--cc-radius-lg);
   background: linear-gradient(180deg, var(--cc-surface-strong), var(--cc-surface));
   box-shadow: var(--cc-shadow-sm);
-  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .cc-card {
@@ -254,11 +256,11 @@ textarea:focus-visible {
 .cc-card-link {
   display: block;
   text-decoration: none;
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
 }
 
 .cc-card-link:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   background: linear-gradient(180deg, var(--cc-surface-hover), var(--cc-surface));
   border-color: var(--cc-border-strong);
   box-shadow: var(--cc-shadow-md);
@@ -319,7 +321,7 @@ textarea:focus-visible {
   border: 1px solid var(--cc-border);
   cursor: pointer;
   text-decoration: none;
-  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .cc-btn,
@@ -332,7 +334,7 @@ textarea:focus-visible {
 .cc-btn-ghost:hover {
   transform: translateY(-1px);
   border-color: var(--cc-border-strong);
-  background: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .cc-btn-primary {
@@ -363,7 +365,7 @@ textarea:focus-visible {
 .cc-btn:active,
 .cc-btn-primary:active,
 .cc-btn-ghost:active {
-  transform: translateY(1px);
+  transform: translateY(0);
 }
 
 .cc-btn:disabled,
@@ -469,7 +471,6 @@ textarea:focus-visible {
   color: var(--cc-muted-strong);
   font-size: 0.78rem;
 }
-
 
 .cc-field {
   display: grid;
@@ -591,7 +592,7 @@ textarea:focus-visible {
   text-decoration: none;
   color: inherit;
   border-top: 1px solid var(--cc-border);
-  transition: background 160ms ease;
+  transition: background 140ms ease;
 }
 
 .cc-listlink:hover {
@@ -606,9 +607,10 @@ textarea:focus-visible {
   padding: 14px 16px;
   border-radius: 24px;
   border: 1px solid var(--cc-border);
-  background: rgba(255, 251, 246, 0.56);
+  background: rgba(255, 251, 246, 0.7);
   box-shadow: var(--cc-shadow-sm);
-  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 .cc-nav {
@@ -708,7 +710,7 @@ textarea:focus-visible {
   width: 240px;
   height: 240px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(234, 155, 125, 0.22), transparent 70%);
+  background: radial-gradient(circle, rgba(234, 155, 125, 0.18), transparent 70%);
 }
 
 .cc-hero-side {
@@ -843,6 +845,31 @@ textarea:focus-visible {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cc-card-link:hover,
+  .cc-btn:hover,
+  .cc-btn-ghost:hover,
+  .cc-btn-primary:hover {
+    transform: none;
+    box-shadow: var(--cc-shadow-sm);
+  }
+}
+
 @media (max-width: 960px) {
   .cc-hero,
   .cc-login-grid {
@@ -856,6 +883,13 @@ textarea:focus-visible {
 
   .cc-navmeta {
     justify-content: flex-start;
+  }
+
+  .cc-card,
+  .cc-panel,
+  .cc-navshell {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 }
 

@@ -5,51 +5,50 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { TopNav } from "@/components/TopNav";
-
-type StatusResp = {
-  plan: string;
-  is_vip: boolean;
-  vip_until: string | null;
-  free_monthly_allowance: number;
-  credits_used: number;
-  credits_remaining: number | null;
-  month_start: string;
-};
+import { fetchAccountStatus, type AccountStatusResp, clearAccountStatusCache } from "@/lib/accountStatusClient";
+import { getClientSessionSnapshot, invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
 
 export default function AccountPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<StatusResp | null>(null);
+  const [status, setStatus] = useState<AccountStatusResp | null>(null);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-      if (!user) {
+      const session = await getClientSessionSnapshot();
+      if (!session) {
         router.replace("/auth/login");
         return;
       }
-      setEmail(user.email ?? "");
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const access = sessionData.session?.access_token;
-      if (!access) return;
+      if (cancelled) return;
+      setEmail(session.email);
 
-      const r = await fetch("/api/account/status", {
-        headers: { Authorization: `Bearer ${access}` },
-      });
-      const j = await r.json().catch(() => null);
-      if (!r.ok) {
-        setMsg(j?.error ?? "讀取方案失敗");
+      if (!session.accessToken) {
+        setMsg("目前無法取得方案資訊，請重新登入後再試一次。");
         return;
       }
-      setStatus(j as StatusResp);
+
+      try {
+        const nextStatus = await fetchAccountStatus(session.accessToken);
+        if (!cancelled) setStatus(nextStatus);
+      } catch (error: any) {
+        if (!cancelled) setMsg(error?.message ?? "讀取方案資訊失敗");
+      }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   async function signOut() {
     await supabase.auth.signOut();
+    invalidateClientSessionSnapshotCache();
+    clearAccountStatusCache();
     router.replace("/auth/login");
   }
 
@@ -60,11 +59,10 @@ export default function AccountPage() {
       <section className="cc-hero">
         <div className="cc-card cc-hero-main">
           <span className="cc-kicker">Plan & Entitlements</span>
-          <p className="cc-eyebrow">方案 / 額度｜讓規則先被看懂，再決定要不要升級</p>
-          <h1 className="cc-h1">付費不是抽象承諾，而是看得懂的可用權益。</h1>
+          <p className="cc-eyebrow">方案 / 額度｜把現在能用什麼看清楚</p>
+          <h1 className="cc-h1">付費不是口號，而是看得懂、用得到的權益。</h1>
           <p className="cc-lead">
-            這頁是安感島的信任頁之一。它不該看起來像後台殘骸，而要清楚說明你現在是 FREE 還是 VIP、
-            本月還剩多少場、續場邏輯是什麼，以及之後金流 webhook 成功時，前端會如何立即生效。
+            這裡會清楚顯示你目前是免費方案還是 VIP、本月已使用多少、還剩多少，以及續場時會怎麼計算。
           </p>
           <div className="cc-action-row">
             <Link className="cc-btn" href="/rooms">
@@ -102,10 +100,9 @@ export default function AccountPage() {
           </div>
 
           <div className="cc-card cc-card-soft cc-stack-sm">
-            <p className="cc-card-kicker">金流接上後</p>
+            <p className="cc-card-kicker">使用重點</p>
             <p className="cc-muted" style={{ margin: 0, lineHeight: 1.75 }}>
-              後端只要把 <span className="cc-code">user_entitlements.plan</span> 更新成 <span className="cc-code">vip</span>，
-              前端就應立即反映對應權益。這頁的任務是把規則說清楚，不是藏規則。
+              開始一場前先看一眼自己的剩餘額度，續場前也能在這裡快速確認目前權益。
             </p>
           </div>
         </div>
@@ -113,7 +110,7 @@ export default function AccountPage() {
 
       {msg ? (
         <div className="cc-alert cc-alert-error cc-section">
-          <strong>讀取錯誤：</strong> {msg}
+          <strong>讀取失敗：</strong> {msg}
         </div>
       ) : null}
 
@@ -123,12 +120,12 @@ export default function AccountPage() {
             <article className="cc-card cc-stack-md">
               <div>
                 <p className="cc-card-kicker">VIP 權益</p>
-                <h2 className="cc-h2">你可以無限續場，不被場次擋住節奏。</h2>
+                <h2 className="cc-h2">你可以無限續場，不被場次打斷節奏。</h2>
               </div>
               <div className="cc-note">
                 <div className="cc-stack-sm">
-                  <div>Pair 續命：只要房內有 VIP，在場另一方也可續場。</div>
-                  <div>Group 續命：每個人要續場都要自己是 VIP。</div>
+                  <div>Pair 續場：只要房內有 VIP，另一方也能一起續場。</div>
+                  <div>Group 續場：每位想續場的使用者都需要具備 VIP。</div>
                   {status.vip_until ? <div>VIP 到期：{new Date(status.vip_until).toLocaleString()}</div> : null}
                 </div>
               </div>
@@ -137,29 +134,29 @@ export default function AccountPage() {
             <article className="cc-card cc-stack-md">
               <div>
                 <p className="cc-card-kicker">免費方案</p>
-                <h2 className="cc-h2">先讓你能體驗，但規則必須透明。</h2>
+                <h2 className="cc-h2">先體驗整體節奏，再決定是否升級。</h2>
               </div>
               <div className="cc-note cc-stack-sm">
                 <div>25m：消耗 1 場</div>
                 <div>50m：消耗 2 場</div>
-                <div>2 人房 / 6 人房：都算同一種「場」規則</div>
+                <div>2 人房與 6 人房都採用相同場次規則</div>
                 <div>本月剩餘 {status.credits_remaining ?? "?"}/{status.free_monthly_allowance} 場</div>
               </div>
               <p className="cc-muted" style={{ margin: 0, lineHeight: 1.7 }}>
-                升級 VIP 尚未接上金流時，可先用 Supabase Table Editor 把 plan 改成 <span className="cc-code">vip</span> 做驗證。
+                如果你想要不受場次限制地續場，升級 VIP 會是更順手的使用方式。
               </p>
             </article>
           )}
 
           <article className="cc-card cc-stack-md">
             <div>
-              <p className="cc-card-kicker">這頁應該帶來什麼感覺</p>
-              <h2 className="cc-h2">可信，而不是花言巧語。</h2>
+              <p className="cc-card-kicker">這頁要解決的事</p>
+              <h2 className="cc-h2">快速看懂，而不是自己猜。</h2>
             </div>
             <ul className="cc-bullets">
-              <li>使用者要快速知道自己是什麼方案、剩多少、怎麼續場。</li>
-              <li>付款前後不能出現規則不一致，不然信任會直接掉下去。</li>
-              <li>之後金流、過審、客服政策頁都要沿用同一套 calm premium 視覺語言。</li>
+              <li>先知道自己目前是什麼方案。</li>
+              <li>先知道本月還剩多少可用場次。</li>
+              <li>先知道續場時會怎麼計算。</li>
             </ul>
           </article>
         </section>
@@ -167,7 +164,7 @@ export default function AccountPage() {
         <section className="cc-section cc-card cc-empty-state">
           <div className="cc-stack-sm">
             <div className="cc-h3">正在讀取你的方案資訊</div>
-            <div className="cc-muted">稍等一下，前端正在向 /api/account/status 拉回目前 entitlement。</div>
+            <div className="cc-muted">稍等一下，系統正在準備最新的權益資料。</div>
           </div>
         </section>
       )}
