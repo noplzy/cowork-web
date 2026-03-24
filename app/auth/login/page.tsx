@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { clearAccountStatusCache } from "@/lib/accountStatusClient";
 import { getClientSessionSnapshot, invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
@@ -10,7 +10,6 @@ import { isRecoverableAuthSessionError, recoverFromBrokenBrowserSession } from "
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string>("");
@@ -19,7 +18,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const reason = searchParams.get("reason");
+
+    const reason =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("reason")
+        : null;
 
     if (reason === "session-expired") {
       setMsg("登入狀態已失效，請重新登入一次。");
@@ -35,7 +38,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [router, searchParams]);
+  }, [router]);
 
   async function signIn() {
     setLoading(true);
