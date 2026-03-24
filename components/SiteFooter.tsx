@@ -17,36 +17,84 @@ export function SiteFooter() {
         position: "relative",
         zIndex: 1,
         maxWidth: "1180px",
-        margin: "0 auto",
-        padding: "0 22px 40px",
+        margin: "24px auto 0",
+        padding: "0 22px 36px",
       }}
     >
-      <div className="cc-card cc-stack-md" style={{ padding: 22 }}>
-        <div className="cc-card-row" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div className="cc-stack-sm" style={{ maxWidth: 560 }}>
-            <div>
-              <div className="cc-card-kicker">安感島 ANGANDAO</div>
-              <h2 className="cc-h3" style={{ marginTop: 6 }}>安靜、高質感、低壓力的專注共工與陪伴型數位空間</h2>
+      <div
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.1)",
+          paddingTop: 18,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: 20,
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ maxWidth: 520 }}>
+            <div
+              style={{
+                color: "rgba(255,245,238,0.92)",
+                fontSize: "0.98rem",
+                fontWeight: 700,
+                letterSpacing: "0.02em",
+              }}
+            >
+              安感島 <span style={{ color: "rgba(255,245,238,0.58)", fontWeight: 600 }}>by Calm&Co</span>
             </div>
-            <p className="cc-muted" style={{ margin: 0, lineHeight: 1.75 }}>
-              提供專注房間、陪伴服務、方案權益與客服支援。付款、續訂、退款、權益生效與登入問題，都可透過公開頁找到對應資訊。
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: "rgba(255,245,238,0.68)",
+                lineHeight: 1.75,
+                fontSize: "0.95rem",
+              }}
+            >
+              提供專注房間、陪伴服務、方案權益與客服支援。付款、續訂、退款、權益生效與登入問題，
+              都可透過公開頁找到對應資訊。
             </p>
           </div>
 
-          <div className="cc-stack-sm" style={{ minWidth: 260 }}>
-            <div className="cc-card-kicker">客服資訊</div>
-            <div className="cc-muted-strong">Email：noccs75@gmail.com</div>
-            <div className="cc-muted-strong">電話：0968730221</div>
-            <div className="cc-muted">客服時段：每日 10:00~00:00</div>
-            <div className="cc-muted">地址：高雄市前鎮區廣東三街89號</div>
+          <div
+            style={{
+              minWidth: 280,
+              color: "rgba(255,245,238,0.78)",
+              lineHeight: 1.9,
+              fontSize: "0.95rem",
+            }}
+          >
+            <div style={{ fontWeight: 700, color: "rgba(255,245,238,0.92)" }}>客服資訊</div>
+            <div>Email：noccs75@gmail.com</div>
+            <div>電話：0968730221</div>
+            <div>客服時段：每日 10:00~00:00</div>
+            <div>地址：高雄市前鎮區廣東三街89號</div>
           </div>
         </div>
 
-        <div className="cc-soft-divider" style={{ margin: "8px 0 0" }} />
-
-        <div className="cc-row" style={{ flexWrap: "wrap", gap: 10 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+            marginTop: 18,
+          }}
+        >
           {footerLinks.map((item) => (
-            <Link key={item.href} href={item.href} className="cc-pill-soft" style={{ textDecoration: "none" }}>
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                color: "rgba(255,245,238,0.66)",
+                textDecoration: "none",
+                fontSize: "0.9rem",
+                padding: "6px 0",
+              }}
+            >
               {item.label}
             </Link>
           ))}
