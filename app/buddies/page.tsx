@@ -1,46 +1,93 @@
-// app/buddies/page.tsx
-// ✅ Milestone 3: 搭子頁（先放骨架，下一個里程碑再做資料表 + 搜尋/上架/抽成）
-//
-// 你的決策（目前版本）：
-// - 搭子可自由開價（平台代收代付、抽成）
-// - 實名認證即可；信用分 < 92 不能上架
-// - 允許職業角色（教練、陪跑、讀書搭子、工程陪寫…等）
-// - 隨機配對可作為 VIP 功能（但 MVP 先不做隨機）
-//
-// MVP 策略：
-// - 先把共工（Rooms）跑穩：登入、扣場、Daily 私房間 token 短效
-// - 搭子先做「展示 + 候補名單」即可，避免一開始就碰金流/糾紛/審核風險
-
 "use client";
 
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 
+const nextSteps = [
+  "搭子資料表與 RLS：上架者 / 管理員 / 一般訪客的可見性要先切清楚。",
+  "先做候補名單與需求驗證，再決定上架、抽成與金流路徑。",
+  "服務條款、退款 / 取消政策、客服申訴流程必須先準備，否則 PSP 會盯你。",
+];
+
 export default function BuddiesPage() {
   return (
-    <main className="cc-container" style={{ maxWidth: 920 }}>
+    <main className="cc-container">
       <TopNav />
 
-      <h1 className="cc-h1">搭子（Buddies）</h1>
-      <p className="cc-muted" style={{ lineHeight: 1.7 }}>
-        這一頁目前先保留骨架：讓使用者理解「搭子」會是什麼，但不先把功能做死。
-        你現在最缺的是<strong>能上線、能收錢、能穩定運作</strong>的閉環，所以先把 Rooms 做到可商用。
-      </p>
+      <section className="cc-hero">
+        <div className="cc-card cc-hero-main">
+          <span className="cc-kicker">Companion Track</span>
+          <p className="cc-eyebrow">安感夥伴｜陪你一起撐住，不把需求粗暴社交化</p>
+          <h1 className="cc-h1">不是隨便配人，而是找到你此刻需要的同行方式。</h1>
+          <p className="cc-lead">
+            搭子這條線會做，但不會現在就把它做成高風險拼裝車。對安感島來說，陪伴必須是低壓力、可定價、可申訴、可被信任的，
+            所以先做展示骨架與需求驗證，才不會一上來就踩到金流與糾紛地雷。
+          </p>
+          <div className="cc-action-row">
+            <Link className="cc-btn-primary" href="/rooms">
+              先回到共工主線
+            </Link>
+            <Link className="cc-btn" href="/account">
+              看目前方案規則
+            </Link>
+          </div>
+        </div>
 
-      <div className="cc-card" style={{ marginTop: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>下一步（不做就會爆雷的那種）</div>
-        <ol className="cc-muted" style={{ lineHeight: 1.8, margin: 0, paddingLeft: 18 }}>
-          <li>搭子資料表與 RLS（上架者/管理員/一般訪客的可見性切清楚）</li>
-          <li>「候補名單」：先收 Email/Line（用來驗證需求，不先做上架/抽成）</li>
-          <li>規範頁面：服務條款、退款/取消政策、客服申訴流程（PSP 審核會看）</li>
-        </ol>
-      </div>
+        <div className="cc-hero-side">
+          <div className="cc-card cc-stack-md">
+            <div className="cc-card-row">
+              <div>
+                <p className="cc-card-kicker">目前定位</p>
+                <h2 className="cc-h2">展示 / 候補 / 驗證需求</h2>
+              </div>
+              <span className="cc-pill-accent">MVP 後段</span>
+            </div>
+            <ul className="cc-bullets">
+              <li>允許職業角色：教練、陪跑、讀書搭子、工程陪寫。</li>
+              <li>可自由開價，但正式交易流程要等平台代收代付與爭議處理一起完成。</li>
+              <li>隨機配對可當 VIP 功能，但不是目前主線。</li>
+            </ul>
+          </div>
 
-      <div style={{ marginTop: 14 }}>
-        <Link className="cc-btn" href="/rooms" style={{ textDecoration: "none" }}>
-          先去共工 Rooms →
-        </Link>
-      </div>
+          <div className="cc-card cc-card-soft cc-stack-sm">
+            <p className="cc-card-kicker">品牌提醒</p>
+            <h3 className="cc-h3">陪伴感不是黏膩，不是把孤獨包裝成表演。</h3>
+            <p className="cc-muted" style={{ margin: 0, lineHeight: 1.7 }}>
+              安感夥伴頁要保留未來想像，但不能讓人誤會你現在已經完成所有配對與服務保障流程。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="cc-section cc-grid-2">
+        <article className="cc-card cc-stack-md">
+          <div>
+            <p className="cc-card-kicker">接下來真正要做的事</p>
+            <h2 className="cc-h2">不做就會爆雷的三步</h2>
+          </div>
+          <ul className="cc-bullets">
+            {nextSteps.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </article>
+
+        <article className="cc-card cc-card-outline cc-stack-md">
+          <div>
+            <p className="cc-card-kicker">現階段不是目標</p>
+            <h2 className="cc-h2">先不要急著把這頁做滿</h2>
+          </div>
+          <div className="cc-note">
+            <div className="cc-stack-sm">
+              <div className="cc-h3">非目標</div>
+              <div className="cc-muted">金流抽成細節、完整爭議處理、隨機配對、職人檔案上架流、信用分演算法。</div>
+            </div>
+          </div>
+          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.75 }}>
+            這不是保守，是避免你在共工主線尚未完成商業閉環前，把資源先燒在最容易出糾紛的區塊。
+          </p>
+        </article>
+      </section>
     </main>
   );
 }

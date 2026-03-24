@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -26,47 +27,86 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (error) return setMsg(error.message);
-    setMsg("註冊成功：若你開啟 Email confirmation，請去信箱點確認連結後再登入。");
+    setMsg("註冊成功：若你開啟 Email confirmation，請先去信箱點確認連結再登入。");
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 420 }}>
-      <h1>Login</h1>
+    <main className="cc-login-shell">
+      <section className="cc-login-grid">
+        <div className="cc-card cc-hero-main cc-stack-lg">
+          <span className="cc-kicker">Welcome to 安感島</span>
+          <p className="cc-eyebrow">登入 / 註冊｜進入低壓力共工與陪伴型數位空間</p>
+          <h1 className="cc-h1">不用先很厲害，先進來就好。</h1>
+          <p className="cc-lead" style={{ marginTop: 0 }}>
+            安感島想做的不是讓你被逼著振作，而是讓你在狀態很普通、甚至有點亂的時候，
+            仍然有地方可以慢慢回到節奏。登入後你會進入 Rooms 主線；如果你只是想先看看，首頁也保留雙入口說明。
+          </p>
+          <div className="cc-grid-metrics">
+            <div className="cc-metric">
+              <span className="cc-metric-label">專注主線</span>
+              <div className="cc-metric-value" style={{ fontSize: "1.1rem" }}>Rooms</div>
+            </div>
+            <div className="cc-metric">
+              <span className="cc-metric-label">陪伴主線</span>
+              <div className="cc-metric-value" style={{ fontSize: "1.1rem" }}>Buddies</div>
+            </div>
+            <div className="cc-metric">
+              <span className="cc-metric-label">品牌氣質</span>
+              <div className="cc-metric-value" style={{ fontSize: "1.1rem" }}>Calm Premium</div>
+            </div>
+          </div>
+          <Link href="/" className="cc-btn-link">回到首頁 →</Link>
+        </div>
 
-      <label style={{ display: "block", marginTop: 12 }}>
-        Email
-        <input className="cc-input"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", padding: 8, marginTop: 6 }}
-          placeholder="you@example.com"
-        />
-      </label>
+        <div className="cc-card cc-stack-md">
+          <div>
+            <p className="cc-card-kicker">開始登入</p>
+            <h2 className="cc-h2">登入後直接進入 Rooms</h2>
+          </div>
 
-      <label style={{ display: "block", marginTop: 12 }}>
-        Password
-        <input className="cc-input"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          type="password"
-          style={{ width: "100%", padding: 8, marginTop: 6 }}
-          placeholder="至少 6-8 碼（依你在 Supabase 的設定）"
-        />
-      </label>
+          <label className="cc-field">
+            <span className="cc-field-label">Email</span>
+            <input
+              className="cc-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+          </label>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-        <button className="cc-btn cc-btn-primary" onClick={signIn} disabled={loading} type="button">
-          {loading ? "..." : "登入"}
-        </button>
-        <button className="cc-btn" onClick={signUp} disabled={loading} type="button">
-          {loading ? "..." : "註冊"}
-        </button>
-      </div>
+          <label className="cc-field">
+            <span className="cc-field-label">Password</span>
+            <input
+              className="cc-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              placeholder="至少 6–8 碼（依 Supabase 設定）"
+              autoComplete="current-password"
+            />
+          </label>
 
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
-      <p style={{ marginTop: 16, opacity: 0.7 }}>
-        Step 2 先做最小可用登入；之後再做漂亮 UI + 錯誤處理。
-      </p>
+          <div className="cc-action-row" style={{ marginTop: 4 }}>
+            <button className="cc-btn-primary" onClick={signIn} disabled={loading} type="button">
+              {loading ? "處理中…" : "登入"}
+            </button>
+            <button className="cc-btn" onClick={signUp} disabled={loading} type="button">
+              {loading ? "處理中…" : "註冊"}
+            </button>
+          </div>
+
+          {msg ? (
+            <div className={msg.includes("成功") ? "cc-note" : "cc-alert cc-alert-error"}>
+              {msg}
+            </div>
+          ) : null}
+
+          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.75 }}>
+            這裡目前先保留最小可用登入。後續若做社群登入、密碼重設與更細的錯誤訊息，也應沿用同一套安感島視覺語言。
+          </p>
+        </div>
+      </section>
     </main>
   );
 }

@@ -1,6 +1,3 @@
-// app/rooms/page.tsx
-// ✅ Milestone 3: Rooms list + 顯示本月額度/方案
-
 "use client";
 
 import Link from "next/link";
@@ -26,6 +23,10 @@ type StatusResp = {
   credits_remaining: number | null;
   month_start: string;
 };
+
+function modeLabel(mode: Room["mode"]) {
+  return mode === "pair" ? "雙人專注" : "小組共工";
+}
 
 export default function RoomsPage() {
   const router = useRouter();
@@ -73,79 +74,121 @@ export default function RoomsPage() {
     <main className="cc-container">
       <TopNav email={email} onSignOut={signOut} />
 
-      <div className="cc-spread" style={{ alignItems: "flex-end" }}>
-        <div>
-          <h1 className="cc-h1">共工 Rooms</h1>
-          <div className="cc-muted" style={{ lineHeight: 1.7, maxWidth: 820 }}>
-            25m / 50m 時間盒。每月免費 4 場；50m 會消耗 2 場。pair / group 同規則（group 不加倍）。
+      <section className="cc-hero">
+        <div className="cc-card cc-hero-main">
+          <span className="cc-kicker">Focus Rooms</span>
+          <p className="cc-eyebrow">共工模式｜先把一段時間走完，不用一個人硬撐</p>
+          <h1 className="cc-h1">選一個房間，讓節奏慢下來，但不要停下來。</h1>
+          <p className="cc-lead">
+            Rooms 是安感島目前最重要的主線。25m / 50m 的時間盒、免費額度、VIP 續場與進房成本都要清楚，
+            因為真正能留住人的不是特效，而是可預期的安全感。
+          </p>
+          <div className="cc-page-meta">
+            <span className="cc-pill-soft">25m 扣 1 場</span>
+            <span className="cc-pill-soft">50m 扣 2 場</span>
+            <span className="cc-pill-success">group 不加倍</span>
+          </div>
+          <div className="cc-action-row">
+            <Link className="cc-btn" href="/account">
+              查看方案 / 額度
+            </Link>
           </div>
         </div>
 
-        <Link className="cc-btn" href="/account" style={{ textDecoration: "none" }}>
-          查看方案/額度
-        </Link>
-      </div>
+        <div className="cc-hero-side">
+          <div className="cc-card cc-stack-md">
+            <div className="cc-card-row">
+              <div>
+                <p className="cc-card-kicker">目前狀態</p>
+                <h2 className="cc-h2">你的本月使用權益</h2>
+              </div>
+              <span className={status?.is_vip ? "cc-pill-success" : "cc-pill-warning"}>
+                {status?.is_vip ? "VIP" : "FREE"}
+              </span>
+            </div>
 
-      {status && (
-        <div className="cc-alert" style={{ marginTop: 14 }}>
-          <div className="cc-row" style={{ flexWrap: "wrap" }}>
-            <span className="cc-pill">
-              {status.is_vip ? "VIP" : "FREE"}
-            </span>
-            <span className="cc-muted" style={{ fontSize: 13 }}>
-              {status.is_vip
-                ? "續場 ∞（不扣場）"
-                : `本月剩餘 ${status.credits_remaining ?? "?"}/${status.free_monthly_allowance} 場（週期起點：${status.month_start}）`}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {msg && (
-        <div className="cc-alert cc-alert-error" style={{ marginTop: 12 }}>
-          <b>錯誤：</b> {msg}
-        </div>
-      )}
-
-      <div className="cc-card" style={{ marginTop: 16, padding: 0 }}>
-        <div
-          className="cc-spread"
-          style={{
-            padding: "12px 14px",
-            borderBottom: "1px solid var(--cc-border)",
-          }}
-        >
-          <div style={{ fontWeight: 600 }}>Rooms 列表</div>
-          <div className="cc-muted" style={{ fontSize: 12 }}>
-            {rooms.length} rooms
-          </div>
-        </div>
-
-        <ul className="cc-list">
-          {rooms.map((r) => (
-            <li key={r.id}>
-              <Link
-                className="cc-listlink"
-                href={`/rooms/${r.id}`}
-              >
-                <div>
-                  <div style={{ fontWeight: 600 }}>{r.title}</div>
-                  <div className="cc-muted" style={{ fontSize: 12, marginTop: 2 }}>
-                    {r.mode} · {r.duration_minutes}m · max {r.max_size}
-                  </div>
+            {status ? (
+              <div className="cc-grid-metrics">
+                <div className="cc-metric">
+                  <span className="cc-metric-label">本月剩餘</span>
+                  <div className="cc-metric-value">{status.is_vip ? "∞" : (status.credits_remaining ?? "?")}</div>
                 </div>
-                <span className="cc-muted" style={{ fontSize: 12 }}>進房 →</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                <div className="cc-metric">
+                  <span className="cc-metric-label">每月額度</span>
+                  <div className="cc-metric-value">{status.is_vip ? "VIP" : status.free_monthly_allowance}</div>
+                </div>
+                <div className="cc-metric">
+                  <span className="cc-metric-label">週期起點</span>
+                  <div className="cc-metric-value" style={{ fontSize: "1.1rem" }}>{status.month_start}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="cc-muted" style={{ margin: 0, lineHeight: 1.75 }}>
+                正在讀取你的方案與額度資訊…
+              </p>
+            )}
+          </div>
 
-        {rooms.length === 0 && (
-          <div className="cc-muted" style={{ padding: "12px 14px" }}>
-            目前沒有 rooms（先在 Supabase Table Editor 建幾筆測試）。
+          <div className="cc-card cc-card-soft cc-stack-sm">
+            <p className="cc-card-kicker">設計原則</p>
+            <h3 className="cc-h3">進房前就知道規則，不要在關鍵時刻才被教育。</h3>
+            <p className="cc-muted" style={{ margin: 0, lineHeight: 1.7 }}>
+              這裡不追求花俏，而是讓你快速判斷：現在能不能進、進了會扣多少、如果想續場需要什麼條件。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {msg ? (
+        <div className="cc-alert cc-alert-error cc-section">
+          <strong>讀取錯誤：</strong> {msg}
+        </div>
+      ) : null}
+
+      <section className="cc-section cc-card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="cc-page-header" style={{ padding: "20px 22px 0" }}>
+          <div>
+            <p className="cc-card-kicker">可加入的房間</p>
+            <h2 className="cc-h2">Rooms 列表</h2>
+            <p className="cc-muted" style={{ marginTop: 8, lineHeight: 1.7 }}>
+              現在這些房間才是會真正影響使用體驗的地方。房間數量不重要，進房規則、音訊穩定與續場邏輯才重要。
+            </p>
+          </div>
+          <span className="cc-pill-soft">{rooms.length} rooms</span>
+        </div>
+
+        {rooms.length > 0 ? (
+          <ul className="cc-list">
+            {rooms.map((room) => (
+              <li key={room.id}>
+                <Link className="cc-listlink" href={`/rooms/${room.id}`}>
+                  <div className="cc-stack-sm">
+                    <div className="cc-row" style={{ flexWrap: "wrap" }}>
+                      <span className="cc-h3">{room.title}</span>
+                      <span className="cc-pill-soft">{modeLabel(room.mode)}</span>
+                    </div>
+                    <div className="cc-row cc-muted" style={{ flexWrap: "wrap", fontSize: "0.92rem" }}>
+                      <span>{room.duration_minutes} 分鐘</span>
+                      <span>·</span>
+                      <span>最多 {room.max_size} 人</span>
+                      <span>·</span>
+                      <span>建立於 {new Date(room.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <span className="cc-btn-link">進房 →</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="cc-empty-state">
+            <div className="cc-stack-sm">
+              <div className="cc-h3">目前還沒有可用的 Rooms</div>
+              <div className="cc-muted">先在 Supabase Table Editor 建幾筆測試資料，這裡就會接上。</div>
+            </div>
           </div>
         )}
-      </div>
+      </section>
     </main>
   );
 }

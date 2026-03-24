@@ -1,6 +1,6 @@
 // app/rooms/[roomId]/page.tsx
 // Desktop: custom Daily call object for reliable outgoing full-blur.
-// Mobile/Tablet: keep Daily Prebuilt and disable all blur / virtual background / full-blur.
+// Mobile/Tablet: keep Daily Prebuilt and disable background blur / full-blur.
 //
 // Source of truth:
 // - Same Supabase / token / entitlement / room membership flow.
@@ -8,7 +8,7 @@
 
 "use client";
 
-const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_MOBILE_PREBUILT_V1_20260319";
+const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_NO_VB_V1_20260324";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -37,7 +37,7 @@ type TokenResp = {
   allowed_by_pair_vip_carry: boolean;
 };
 
-type BgMode = "off" | "blur" | "image";
+type BgMode = "off" | "blur";
 type FullBlurPreset = "360p" | "480p";
 
 const FULLBLUR_PRESETS: Record<FullBlurPreset, { w: number; h: number; fps: number }> = {
@@ -45,26 +45,6 @@ const FULLBLUR_PRESETS: Record<FullBlurPreset, { w: number; h: number; fps: numb
   "480p": { w: 854, h: 480, fps: 24 },
 };
 
-const VB_PRESETS: Array<{ id: string; label: string; source: string }> = [
-  {
-    id: "warm-gray",
-    label: "暖灰",
-    source:
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP8z8AAAAMBAQAYKGiGAAAAAElFTkSuQmCC",
-  },
-  {
-    id: "soft-blue",
-    label: "柔藍",
-    source:
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mMAgtwAAAQBAUeSOdYAAAAASUVORK5CYII=",
-  },
-  {
-    id: "soft-pink",
-    label: "柔粉",
-    source:
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mNg+M8AAAICAQB7CYF4AAAAAElFTkSuQmCC",
-  },
-];
 
 function getVideoTrack(p: any): MediaStreamTrack | null {
   const v = p?.tracks?.video;
@@ -111,6 +91,28 @@ async function waitForVideoReady(el: HTMLVideoElement) {
       else reject(new Error("source video metadata timeout"));
     }, 3000);
   });
+}
+
+function MicIcon({ off = false }: { off?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3Z" />
+      <path d="M19 11a7 7 0 0 1-14 0" />
+      <path d="M12 18v3" />
+      <path d="M8 21h8" />
+      {off ? <path d="M4 4l16 16" /> : null}
+    </svg>
+  );
+}
+
+function CameraIcon({ off = false }: { off?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h7A2.5 2.5 0 0 1 16 8.5v7A2.5 2.5 0 0 1 13.5 18h-7A2.5 2.5 0 0 1 4 15.5v-7Z" />
+      <path d="m16 10 4-2.5v9L16 14" />
+      {off ? <path d="M3.5 4.5 20 19" /> : null}
+    </svg>
+  );
 }
 
 function MediaTile({
@@ -257,7 +259,6 @@ export default function RoomPage() {
   } | null>(null);
 
   const [bgMode, setBgMode] = useState<BgMode>("off");
-  const [bgPreset, setBgPreset] = useState<string>(VB_PRESETS[0]?.id || "warm-gray");
   const [bgStrength, setBgStrength] = useState<number>(1);
   const [bgMsg, setBgMsg] = useState("");
   const [bgApplying, setBgApplying] = useState(false);
@@ -291,6 +292,8 @@ export default function RoomPage() {
   const [participantsMap, setParticipantsMap] = useState<Record<string, any>>({});
   const [localAudioOn, setLocalAudioOn] = useState(true);
   const [localVideoOn, setLocalVideoOn] = useState(true);
+  const [audioToggleBusy, setAudioToggleBusy] = useState(false);
+  const [videoToggleBusy, setVideoToggleBusy] = useState(false);
 
   useEffect(() => {
     try {
@@ -339,7 +342,7 @@ export default function RoomPage() {
     if (!effectsMvpDisabled) return;
     setBgMode("off");
     setFullBlurOn(false);
-    setBgMsg("手機/平板（MVP）禁用背景模糊、虛擬背景、全畫面模糊。");
+    setBgMsg("手機/平板（MVP）禁用背景模糊與全畫面模糊。");
     setFullBlurMsg("手機/平板（MVP）禁用全畫面模糊。");
   }, [effectsMvpDisabled]);
 
@@ -379,8 +382,8 @@ export default function RoomPage() {
       const localAudio = p.local?.tracks?.audio;
       const localVideo = p.local?.tracks?.video;
 
-      setLocalAudioOn(!(localAudio?.off || localAudio?.blocked?.byPermissions));
-      setLocalVideoOn(!(localVideo?.off || localVideo?.blocked?.byPermissions));
+      setLocalAudioOn(isTrackPlayable(localAudio) && !(localAudio?.off || localAudio?.blocked?.byPermissions));
+      setLocalVideoOn(isTrackPlayable(localVideo) && !(localVideo?.off || localVideo?.blocked?.byPermissions));
     } catch (e) {
       console.warn("[Daily] syncCallState failed:", e);
     }
@@ -479,7 +482,7 @@ export default function RoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canShowCall, effectsMvpDisabled, room?.daily_room_url, dailyToken, email]);
 
-  async function applyVideoProcessor(next?: { mode?: BgMode; preset?: string; strength?: number }) {
+  async function applyVideoProcessor(next?: { mode?: BgMode; strength?: number }) {
     const call = dailyCallRef.current;
     if (!call) return;
     if (effectsMvpDisabled) {
@@ -491,12 +494,11 @@ export default function RoomPage() {
       return;
     }
     if (fullBlurOn && (next?.mode ?? bgMode) !== "off") {
-      setBgMsg("全畫面模糊啟用中，請先關閉全畫面模糊再使用背景模糊/虛擬背景。");
+      setBgMsg("全畫面模糊啟用中，請先關閉全畫面模糊再使用背景模糊。");
       return;
     }
 
     const mode = next?.mode ?? bgMode;
-    const preset = next?.preset ?? bgPreset;
     const strength = next?.strength ?? bgStrength;
     setBgApplying(true);
     setBgMsg("");
@@ -512,16 +514,6 @@ export default function RoomPage() {
             processor: {
               type: "background-blur",
               config: { strength: Math.max(0.01, Math.min(1, strength)) },
-            },
-          },
-        });
-      } else {
-        const source = VB_PRESETS.find((x) => x.id === preset)?.source || VB_PRESETS[0]?.source;
-        await call.updateInputSettings({
-          video: {
-            processor: {
-              type: "background-image",
-              config: { source },
             },
           },
         });
@@ -734,7 +726,7 @@ export default function RoomPage() {
     if (!joinedMeeting) return;
     void applyVideoProcessor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dailyReady, joinedMeeting, bgMode, bgPreset, bgStrength, effectsMvpDisabled]);
+  }, [dailyReady, joinedMeeting, bgMode, bgStrength, effectsMvpDisabled]);
 
   useEffect(() => {
     if (effectsMvpDisabled) {
@@ -966,22 +958,30 @@ export default function RoomPage() {
   async function toggleLocalAudio() {
     const call = dailyCallRef.current;
     if (!call) return;
+    setAudioToggleBusy(true);
+    setMsg("");
     try {
       await call.setLocalAudio(!localAudioOn);
-      setLocalAudioOn((v) => !v);
+      window.setTimeout(() => syncCallState(), 120);
     } catch (e: any) {
       setMsg(e?.message || "切換麥克風失敗");
+    } finally {
+      setAudioToggleBusy(false);
     }
   }
 
   async function toggleLocalVideo() {
     const call = dailyCallRef.current;
     if (!call) return;
+    setVideoToggleBusy(true);
+    setMsg("");
     try {
       await call.setLocalVideo(!localVideoOn);
-      setLocalVideoOn((v) => !v);
+      window.setTimeout(() => syncCallState(), 120);
     } catch (e: any) {
       setMsg(e?.message || "切換鏡頭失敗");
+    } finally {
+      setVideoToggleBusy(false);
     }
   }
 
@@ -997,331 +997,309 @@ export default function RoomPage() {
   const showExtendBanner =
     isMember && !!room?.daily_room_url && !!dailyToken && secondsLeft > 0 && secondsLeft <= 120;
 
-  if (!roomId) return <main className="p-6">Loading params...</main>;
-  if (checking) return <main className="p-6">Loading...</main>;
+  if (!roomId) {
+    return (
+      <main className="cc-container">
+        <section className="cc-card cc-empty-state">
+          <div className="cc-stack-sm">
+            <div className="cc-h3">正在讀取房間參數</div>
+            <div className="cc-muted">路由參數還沒就緒，稍後會接上實際 roomId。</div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (checking) {
+    return (
+      <main className="cc-container">
+        <section className="cc-card cc-empty-state">
+          <div className="cc-stack-sm">
+            <div className="cc-h3">正在檢查房間與權限</div>
+            <div className="cc-muted">前端正在確認登入狀態、房間資料與可加入規則。</div>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
-    <main className="p-6">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <Link href="/rooms" style={{ opacity: 0.8 }}>
-            ← Rooms
-          </Link>
-          <h1 style={{ margin: 0 }}>{room?.title ?? "Room"}</h1>
+    <main className="cc-container">
+      <section className="cc-card cc-stack-lg">
+        <div className="cc-page-header">
+          <div className="cc-stack-sm">
+            <div className="cc-row" style={{ flexWrap: "wrap" }}>
+              <Link href="/rooms" className="cc-btn-link">
+                ← 回到 Rooms
+              </Link>
+              <span className="cc-pill-soft">{effectsMvpDisabled ? "Mobile / Prebuilt" : "Desktop / Custom"}</span>
+            </div>
+            <h1 className="cc-h2" style={{ fontSize: "clamp(1.7rem, 3vw, 2.8rem)" }}>{room?.title ?? "Room"}</h1>
+            {room ? (
+              <div className="cc-page-meta">
+                <span className="cc-pill-soft">{room.mode}</span>
+                <span className="cc-pill-soft">{room.duration_minutes}m</span>
+                <span className="cc-pill-soft">max {room.max_size}</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="cc-navmeta">
+            {email ? <span className="cc-pill-soft">{email}</span> : null}
+            <Link href="/account" className="cc-btn">方案 / 額度</Link>
+            <button onClick={signOut} className="cc-btn">登出</button>
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ opacity: 0.7 }}>{email}</span>
-          <Link href="/account" style={{ opacity: 0.85 }}>
-            方案/額度
-          </Link>
-          <button onClick={signOut} className="cc-btn">
-            登出
+        <div className="cc-room-status">
+          {isVip ? (
+            <div className="cc-note">
+              <strong>VIP：</strong> 續場 ∞（時間盒 {room?.duration_minutes ?? 25}m / 場）
+            </div>
+          ) : pairVipCarry ? (
+            <div className="cc-note">
+              <strong>Pair VIP 例外：</strong> 由同房 VIP 續命，你目前仍可繼續續場。
+            </div>
+          ) : (
+            <div className="cc-note">
+              <strong>免費方案：</strong> 本場消耗 {costCredits} 場；剩餘 {remainingCredits ?? "?"}/{monthlyAllowance} 場（每月重置）。
+            </div>
+          )}
+        </div>
+
+        <div className="cc-action-row">
+          {!isMember ? (
+            <button disabled={busy} onClick={join} className="cc-btn-primary">
+              加入房間
+            </button>
+          ) : (
+            <button disabled={busy} onClick={leave} className="cc-btn">
+              離開房間
+            </button>
+          )}
+
+          <button disabled={busy} onClick={refreshRoom} className="cc-btn">
+            重新整理
           </button>
+
+          {room?.daily_room_url ? (
+            <span className="cc-pill-success">已建立視訊房間</span>
+          ) : (
+            <button disabled={busy} onClick={createDailyRoom} className="cc-btn">
+              建立視訊房間（Daily）
+            </button>
+          )}
+
+          {isMember && room?.daily_room_url ? (
+            <button disabled={tokenBusy} onClick={fetchMeetingToken} className="cc-btn">
+              重新取得 token
+            </button>
+          ) : null}
         </div>
-      </div>
 
-      {room && (
-        <p style={{ marginTop: 12, opacity: 0.8 }}>
-          {room.mode} · {room.duration_minutes}m · max {room.max_size}
-        </p>
-      )}
+        {msg ? <div className="cc-alert cc-alert-error">{msg}</div> : null}
 
-      <section style={{ marginTop: 8, opacity: 0.85 }}>
-        {isVip ? (
-          <span>VIP：續場 ∞（時間盒 {room?.duration_minutes ?? 25}m / 場）</span>
-        ) : pairVipCarry ? (
-          <span>由「同房 VIP」續命：你可繼續續場（Pair 例外規則）</span>
-        ) : (
-          <span>
-            免費：本場消耗 {costCredits} 場；剩餘 {remainingCredits ?? "?"}/{monthlyAllowance} 場（每月重置）
+        {showExtendBanner ? (
+          <div className="cc-alert cc-alert-warn cc-spread" style={{ flexWrap: "wrap" }}>
+            <div>本場即將結束（剩 {secondsLeft}s）。要續下一場嗎？</div>
+            <button disabled={tokenBusy} onClick={fetchMeetingToken} className="cc-btn">
+              續下一場
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      <hr className="cc-soft-divider" />
+
+      <section className="cc-card cc-stack-md">
+        <div className="cc-page-header" style={{ marginBottom: 0 }}>
+          <div>
+            <p className="cc-card-kicker">視訊區</p>
+            <h2 className="cc-h2">{effectsMvpDisabled ? "Daily Prebuilt / Mobile" : "Daily Custom / Desktop"}</h2>
+          </div>
+          <span className="cc-caption cc-mono">
+            build={__BUILD_TAG} / meetingState={meetingState} / joined={String(joinedMeeting)}
           </span>
-        )}
-      </section>
-
-      <section style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {!isMember ? (
-          <button disabled={busy} onClick={join} className="cc-btn">
-            加入房間
-          </button>
-        ) : (
-          <button disabled={busy} onClick={leave} className="cc-btn">
-            離開房間
-          </button>
-        )}
-
-        <button disabled={busy} onClick={refreshRoom} className="cc-btn">
-          重新整理
-        </button>
-
-        {room?.daily_room_url ? (
-          <span style={{ opacity: 0.7, display: "inline-flex", alignItems: "center" }}>已建立視訊房間</span>
-        ) : (
-          <button disabled={busy} onClick={createDailyRoom} className="cc-btn">
-            建立視訊房間（Daily）
-          </button>
-        )}
-
-        {isMember && room?.daily_room_url && (
-          <button disabled={tokenBusy} onClick={fetchMeetingToken} className="cc-btn">
-            重新取得 token
-          </button>
-        )}
-      </section>
-
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
-
-      {showExtendBanner && (
-        <div
-          className="cc-card"
-          style={{
-            marginTop: 14,
-            padding: "10px 12px",
-            borderRadius: 12,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ opacity: 0.9 }}>本場即將結束（剩 {secondsLeft}s）。要續下一場嗎？</div>
-          <button disabled={tokenBusy} onClick={fetchMeetingToken} className="cc-btn">
-            續下一場
-          </button>
         </div>
-      )}
 
-      <hr style={{ margin: "20px 0", opacity: 0.2 }} />
+        {!isMember ? (
+          <div className="cc-note">你必須先加入房間才會顯示視訊，避免路人直接吃 RTC 成本。</div>
+        ) : null}
 
-      <section>
-        <h2 style={{ marginTop: 0 }}>
-          視訊區（{effectsMvpDisabled ? "Daily Prebuilt / Mobile" : "Daily Custom / Desktop"}）
-        </h2>
+        {isMember && !room?.daily_room_url ? (
+          <div className="cc-note">尚未建立 Daily 房間。若你是房主，點上面「建立視訊房間（Daily）」。</div>
+        ) : null}
 
-        {!isMember && (
-          <p style={{ opacity: 0.75 }}>
-            你必須先「加入房間」才會顯示視訊（避免路人直接吃你的 RTC 成本）。
-          </p>
-        )}
+        {isMember && room?.daily_room_url && !dailyToken ? (
+          <div className="cc-note">
+            {tokenBusy ? "正在取得進入權杖（token）…" : "缺少 token（通常是額度用完 / 方案限制 / 或環境變數缺漏）"}
+          </div>
+        ) : null}
 
-        {isMember && !room?.daily_room_url && (
-          <p style={{ opacity: 0.75 }}>
-            尚未建立 Daily 房間。若你是房主，點上面「建立視訊房間（Daily）」。
-          </p>
-        )}
-
-        {isMember && room?.daily_room_url && !dailyToken && (
-          <p style={{ opacity: 0.75 }}>
-            {tokenBusy ? "正在取得進入權杖（token）…" : "缺少 token（通常是額度用完/方案限制/或環境變數缺漏）"}
-          </p>
-        )}
-
-        {canShowCall && effectsMvpDisabled && (
-          <div className="cc-card" style={{ borderRadius: 16, overflow: "hidden", padding: 12 }}>
-            <div
-              className="cc-card"
-              style={{
-                padding: 12,
-                marginBottom: 12,
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.03)",
-              }}
-            >
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Mobile / Tablet MVP</div>
-              <div style={{ opacity: 0.76, lineHeight: 1.6 }}>
-                為了先把手機/平板的共工流程跑穩，行動端暫時禁用：
-                背景模糊、虛擬背景、全畫面模糊。你仍可正常加入通話、扣場、續場與使用 VIP。
+        {canShowCall && effectsMvpDisabled ? (
+          <div className="cc-stack-md">
+            <div className="cc-panel cc-stack-sm">
+              <div className="cc-h3">Mobile / Tablet MVP</div>
+              <div className="cc-muted" style={{ lineHeight: 1.7 }}>
+                為了先把手機 / 平板的共工流程跑穩，行動端暫時禁用背景模糊與全畫面模糊。
+                你仍可正常加入通話、扣場、續場與使用 VIP。
               </div>
             </div>
 
             <iframe
               ref={mobileIframeRef}
               src={callUrl}
-              style={{ width: "100%", height: "70vh", border: 0, borderRadius: 12 }}
+              style={{ width: "100%", height: "70vh", border: 0, borderRadius: 20 }}
               allow="microphone; camera; autoplay; display-capture"
             />
           </div>
-        )}
+        ) : null}
 
-        {canShowCall && !effectsMvpDisabled && (
-          <div className="cc-card" style={{ borderRadius: 16, overflow: "hidden", padding: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                alignItems: "center",
-                paddingBottom: 12,
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <div style={{ fontWeight: 700 }}>桌機自訂通話</div>
-              <span style={{ opacity: 0.72, fontSize: 12 }}>
-                build={__BUILD_TAG} / meetingState={meetingState} / joined={String(joinedMeeting)}
-              </span>
-
-              <button className="cc-btn" onClick={toggleLocalAudio} disabled={!dailyReady}>
-                {localAudioOn ? "麥克風：開" : "麥克風：關"}
-              </button>
-
-              <button className="cc-btn" onClick={toggleLocalVideo} disabled={!dailyReady}>
-                {localVideoOn ? "鏡頭：開" : "鏡頭：關"}
-              </button>
+        {canShowCall && !effectsMvpDisabled ? (
+          <div className="cc-stack-md">
+            <div className="cc-panel cc-stack-sm">
+              <div className="cc-card-row">
+                <div>
+                  <div className="cc-h3">桌機自訂通話</div>
+                  <div className="cc-caption">背景模糊 / 全畫面模糊只在桌機模式開啟。</div>
+                </div>
+                <div className="cc-action-row" style={{ marginTop: 0 }}>
+                  <button
+                    className={`cc-icon-toggle ${localAudioOn ? "is-on" : "is-off"}`}
+                    onClick={toggleLocalAudio}
+                    disabled={!dailyReady || audioToggleBusy}
+                    aria-pressed={localAudioOn}
+                    aria-label={audioToggleBusy ? "麥克風切換中" : localAudioOn ? "麥克風已開啟，點擊關閉" : "麥克風已關閉，點擊開啟"}
+                    title={audioToggleBusy ? "麥克風切換中" : localAudioOn ? "麥克風已開啟" : "麥克風已關閉"}
+                  >
+                    <span className="cc-icon-toggle__badge" aria-hidden="true" />
+                    <span className="cc-icon-toggle__icon" aria-hidden="true">
+                      <MicIcon off={!localAudioOn} />
+                    </span>
+                  </button>
+                  <button
+                    className={`cc-icon-toggle ${localVideoOn ? "is-on" : "is-off"}`}
+                    onClick={toggleLocalVideo}
+                    disabled={!dailyReady || videoToggleBusy}
+                    aria-pressed={localVideoOn}
+                    aria-label={videoToggleBusy ? "鏡頭切換中" : localVideoOn ? "鏡頭已開啟，點擊關閉" : "鏡頭已關閉，點擊開啟"}
+                    title={videoToggleBusy ? "鏡頭切換中" : localVideoOn ? "鏡頭已開啟" : "鏡頭已關閉"}
+                  >
+                    <span className="cc-icon-toggle__badge" aria-hidden="true" />
+                    <span className="cc-icon-toggle__icon" aria-hidden="true">
+                      <CameraIcon off={!localVideoOn} />
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div
-              className="cc-card"
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                marginTop: 12,
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                alignItems: "center",
-                background: "rgba(255,255,255,0.03)",
-              }}
-            >
-              <div style={{ fontWeight: 600 }}>背景效果</div>
+            <div className="cc-grid-2">
+              <div className="cc-panel cc-stack-sm">
+                <div className="cc-field">
+                  <div className="cc-h3">背景效果</div>
+                  <span className="cc-field-label">選擇是否保留原背景，或只對背景做模糊處理。</span>
+                </div>
+                <select
+                  className="cc-select"
+                  value={bgMode}
+                  onChange={(e) => setBgMode(e.target.value as BgMode)}
+                  disabled={!dailyReady || !joinedMeeting || bgApplying || fullBlurOn}
+>
+                  <option value="off">關閉</option>
+                  <option value="blur">背景模糊</option>
+                </select>
 
-              <select
-                className="cc-select"
-                value={bgMode}
-                onChange={(e) => setBgMode(e.target.value as BgMode)}
-                disabled={!dailyReady || !joinedMeeting || bgApplying || fullBlurOn}
-              >
-                <option value="off">關閉</option>
-                <option value="blur">背景模糊</option>
-                <option value="image">虛擬背景</option>
-              </select>
+                {bgMode === "blur" ? (
+                  <label className="cc-field">
+                    <span className="cc-field-label">模糊強度</span>
+                    <input
+                      type="range"
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      value={bgStrength}
+                      onChange={(e) => setBgStrength(Number(e.target.value))}
+                      disabled={!dailyReady || !joinedMeeting || bgApplying || fullBlurOn}
+                    />
+                  </label>
+                ) : null}
 
-              {bgMode === "blur" && (
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ opacity: 0.78, fontSize: 12 }}>模糊強度</span>
+                <div className="cc-caption">
+                  {!dailyReady ? "載入中…" : !joinedMeeting ? "尚未加入桌機通話" : "背景模糊僅在桌機開啟"}
+                </div>
+              </div>
+
+              <div className="cc-panel cc-stack-sm">
+                <div className="cc-h3">全畫面模糊</div>
+                <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    type="checkbox"
+                    checked={fullBlurOn}
+                    onChange={(e) => setFullBlurOn(e.target.checked)}
+                    disabled={!dailyReady || !joinedMeeting || fullBlurApplying}
+                  />
+                  <span className="cc-field-label">啟用（遠端也必須看到你變糊）</span>
+                </label>
+
+                <label className="cc-field">
+                  <span className="cc-field-label">解析度</span>
+                  <select
+                    className="cc-select"
+                    value={fullBlurPreset}
+                    onChange={(e) => setFullBlurPreset(e.target.value as FullBlurPreset)}
+                    disabled={!dailyReady || !joinedMeeting || fullBlurApplying || fullBlurOn}
+                  >
+                    {Object.entries(FULLBLUR_PRESETS).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {k}（{v.w}×{v.h} @{v.fps}fps）
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="cc-field">
+                  <span className="cc-field-label">模糊(px)：{fullBlurPx}</span>
                   <input
                     type="range"
-                    min={0.1}
-                    max={1}
-                    step={0.05}
-                    value={bgStrength}
-                    onChange={(e) => setBgStrength(Number(e.target.value))}
-                    disabled={!dailyReady || !joinedMeeting || bgApplying || fullBlurOn}
+                    min={0}
+                    max={24}
+                    step={1}
+                    value={fullBlurPx}
+                    onChange={(e) => setFullBlurPx(Number(e.target.value))}
+                    disabled={!dailyReady || !joinedMeeting || fullBlurApplying}
                   />
                 </label>
-              )}
 
-              {bgMode === "image" && (
-                <select
-                  className="cc-select"
-                  value={bgPreset}
-                  onChange={(e) => setBgPreset(e.target.value)}
-                  disabled={!dailyReady || !joinedMeeting || bgApplying || fullBlurOn}
-                >
-                  {VB_PRESETS.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              <div style={{ opacity: 0.64, fontSize: 12 }}>
-                {!dailyReady ? "載入中…" : !joinedMeeting ? "尚未加入桌機通話" : "背景模糊 / 虛擬背景僅在桌機開啟"}
+                <div className="cc-caption">
+                  {!dailyReady
+                    ? "載入中…"
+                    : !joinedMeeting
+                    ? "尚未加入桌機通話"
+                    : fullBlurApplying
+                    ? "切換中…"
+                    : "右上角會顯示處理後預覽；最終以遠端是否也變糊為準"}
+                </div>
               </div>
             </div>
 
-            <div
-              className="cc-card"
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                marginTop: 12,
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                alignItems: "center",
-                background: "rgba(255,255,255,0.03)",
-              }}
-            >
-              <div style={{ fontWeight: 600 }}>全畫面模糊</div>
-
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={fullBlurOn}
-                  onChange={(e) => setFullBlurOn(e.target.checked)}
-                  disabled={!dailyReady || !joinedMeeting || fullBlurApplying}
-                />
-                <span style={{ fontSize: 12, opacity: 0.9 }}>啟用（遠端也必須看到你變糊）</span>
-              </label>
-
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ opacity: 0.78, fontSize: 12 }}>解析度</span>
-                <select
-                  className="cc-select"
-                  value={fullBlurPreset}
-                  onChange={(e) => setFullBlurPreset(e.target.value as FullBlurPreset)}
-                  disabled={!dailyReady || !joinedMeeting || fullBlurApplying || fullBlurOn}
-                >
-                  {Object.entries(FULLBLUR_PRESETS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {k}（{v.w}×{v.h} @{v.fps}fps）
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ opacity: 0.78, fontSize: 12 }}>模糊(px)</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={24}
-                  step={1}
-                  value={fullBlurPx}
-                  onChange={(e) => setFullBlurPx(Number(e.target.value))}
-                  disabled={!dailyReady || !joinedMeeting || fullBlurApplying}
-                />
-                <span style={{ width: 28, textAlign: "right", fontSize: 12, opacity: 0.9 }}>{fullBlurPx}</span>
-              </label>
-
-              <div style={{ opacity: 0.64, fontSize: 12 }}>
-                {!dailyReady
-                  ? "載入中…"
-                  : !joinedMeeting
-                  ? "尚未加入桌機通話"
-                  : fullBlurApplying
-                  ? "切換中…"
-                  : "右上角會顯示處理後預覽；最終以遠端是否也變糊為準"}
-              </div>
-            </div>
-
-            {bgMsg && (
-              <div className="cc-danger" style={{ paddingTop: 10 }}>
-                {bgMsg}
-              </div>
-            )}
-
-            {fullBlurMsg && (
-              <div className="cc-danger" style={{ paddingTop: 10 }}>
-                {fullBlurMsg}
-              </div>
-            )}
+            {bgMsg ? <div className="cc-danger">{bgMsg}</div> : null}
+            {fullBlurMsg ? <div className="cc-danger">{fullBlurMsg}</div> : null}
 
             <video
               ref={desktopPreviewRef}
               style={{
                 position: "fixed",
-                top: 10,
-                right: 10,
+                top: 12,
+                right: 12,
                 width: 220,
                 height: 124,
-                borderRadius: 12,
-                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: 16,
+                border: "1px solid var(--cc-border-strong)",
                 background: "rgba(0,0,0,0.45)",
                 display: fullBlurOn ? "block" : "none",
                 zIndex: 9999,
+                boxShadow: "var(--cc-shadow-md)",
               }}
               autoPlay
               muted
@@ -1330,25 +1308,13 @@ export default function RoomPage() {
 
             <div
               style={{
-                marginTop: 14,
                 display: "grid",
                 gridTemplateColumns: participantList.length <= 1 ? "1fr" : "repeat(auto-fit, minmax(280px, 1fr))",
                 gap: 12,
               }}
             >
               {participantList.length === 0 ? (
-                <div
-                  className="cc-card"
-                  style={{
-                    minHeight: 280,
-                    display: "grid",
-                    placeItems: "center",
-                    opacity: 0.72,
-                    borderRadius: 16,
-                  }}
-                >
-                  連線中，正在等待桌機自訂通話初始化…
-                </div>
+                <div className="cc-card cc-empty-state">連線中，正在等待桌機自訂通話初始化…</div>
               ) : (
                 participantList.map(([id, participant]) => (
                   <MediaTile key={id} participant={participant} isLocal={id === "local"} />
@@ -1356,7 +1322,7 @@ export default function RoomPage() {
               )}
             </div>
           </div>
-        )}
+        ) : null}
       </section>
     </main>
   );
