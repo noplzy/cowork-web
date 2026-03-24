@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { clearAccountStatusCache } from "@/lib/accountStatusClient";
 import { getClientSessionSnapshot, invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
@@ -12,8 +12,17 @@ type Props = {
   onSignOut?: () => Promise<void> | void;
 };
 
+const NAV_ITEMS = [
+  { href: "/", label: "首頁" },
+  { href: "/rooms", label: "Rooms" },
+  { href: "/buddies", label: "搭子 / 安感夥伴" },
+  { href: "/pricing", label: "方案 / 價格" },
+  { href: "/contact", label: "客服" },
+];
+
 export function TopNav({ email, onSignOut }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const [sessionEmail, setSessionEmail] = useState("");
   const [resolved, setResolved] = useState(Boolean(email));
 
@@ -55,31 +64,50 @@ export function TopNav({ email, onSignOut }: Props) {
 
   return (
     <header className="cc-navshell">
+      <div className="cc-navshell__glow" />
       <div className="cc-nav">
-        <div className="cc-row" style={{ flexWrap: "wrap", alignItems: "center" }}>
+        <div className="cc-row cc-nav__left" style={{ flexWrap: "wrap", alignItems: "center" }}>
           <Link className="cc-navbrand" href="/">
             <span className="cc-brandmark">島</span>
-            <span>
+            <span className="cc-navbrandtext">
               <span className="cc-brandtitle">安感島</span>
               <span className="cc-brandsubtitle">給獨自撐著的你，一個安靜靠岸的地方</span>
             </span>
           </Link>
 
           <nav className="cc-navlinks" aria-label="Primary">
-            <Link className="cc-navlink" href="/">首頁</Link>
-            <Link className="cc-navlink" href="/rooms">Rooms</Link>
-            <Link className="cc-navlink" href="/buddies">搭子 / 安感夥伴</Link>
-            <Link className="cc-navlink" href="/pricing">方案 / 價格</Link>
-            <Link className="cc-navlink" href="/contact">客服</Link>
-            {isLoggedIn ? <Link className="cc-navlink" href="/account">額度</Link> : null}
+            {NAV_ITEMS.map((item) => {
+              const active =
+                item.href === "/"
+                  ? pathname === "/"
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+              return (
+                <Link
+                  key={item.href}
+                  className={`cc-navlink${active ? " is-active" : ""}`}
+                  href={item.href}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+            {isLoggedIn ? (
+              <Link
+                className={`cc-navlink${pathname === "/account" ? " is-active" : ""}`}
+                href="/account"
+              >
+                額度
+              </Link>
+            ) : null}
           </nav>
         </div>
 
         <div className="cc-navmeta">
           {!resolved ? null : isLoggedIn ? (
             <>
-              <span className="cc-pill-soft">{currentEmail}</span>
-              <button className="cc-btn" onClick={handleSignOut} type="button">
+              <span className="cc-navemail">{currentEmail}</span>
+              <button className="cc-btn cc-navsignout" onClick={handleSignOut} type="button">
                 登出
               </button>
             </>
