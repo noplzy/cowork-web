@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { clearAccountStatusCache } from "@/lib/accountStatusClient";
 import { invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
 import { isRecoverableAuthSessionError, recoverFromBrokenBrowserSession } from "@/lib/authRecovery";
+import { fetchSecurityStatus } from "@/lib/securityStatusClient";
 
 function AuthCallbackFallback() {
   return (
@@ -35,10 +36,19 @@ function AuthCallbackContent() {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
 
-        if (data.session) {
+        const accessToken = data.session?.access_token;
+        if (data.session && accessToken) {
+          const security = await fetchSecurityStatus(accessToken).catch(() => null);
+
           finished = true;
           invalidateClientSessionSnapshotCache();
           clearAccountStatusCache();
+
+          if (security?.blocked) {
+            router.replace("/blocked");
+            return;
+          }
+
           router.replace(next);
         }
       } catch (error) {
@@ -53,11 +63,19 @@ function AuthCallbackContent() {
       }
     };
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session && !finished) {
         finished = true;
         invalidateClientSessionSnapshotCache();
         clearAccountStatusCache();
+
+        const accessToken = session.access_token;
+        const security = accessToken ? await fetchSecurityStatus(accessToken).catch(() => null) : null;
+        if (security?.blocked) {
+          router.replace("/blocked");
+          return;
+        }
+
         router.replace(next);
       }
     });
