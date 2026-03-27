@@ -6,11 +6,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { isRecoverableAuthSessionError, recoverFromBrokenBrowserSession } from "@/lib/authRecovery";
 import { clearAccountStatusCache } from "@/lib/accountStatusClient";
 import { invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
+import { fetchSecurityStatus } from "@/lib/securityStatusClient";
 
-const PROTECTED_PREFIXES = ["/rooms", "/account"];
+const BLOCK_PAGE = "/blocked";
 
-function isProtectedPath(pathname: string) {
-  return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+function isAuthPath(pathname: string) {
+  return pathname.startsWith("/auth/");
 }
 
 export function AuthSessionGuard() {
@@ -22,8 +23,19 @@ export function AuthSessionGuard() {
 
     const validateSession = async () => {
       try {
-        const { error } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
+
+        const accessToken = data.session?.access_token;
+        if (!accessToken) return;
+
+        if (pathname !== BLOCK_PAGE && !isAuthPath(pathname)) {
+          const security = await fetchSecurityStatus(accessToken).catch(() => null);
+          if (!cancelled && security?.blocked) {
+            router.replace(BLOCK_PAGE);
+            return;
+          }
+        }
       } catch (error) {
         if (!isRecoverableAuthSessionError(error)) {
           console.error("[AuthSessionGuard] unexpected auth error", error);
@@ -33,7 +45,7 @@ export function AuthSessionGuard() {
         await recoverFromBrokenBrowserSession();
         if (cancelled) return;
 
-        if (isProtectedPath(pathname)) {
+        if (pathname !== BLOCK_PAGE) {
           router.replace("/auth/login?reason=session-expired");
         }
       }
