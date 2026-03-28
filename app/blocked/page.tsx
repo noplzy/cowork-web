@@ -57,12 +57,13 @@ export default function BlockedPage() {
   return (
     <main className="cc-login-shell">
       <section className="cc-login-grid">
-        <div className="cc-card cc-hero-main cc-stack-lg">
+        <div className="cc-card cc-stack-md">
           <span className="cc-kicker">Account Restricted</span>
           <p className="cc-eyebrow">帳號已限制使用</p>
-          <h1 className="cc-h1">這個帳號目前無法繼續使用安感島。</h1>
-          <p className="cc-lead" style={{ marginTop: 0 }}>
-            目前先採最小封鎖方案：只要帳號出現在封鎖名單中，登入後就直接導到這一頁。
+          <h1 className="cc-h2" style={{ fontSize: "clamp(2rem, 4vw, 3.4rem)" }}>
+            這個帳號目前無法繼續使用安感島。
+          </h1>
+          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.85 }}>
             若你認為這是誤判，請改用公開客服表單提出申訴。
           </p>
 
@@ -76,36 +77,19 @@ export default function BlockedPage() {
               <Link href="/contact" className="cc-btn">查看客服資訊</Link>
             )}
           </div>
-
-          {!formReady ? (
-            <div className="cc-note">
-              目前尚未設定客服表單連結，請先以 Email 聯絡客服。
-            </div>
-          ) : null}
         </div>
 
-        <div className="cc-card cc-stack-md">
-          <div>
-            <p className="cc-card-kicker">封鎖資訊</p>
-            <h2 className="cc-h2">目前可顯示的資料</h2>
-          </div>
+        <div className="cc-card cc-stack-sm">
+          <p className="cc-card-kicker">封鎖資訊</p>
 
           {loading ? (
             <div className="cc-note">正在讀取封鎖資訊…</div>
           ) : status?.blocked ? (
             <>
-              <div className="cc-note">
-                <strong>封鎖時間：</strong> {formatBlockTime(status.created_at)}
-              </div>
-              <div className="cc-alert cc-alert-error">
-                <strong>封鎖原因：</strong> {status.reason || "未提供"}
-              </div>
-              <div className="cc-note">
-                <strong>封鎖範圍：</strong> {status.block_scope || "site"}
-              </div>
-              <div className="cc-note">
-                若你認為這是錯誤封鎖，請提供帳號 Email、封鎖頁截圖與相關說明，我們再人工確認。
-              </div>
+              <div className="cc-note"><strong>封鎖時間：</strong> {formatBlockTime(status.created_at)}</div>
+              <div className="cc-alert cc-alert-error"><strong>封鎖原因：</strong> {status.reason || "未提供"}</div>
+              <div className="cc-note"><strong>封鎖範圍：</strong> {status.block_scope || "site"}</div>
+              <div className="cc-note">申訴時請提供帳號 Email、封鎖頁截圖與補充說明。</div>
             </>
           ) : (
             <div className="cc-note">
@@ -113,9 +97,7 @@ export default function BlockedPage() {
             </div>
           )}
 
-          <div className="cc-caption">
-            客服 Email：noccs75@gmail.com ｜ 客服電話：0968730221
-          </div>
+          <div className="cc-caption">客服 Email：noccs75@gmail.com ｜ 客服電話：0968730221</div>
         </div>
       </section>
     </main>
