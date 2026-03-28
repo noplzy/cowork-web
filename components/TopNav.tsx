@@ -14,6 +14,7 @@ type Props = {
 
 const NAV_ITEMS = [
   { href: "/", label: "首頁" },
+  { href: "/about", label: "關於安感島" },
   { href: "/rooms", label: "Rooms" },
   { href: "/buddies", label: "搭子 / 安感夥伴" },
   { href: "/pricing", label: "方案 / 價格" },
