@@ -6,11 +6,13 @@ import { supabase } from "@/lib/supabaseClient";
 import { clearAccountStatusCache } from "@/lib/accountStatusClient";
 import { invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
 import { fetchSecurityStatus, formatBlockTime, type SecurityStatus } from "@/lib/securityStatusClient";
+import { SUPPORT_FORM_URL, hasSupportFormUrl } from "@/lib/supportForm";
 
 export default function BlockedPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SecurityStatus | null>(null);
   const [msg, setMsg] = useState("");
+  const formReady = hasSupportFormUrl();
 
   useEffect(() => {
     let cancelled = false;
@@ -61,13 +63,25 @@ export default function BlockedPage() {
           <h1 className="cc-h1">這個帳號目前無法繼續使用安感島。</h1>
           <p className="cc-lead" style={{ marginTop: 0 }}>
             目前先採最小封鎖方案：只要帳號出現在封鎖名單中，登入後就直接導到這一頁。
-            若你認為這是誤判，請透過客服資訊聯絡我們。
+            若你認為這是誤判，請改用公開客服表單提出申訴。
           </p>
 
           <div className="cc-action-row">
             <button className="cc-btn-primary" type="button" onClick={signOut}>登出</button>
-            <Link href="/contact" className="cc-btn">聯絡客服</Link>
+            {formReady ? (
+              <a href={SUPPORT_FORM_URL} target="_blank" rel="noreferrer" className="cc-btn">
+                前往客服表單
+              </a>
+            ) : (
+              <Link href="/contact" className="cc-btn">查看客服資訊</Link>
+            )}
           </div>
+
+          {!formReady ? (
+            <div className="cc-note">
+              目前尚未設定客服表單連結，請先以 Email 聯絡客服。
+            </div>
+          ) : null}
         </div>
 
         <div className="cc-card cc-stack-md">
