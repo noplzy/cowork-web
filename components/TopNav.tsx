@@ -14,9 +14,8 @@ type Props = {
 
 const NAV_ITEMS = [
   { href: "/", label: "首頁" },
-  { href: "/about", label: "關於安感島" },
-  { href: "/rooms", label: "Rooms" },
-  { href: "/buddies", label: "搭子 / 安感夥伴" },
+  { href: "/rooms", label: "同行空間" },
+  { href: "/buddies", label: "安感夥伴" },
   { href: "/pricing", label: "方案 / 價格" },
   { href: "/contact", label: "客服" },
 ];
@@ -93,14 +92,6 @@ export function TopNav({ email, onSignOut }: Props) {
                 </Link>
               );
             })}
-            {isLoggedIn ? (
-              <Link
-                className={`cc-navlink${pathname === "/account" ? " is-active" : ""}`}
-                href="/account"
-              >
-                額度
-              </Link>
-            ) : null}
           </nav>
         </div>
 
@@ -108,6 +99,7 @@ export function TopNav({ email, onSignOut }: Props) {
           {!resolved ? null : isLoggedIn ? (
             <>
               <span className="cc-navemail">{currentEmail}</span>
+              <Link className="cc-btn" href="/account">我的帳號</Link>
               <button className="cc-btn cc-navsignout" onClick={handleSignOut} type="button">
                 登出
               </button>
