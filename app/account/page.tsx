@@ -1,275 +1,431 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { TopNav } from "@/components/TopNav";
+import { SiteFooter } from "@/components/SiteFooter";
 import { supabase } from "@/lib/supabaseClient";
-import { clearAccountStatusCache } from "@/lib/accountStatusClient";
-import { invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
+import { fetchAccountStatus, type AccountStatusResp, clearAccountStatusCache } from "@/lib/accountStatusClient";
+import { getClientSessionSnapshot } from "@/lib/clientAuth";
+import { ensureOwnPrivateSettings, ensureOwnProfile } from "@/lib/profileClient";
+import {
+  type PrivateProfileSettingsRow,
+  type PublicProfileRow,
+  PROFILE_VISIBILITY_OPTIONS,
+  formatPaymentSummary,
+  formatPhoneForHumans,
+  normalizeHandle,
+  parseTagsInput,
+  tagsToInput,
+} from "@/lib/socialProfile";
 
-function normalizeTaiwanPhoneToE164(input: string): string | null {
-  const cleaned = input.replace(/[^\d+]/g, "").trim();
-  if (!cleaned) return null;
+type Counts = {
+  friends: number;
+  upcomingSchedules: number;
+};
 
-  if (cleaned.startsWith("+")) {
-    const numeric = cleaned.replace(/[^\d+]/g, "");
-    return /^\+\d{8,15}$/.test(numeric) ? numeric : null;
-  }
-
-  const digits = cleaned.replace(/\D/g, "");
-  if (/^09\d{8}$/.test(digits)) {
-    return `+886${digits.slice(1)}`;
-  }
-
-  if (/^9\d{8}$/.test(digits)) {
-    return `+886${digits}`;
-  }
-
-  return null;
-}
-
-function mapOtpError(error: unknown): string {
-  const raw = error instanceof Error ? error.message : "送出手機驗證碼失敗，請稍後再試。";
-
-  if (/Unable to get SMS provider/i.test(raw)) {
-    return "目前簡訊驗證服務尚未完成配置，因此這一步暫時不會阻擋你使用網站。";
-  }
-
-  return raw;
-}
-
-function IdentityPageFallback() {
-  return (
-    <main className="cc-login-shell">
-      <section className="cc-login-grid">
-        <div className="cc-card cc-hero-main cc-stack-lg">
-          <span className="cc-kicker">Identity Binding</span>
-          <p className="cc-eyebrow">手機驗證準備中</p>
-          <h1 className="cc-h1">正在準備身份綁定頁面。</h1>
-          <p className="cc-lead" style={{ marginTop: 0 }}>
-            若你只是要先進站測試，目前不會再被這一步硬擋。
-          </p>
-          <div className="cc-action-row">
-            <Link href="/rooms" className="cc-btn-primary">先前往 Rooms</Link>
-            <Link href="/account" className="cc-btn">回帳號頁</Link>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function IdentityPageContent() {
+export default function AccountCenterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = useMemo(() => searchParams.get("next") || "/rooms", [searchParams]);
 
-  const [phoneInput, setPhoneInput] = useState("");
-  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPrivate, setSavingPrivate] = useState(false);
   const [msg, setMsg] = useState("");
-  const [sending, setSending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [hasSentCode, setHasSentCode] = useState(false);
-  const [existingPhone, setExistingPhone] = useState<string | null>(null);
-  const [phoneConfirmed, setPhoneConfirmed] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
+  const [phone, setPhone] = useState<string | null>(null);
+  const [profile, setProfile] = useState<PublicProfileRow | null>(null);
+  const [privateSettings, setPrivateSettings] = useState<PrivateProfileSettingsRow | null>(null);
+  const [status, setStatus] = useState<AccountStatusResp | null>(null);
+  const [counts, setCounts] = useState<Counts>({ friends: 0, upcomingSchedules: 0 });
+
+  const [displayName, setDisplayName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [bio, setBio] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [visibility, setVisibility] = useState<PublicProfileRow["visibility"]>("public");
+  const [acceptingFriendRequests, setAcceptingFriendRequests] = useState(true);
+  const [acceptingScheduleInvites, setAcceptingScheduleInvites] = useState(true);
+  const [showUpcomingSchedule, setShowUpcomingSchedule] = useState(true);
+  const [isProfessionalBuddy, setIsProfessionalBuddy] = useState(false);
+
+  const [notifyFriendRequests, setNotifyFriendRequests] = useState(true);
+  const [notifyScheduleUpdates, setNotifyScheduleUpdates] = useState(true);
+  const [notifyRoomReminders, setNotifyRoomReminders] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data.user) {
-        router.replace("/auth/login?reason=session-expired");
-        return;
+    async function load() {
+      try {
+        setLoading(true);
+        setMsg("");
+
+        const session = await getClientSessionSnapshot();
+        if (!session) {
+          router.replace("/auth/login?next=/account");
+          return;
+        }
+
+        if (cancelled) return;
+
+        setEmail(session.email);
+        setUserId(session.user.id);
+        setPhone(session.user.phone ?? null);
+
+        const [profileRow, privateRow] = await Promise.all([
+          ensureOwnProfile(session.user),
+          ensureOwnPrivateSettings(session.user.id),
+        ]);
+
+        if (cancelled) return;
+
+        setProfile(profileRow);
+        setPrivateSettings(privateRow);
+
+        setDisplayName(profileRow.display_name ?? "");
+        setHandle(profileRow.handle ?? "");
+        setAvatarUrl(profileRow.avatar_url ?? "");
+        setBio(profileRow.bio ?? "");
+        setTagsInput(tagsToInput(profileRow.tags));
+        setVisibility(profileRow.visibility ?? "public");
+        setAcceptingFriendRequests(Boolean(profileRow.accepting_friend_requests));
+        setAcceptingScheduleInvites(Boolean(profileRow.accepting_schedule_invites));
+        setShowUpcomingSchedule(Boolean(profileRow.show_upcoming_schedule));
+        setIsProfessionalBuddy(Boolean(profileRow.is_professional_buddy));
+
+        setNotifyFriendRequests(Boolean(privateRow.notify_friend_requests));
+        setNotifyScheduleUpdates(Boolean(privateRow.notify_schedule_updates));
+        setNotifyRoomReminders(Boolean(privateRow.notify_room_reminders));
+
+        if (session.accessToken) {
+          const nextStatus = await fetchAccountStatus(session.accessToken).catch(() => null);
+          if (!cancelled) {
+            setStatus(nextStatus);
+          }
+        }
+
+        const [friendshipsResult, scheduleResult] = await Promise.all([
+          supabase
+            .from("friendships")
+            .select("user_low,user_high")
+            .or(`user_low.eq.${session.user.id},user_high.eq.${session.user.id}`),
+          supabase
+            .from("scheduled_room_posts")
+            .select("id")
+            .eq("host_user_id", session.user.id)
+            .gte("start_at", new Date().toISOString()),
+        ]);
+
+        if (!cancelled) {
+          setCounts({
+            friends: friendshipsResult.data?.length ?? 0,
+            upcomingSchedules: scheduleResult.data?.length ?? 0,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMsg(error instanceof Error ? error.message : "讀取帳號中心失敗。");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
+    }
 
-      if (cancelled) return;
-
-      const currentPhone = data.user.phone ?? null;
-      const confirmedAt = (data.user as any).phone_confirmed_at ?? null;
-
-      setExistingPhone(currentPhone);
-      if (currentPhone?.startsWith("+8869")) {
-        setPhoneInput(`0${currentPhone.slice(4)}`);
-      } else {
-        setPhoneInput(currentPhone ?? "");
-      }
-      setPhoneConfirmed(Boolean(currentPhone && confirmedAt));
-    })();
+    void load();
 
     return () => {
       cancelled = true;
     };
   }, [router]);
 
-  async function sendCode() {
-    const normalizedPhone = normalizeTaiwanPhoneToE164(phoneInput);
-    if (!normalizedPhone) {
-      setMsg("請輸入台灣手機號碼，例如 0968xxxxxx。系統會自動轉成國際格式。");
+  const publicProfileUrl = useMemo(() => (handle ? `/u/${handle}` : ""), [handle]);
+  const paymentSummary = useMemo(
+    () => formatPaymentSummary(privateSettings?.payment_card_brand, privateSettings?.payment_card_last4),
+    [privateSettings?.payment_card_brand, privateSettings?.payment_card_last4],
+  );
+
+  async function savePublicProfile() {
+    if (!userId) return;
+    if (!displayName.trim()) {
+      setMsg("顯示名稱不能留白。");
+      return;
+    }
+    if (!handle.trim()) {
+      setMsg("公開 ID 不能留白。");
       return;
     }
 
-    setSending(true);
+    setSavingProfile(true);
     setMsg("");
 
-    try {
-      const { error } = await supabase.auth.updateUser({
-        phone: normalizedPhone,
-      });
+    const payload = {
+      user_id: userId,
+      display_name: displayName.trim().slice(0, 40),
+      handle: normalizeHandle(handle),
+      avatar_url: avatarUrl.trim() || null,
+      bio: bio.trim() || null,
+      tags: parseTagsInput(tagsInput),
+      visibility,
+      accepting_friend_requests: acceptingFriendRequests,
+      accepting_schedule_invites: acceptingScheduleInvites,
+      show_upcoming_schedule: showUpcomingSchedule,
+      is_professional_buddy: isProfessionalBuddy,
+    };
 
-      if (error) throw error;
+    const result = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "user_id" })
+      .select("*")
+      .single();
 
-      setHasSentCode(true);
-      setMsg("驗證碼已送出。若簡訊服務尚未完成配置，這一步目前不會阻擋你使用網站。");
-    } catch (error) {
-      setMsg(mapOtpError(error));
-    } finally {
-      setSending(false);
+    setSavingProfile(false);
+
+    if (result.error) {
+      setMsg(/handle/i.test(result.error.message) ? "這個公開 ID 已被使用或格式不正確，請換一個。" : result.error.message);
+      return;
     }
+
+    setProfile(result.data as PublicProfileRow);
+    setMsg("公開個人檔案已更新。");
   }
 
-  async function verifyCode() {
-    const normalizedPhone = normalizeTaiwanPhoneToE164(phoneInput);
-    if (!normalizedPhone) {
-      setMsg("請先輸入正確的手機號碼。");
-      return;
-    }
+  async function savePrivateSettings() {
+    if (!userId) return;
 
-    if (!otp.trim()) {
-      setMsg("請輸入簡訊中的驗證碼。");
-      return;
-    }
-
-    setVerifying(true);
+    setSavingPrivate(true);
     setMsg("");
 
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone: normalizedPhone,
-        token: otp.trim(),
-        type: "phone_change",
-      });
+    const result = await supabase
+      .from("user_private_profile_settings")
+      .upsert(
+        {
+          user_id: userId,
+          notify_friend_requests: notifyFriendRequests,
+          notify_schedule_updates: notifyScheduleUpdates,
+          notify_room_reminders: notifyRoomReminders,
+        },
+        { onConflict: "user_id" },
+      )
+      .select("*")
+      .single();
 
-      if (error) throw error;
+    setSavingPrivate(false);
 
-      invalidateClientSessionSnapshotCache();
-      clearAccountStatusCache();
-
-      setPhoneConfirmed(true);
-      setExistingPhone(normalizedPhone);
-      setMsg("手機號碼驗證成功。");
-    } catch (error) {
-      setMsg(error instanceof Error ? error.message : "手機驗證失敗，請重新確認驗證碼。");
-    } finally {
-      setVerifying(false);
+    if (result.error) {
+      setMsg(result.error.message);
+      return;
     }
+
+    setPrivateSettings(result.data as PrivateProfileSettingsRow);
+    clearAccountStatusCache();
+    setMsg("私人設定已更新。");
+  }
+
+  if (loading) {
+    return (
+      <main className="cc-container">
+        <TopNav />
+        <section className="cc-card cc-empty-state">
+          <div className="cc-stack-sm">
+            <div className="cc-h3">正在準備帳號中心</div>
+            <div className="cc-muted">系統正在整理你的公開檔案、私人設定與方案資訊。</div>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
-    <main className="cc-login-shell">
-      <section className="cc-login-grid">
-        <div className="cc-card cc-hero-main cc-stack-lg">
-          <span className="cc-kicker">Identity Binding</span>
-          <p className="cc-eyebrow">手機驗證準備中｜先把入口做對，不把工程格式丟給使用者</p>
-          <h1 className="cc-h1">目前這一步先改成可選，不再擋住整站測試。</h1>
-          <p className="cc-lead" style={{ marginTop: 0 }}>
-            長期方向仍是把免費額度、風控與封鎖鏈綁到更強的身份。
-            但在 Twilio 審核完成前，這一步先不做硬阻擋，避免網站根本測不了。
+    <main className="cc-container">
+      <TopNav email={email} />
+
+      <section className="cc-section cc-grid-2">
+        <article className="cc-card cc-stack-md">
+          <span className="cc-kicker">Account Center</span>
+          <p className="cc-eyebrow">帳號中心｜公開形象與私人設定分開，才不會越改越亂</p>
+          <h1 className="cc-h2">這裡才是正式的帳號中心，不再把所有東西都塞進手機驗證頁。</h1>
+          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
+            公開個人檔案給別人看，私人帳號設定留在自己這裡。
+            這樣之後要接好友、排程、專業搭子、金流摘要與身份驗證，才不會變成同一頁的大雜燴。
           </p>
 
           <div className="cc-grid-metrics">
             <div className="cc-metric">
-              <span className="cc-metric-label">目前狀態</span>
-              <div className="cc-metric-value" style={{ fontSize: "1.1rem" }}>可選，不強制</div>
+              <span className="cc-metric-label">方案</span>
+              <div className="cc-metric-value">{status?.is_vip ? "VIP" : "FREE"}</div>
             </div>
             <div className="cc-metric">
-              <span className="cc-metric-label">輸入方式</span>
-              <div className="cc-metric-value" style={{ fontSize: "1.1rem" }}>支援 09xxxxxxxx</div>
+              <span className="cc-metric-label">本月剩餘</span>
+              <div className="cc-metric-value">{status?.is_vip ? "∞" : status?.credits_remaining ?? "?"}</div>
             </div>
             <div className="cc-metric">
-              <span className="cc-metric-label">系統轉換</span>
-              <div className="cc-metric-value" style={{ fontSize: "1.1rem" }}>自動轉成 +886</div>
+              <span className="cc-metric-label">好友數</span>
+              <div className="cc-metric-value">{counts.friends}</div>
+            </div>
+            <div className="cc-metric">
+              <span className="cc-metric-label">已排程</span>
+              <div className="cc-metric-value">{counts.upcomingSchedules}</div>
             </div>
           </div>
 
           <div className="cc-action-row">
-            <Link href={next} className="cc-btn-primary">先繼續使用網站</Link>
-            <Link href="/account" className="cc-btn">回帳號頁</Link>
+            {publicProfileUrl ? (
+              <Link href={publicProfileUrl} className="cc-btn-primary">
+                查看公開檔案
+              </Link>
+            ) : null}
+            <Link href="/friends" className="cc-btn">
+              好友與邀請
+            </Link>
+            <Link href="/schedule" className="cc-btn">
+              房間排程板
+            </Link>
+            <Link href="/account/identity" className="cc-btn">
+              手機驗證 / 身份綁定
+            </Link>
           </div>
-        </div>
+        </article>
 
-        <div className="cc-card cc-stack-md">
+        <article className="cc-card cc-stack-md">
           <div>
-            <p className="cc-card-kicker">手機驗證（可選）</p>
-            <h2 className="cc-h2">之後會成為身份綁定主線</h2>
+            <p className="cc-card-kicker">目前帳號摘要</p>
+            <h2 className="cc-h2">先把重要資訊放在同一面板，不讓人找半天。</h2>
           </div>
 
-          <div className="cc-note">
-            這一版先保留驗證頁面與流程，但不再要求登入後必須先完成這一步才能進站。
+          <div className="cc-note cc-stack-sm">
+            <div><strong>Email：</strong>{email || "—"}</div>
+            <div><strong>公開 ID：</strong>{profile?.handle || "—"}</div>
+            <div><strong>手機：</strong>{formatPhoneForHumans(phone)}</div>
+            <div><strong>付款方式摘要：</strong>{paymentSummary}</div>
+            <div><strong>週期起點：</strong>{status?.month_start ?? "—"}</div>
           </div>
-
-          <label className="cc-field">
-            <span className="cc-field-label">台灣手機號碼</span>
-            <input
-              className="cc-input"
-              value={phoneInput}
-              onChange={(e) => setPhoneInput(e.target.value)}
-              placeholder="0968730221"
-              autoComplete="tel"
-              inputMode="tel"
-            />
-          </label>
 
           <div className="cc-caption">
-            前台輸入請照台灣習慣輸入 <strong>09xxxxxxxx</strong>；
-            系統送出時會自動轉成 <code>+8869xxxxxxxx</code>。
+            付款卡摘要之後應由 PSP / webhook 寫入，不建議由前台使用者手動填完整卡號。
           </div>
+        </article>
+      </section>
 
-          <div className="cc-action-row" style={{ marginTop: 4 }}>
-            <button className="cc-btn-primary" onClick={sendCode} disabled={sending || verifying} type="button">
-              {sending ? "送出中…" : hasSentCode ? "重新發送驗證碼" : "發送驗證碼"}
-            </button>
+      {msg ? <div className="cc-alert cc-alert-error cc-section">{msg}</div> : null}
+
+      <section className="cc-section cc-grid-2">
+        <article className="cc-card cc-stack-md">
+          <div>
+            <p className="cc-card-kicker">公開個人檔案</p>
+            <h2 className="cc-h2">別人看得到的，放這裡管。</h2>
           </div>
 
           <label className="cc-field">
-            <span className="cc-field-label">簡訊驗證碼</span>
-            <input
-              className="cc-input"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="輸入 6 碼驗證碼"
-              inputMode="numeric"
-            />
+            <span className="cc-field-label">顯示名稱</span>
+            <input className="cc-input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="例如：Wade / 安感媽媽 / 夜讀島民" />
           </label>
 
-          <div className="cc-action-row" style={{ marginTop: 4 }}>
-            <button className="cc-btn" onClick={verifyCode} disabled={!hasSentCode || verifying || sending} type="button">
-              {verifying ? "驗證中…" : "完成驗證"}
+          <label className="cc-field">
+            <span className="cc-field-label">公開 ID（handle）</span>
+            <input className="cc-input" value={handle} onChange={(e) => setHandle(normalizeHandle(e.target.value))} placeholder="例如：wade-focus" />
+          </label>
+
+          <label className="cc-field">
+            <span className="cc-field-label">頭像網址</span>
+            <input className="cc-input" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." />
+          </label>
+
+          <label className="cc-field">
+            <span className="cc-field-label">自我介紹</span>
+            <textarea className="cc-input" rows={5} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="介紹你平常會開什麼房、喜歡什麼節奏、希望遇到什麼樣的同行。" />
+          </label>
+
+          <label className="cc-field">
+            <span className="cc-field-label">標籤（逗號分隔）</span>
+            <input className="cc-input" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="共工, 讀書, 家務, 育兒, 深夜陪伴" />
+          </label>
+
+          <label className="cc-field">
+            <span className="cc-field-label">可見性</span>
+            <select className="cc-select" value={visibility} onChange={(e) => setVisibility(e.target.value as PublicProfileRow["visibility"])}>
+              {PROFILE_VISIBILITY_OPTIONS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <input type="checkbox" checked={acceptingFriendRequests} onChange={(e) => setAcceptingFriendRequests(e.target.checked)} />
+            <span className="cc-field-label">允許別人從檔案或房內名單送出好友邀請</span>
+          </label>
+
+          <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <input type="checkbox" checked={acceptingScheduleInvites} onChange={(e) => setAcceptingScheduleInvites(e.target.checked)} />
+            <span className="cc-field-label">允許別人用排程或固定同行的方式邀請我</span>
+          </label>
+
+          <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <input type="checkbox" checked={showUpcomingSchedule} onChange={(e) => setShowUpcomingSchedule(e.target.checked)} />
+            <span className="cc-field-label">在公開檔案顯示即將到來的排程</span>
+          </label>
+
+          <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <input type="checkbox" checked={isProfessionalBuddy} onChange={(e) => setIsProfessionalBuddy(e.target.checked)} />
+            <span className="cc-field-label">先保留為「專業搭子候選」標記（未連動交易能力）</span>
+          </label>
+
+          <div className="cc-action-row">
+            <button className="cc-btn-primary" type="button" disabled={savingProfile} onClick={savePublicProfile}>
+              {savingProfile ? "儲存中…" : "儲存公開檔案"}
             </button>
+            {publicProfileUrl ? (
+              <Link href={publicProfileUrl} className="cc-btn">
+                預覽公開頁
+              </Link>
+            ) : null}
+          </div>
+        </article>
+
+        <article className="cc-card cc-stack-md">
+          <div>
+            <p className="cc-card-kicker">私人設定</p>
+            <h2 className="cc-h2">只影響你自己的提醒、安全與權益摘要。</h2>
           </div>
 
-          {existingPhone ? (
-            <div className="cc-note">
-              目前帳號上的手機：<strong>{existingPhone}</strong>
-              {phoneConfirmed ? "（已驗證）" : "（尚未完成驗證）"}
-            </div>
-          ) : null}
+          <div className="cc-note cc-stack-sm">
+            <div><strong>手機驗證：</strong>{phone ? "已綁定，可在身份綁定頁調整" : "尚未綁定"}</div>
+            <div><strong>卡號摘要：</strong>{paymentSummary}</div>
+            <div><strong>說明：</strong> 卡號摘要未來應由 PSP 寫入，這一版先只做展示落點。</div>
+          </div>
 
-          {msg ? (
-            <div className={msg.includes("成功") || msg.includes("已送出") || msg.includes("不會阻擋") ? "cc-note" : "cc-alert cc-alert-error"}>
-              {msg}
-            </div>
-          ) : null}
-        </div>
+          <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <input type="checkbox" checked={notifyFriendRequests} onChange={(e) => setNotifyFriendRequests(e.target.checked)} />
+            <span className="cc-field-label">好友邀請通知</span>
+          </label>
+
+          <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <input type="checkbox" checked={notifyScheduleUpdates} onChange={(e) => setNotifyScheduleUpdates(e.target.checked)} />
+            <span className="cc-field-label">排程變更通知</span>
+          </label>
+
+          <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
+            <input type="checkbox" checked={notifyRoomReminders} onChange={(e) => setNotifyRoomReminders(e.target.checked)} />
+            <span className="cc-field-label">房間提醒通知</span>
+          </label>
+
+          <div className="cc-action-row">
+            <button className="cc-btn-primary" type="button" disabled={savingPrivate} onClick={savePrivateSettings}>
+              {savingPrivate ? "儲存中…" : "儲存私人設定"}
+            </button>
+            <Link href="/account/identity" className="cc-btn">
+              前往身份綁定
+            </Link>
+          </div>
+        </article>
       </section>
-    </main>
-  );
-}
 
-export default function IdentityPage() {
-  return (
-    <Suspense fallback={<IdentityPageFallback />}>
-      <IdentityPageContent />
-    </Suspense>
+      <SiteFooter />
+    </main>
   );
 }
