@@ -19,11 +19,16 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function parseStageFlag(value: string | undefined): boolean {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["true", "1", "test", "stage", "staging"].includes(normalized);
+}
+
 export function getEcpayConfig(): EcpayConfig {
   const merchantId = requireEnv("ECPAY_MERCHANT_ID");
   const hashKey = requireEnv("ECPAY_HASH_KEY");
   const hashIV = requireEnv("ECPAY_HASH_IV");
-  const stage = String(process.env.ECPAY_STAGE || "").toLowerCase() === "true";
+  const stage = parseStageFlag(process.env.ECPAY_STAGE);
 
   return {
     merchantId,
