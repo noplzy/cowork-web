@@ -13,21 +13,25 @@ function getOrigin(req: Request): string {
   return new URL(req.url).origin;
 }
 
-async function safeInsertPaymentEvent(input: {
+async function recordPaymentEvent(input: {
   merchant_trade_no: string;
   provider?: string;
   event_type: string;
   raw_payload: unknown;
 }) {
-  try {
-    await supabaseAdmin.from("payment_events").insert({
-      merchant_trade_no: input.merchant_trade_no,
-      provider: input.provider ?? "ecpay",
-      event_type: input.event_type,
-      raw_payload: input.raw_payload,
+  const { error } = await supabaseAdmin.from("payment_events").insert({
+    merchant_trade_no: input.merchant_trade_no,
+    provider: input.provider ?? "ecpay",
+    event_type: input.event_type,
+    raw_payload: input.raw_payload,
+  });
+
+  if (error) {
+    console.error("[ECPAY_ORDER_RESULT_EVENT_INSERT_ERROR]", {
+      merchantTradeNo: input.merchant_trade_no,
+      eventType: input.event_type,
+      message: error.message,
     });
-  } catch {
-    // intentionally swallow callback logging failures
   }
 }
 
@@ -37,8 +41,13 @@ export async function POST(req: Request) {
   const merchantTradeNo = String(payload.MerchantTradeNo || "").trim();
   const origin = getOrigin(req);
 
+  console.info("[ECPAY_ORDER_RESULT_HIT]", {
+    merchantTradeNo,
+    rtnCode: payload.RtnCode || "",
+  });
+
   if (merchantTradeNo) {
-    await safeInsertPaymentEvent({
+    await recordPaymentEvent({
       merchant_trade_no: merchantTradeNo,
       event_type: "order_result_url",
       raw_payload: payload,
