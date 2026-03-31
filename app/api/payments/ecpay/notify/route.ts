@@ -127,67 +127,23 @@ export async function POST(req: Request) {
       return textResponse("0|ORDER_NOT_FOUND", 404);
     }
 
+    // Phase 1: simulated callbacks are connectivity tests only.
+    // Do NOT mark order paid, do NOT grant VIP, do NOT change local payment state here.
     if (simulatePaid) {
-      const rtnCode = String(payload.RtnCode || "");
-      const tradeAmt = Number(payload.TradeAmt || order.amount || 0);
-      const paidAtIso = parsePaidAt(payload.PaymentDate);
-      const providerTradeNo = String(payload.TradeNo || "");
-
-      if (rtnCode === "1" && tradeAmt === Number(order.amount)) {
-        const { error: rpcError } = await supabaseAdmin.rpc("ecpay_mark_order_paid", {
-          p_merchant_trade_no: payload.MerchantTradeNo,
-          p_provider_trade_no: providerTradeNo || null,
-          p_paid_at: paidAtIso,
-          p_provider_payload: {
-            return_url_payload: payload,
-            simulate_paid: true,
-          },
-        });
-
-        if (rpcError) {
-          await recordPaymentEvent({
-            merchant_trade_no: payload.MerchantTradeNo,
-            event_type: "mark_paid_rpc_error_simulate",
-            raw_payload: { message: rpcError.message },
-          });
-          console.error("[ECPAY_NOTIFY_RPC_ERROR_SIMULATE]", {
-            merchantTradeNo: payload.MerchantTradeNo,
-            message: rpcError.message,
-          });
-          return textResponse("0|RPC_ERROR", 500);
-        }
-
-        await recordPaymentEvent({
-          merchant_trade_no: payload.MerchantTradeNo,
-          event_type: "return_url_simulate_marked_paid",
-          raw_payload: payload,
-        });
-
-        console.info("[ECPAY_NOTIFY_SIMULATE_MARKED_PAID]", {
-          merchantTradeNo: payload.MerchantTradeNo,
-        });
-
-        return textResponse("1|OK");
-      }
-
-      await updatePendingOrderAsFailed({
-        merchantTradeNo: payload.MerchantTradeNo,
-        lastError: `SIMULATE_RTN_FAIL rtnCode=${rtnCode}; tradeAmt=${tradeAmt}; expectedAmount=${order.amount}`,
-        providerPayload: {
-          return_url_payload: payload,
-          simulate_paid: true,
-        },
-      });
-
       await recordPaymentEvent({
         merchant_trade_no: payload.MerchantTradeNo,
-        event_type: "return_url_simulate_failed",
+        event_type: "return_url_simulate_paid_ack",
         raw_payload: payload,
+      });
+
+      console.info("[ECPAY_NOTIFY_SIMULATE_ACK]", {
+        merchantTradeNo: payload.MerchantTradeNo,
       });
 
       return textResponse("1|OK");
     }
 
+    // Phase 2: real callbacks update local order state after verification / query.
     const queryResult = await queryEcpayTradeInfo(payload.MerchantTradeNo, config);
 
     await recordPaymentEvent({
@@ -224,6 +180,17 @@ export async function POST(req: Request) {
         });
         return textResponse("0|RPC_ERROR", 500);
       }
+
+      await recordPaymentEvent({
+        merchant_trade_no: payload.MerchantTradeNo,
+        event_type: "return_url_marked_paid",
+        raw_payload: {
+          providerTradeNo,
+          tradeStatus,
+          tradeAmt,
+          paidAtIso,
+        },
+      });
 
       console.info("[ECPAY_NOTIFY_MARKED_PAID]", {
         merchantTradeNo: payload.MerchantTradeNo,
