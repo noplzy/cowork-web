@@ -57,6 +57,14 @@ function getFixedOrigin(): string | null {
   return normalized || null;
 }
 
+function getChoosePaymentOverride(): "Credit" | "ATM" | "ALL" | null {
+  const raw = String(process.env.ECPAY_FORCE_CHOOSE_PAYMENT || "").trim().toUpperCase();
+  if (raw === "CREDIT") return "Credit";
+  if (raw === "ATM") return "ATM";
+  if (raw === "ALL") return "ALL";
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
     const userJwt = extractBearer(req);
@@ -82,6 +90,7 @@ export async function POST(req: Request) {
     const fixedOrigin = getFixedOrigin();
     const origin = fixedOrigin || dynamicOrigin;
     const merchantTradeNo = generateMerchantTradeNo("VIP");
+    const choosePayment = getChoosePaymentOverride() || "Credit";
 
     const { error: insertError } = await supabaseAdmin.from("payment_orders").insert({
       user_id: userId,
@@ -96,6 +105,7 @@ export async function POST(req: Request) {
       vip_days: VIP_MONTH_DAYS,
       provider_payload: {
         source: "pricing_page",
+        choose_payment: choosePayment,
       },
     });
 
@@ -114,10 +124,10 @@ export async function POST(req: Request) {
       MerchantTradeDate: formatTradeDate(new Date()),
       PaymentType: "aio",
       TotalAmount: String(VIP_MONTH_PRICE),
-      TradeDesc: "ANGANDAO VIP Monthly",
-      ItemName: "安感島VIP月方案",
+      TradeDesc: choosePayment === "ATM" ? "ANGANDAO ReturnURL Test" : "ANGANDAO VIP Monthly",
+      ItemName: choosePayment === "ATM" ? "安感島ReturnURL測試訂單" : "安感島VIP月方案",
       ReturnURL: returnUrl,
-      ChoosePayment: "Credit",
+      ChoosePayment: choosePayment,
       EncryptType: "1",
       ClientBackURL: clientBackUrl,
       OrderResultURL: orderResultUrl,
@@ -125,7 +135,7 @@ export async function POST(req: Request) {
       CustomField1: VIP_MONTH_PLAN_CODE,
       CustomField2: merchantTradeNo,
       ItemURL: itemUrl,
-      Remark: "VIP_MONTH",
+      Remark: choosePayment === "ATM" ? "RETURN_URL_TEST" : "VIP_MONTH",
     };
 
     ecpayFields.CheckMacValue = createCheckMacValue(ecpayFields, config.hashKey, config.hashIV);
@@ -135,6 +145,7 @@ export async function POST(req: Request) {
       stage: config.stage,
       merchantId: config.merchantId,
       action: config.checkoutUrl,
+      choosePayment,
       originSource: fixedOrigin ? "SITE_URL" : "REQUEST_ORIGIN",
       dynamicOrigin,
       fixedOrigin,
@@ -151,6 +162,7 @@ export async function POST(req: Request) {
       fields: ecpayFields,
       debug: {
         stage: config.stage,
+        choosePayment,
         originSource: fixedOrigin ? "SITE_URL" : "REQUEST_ORIGIN",
         dynamicOrigin,
         fixedOrigin,
