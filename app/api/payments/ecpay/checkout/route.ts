@@ -42,13 +42,19 @@ async function getSupabaseUser(userJwt: string) {
   return (await authResp.json().catch(() => null)) as any;
 }
 
-function getOrigin(req: Request): string {
+function getDynamicOrigin(req: Request): string {
   const forwardedProto = req.headers.get("x-forwarded-proto");
   const forwardedHost = req.headers.get("x-forwarded-host");
   if (forwardedProto && forwardedHost) {
     return `${forwardedProto}://${forwardedHost}`;
   }
   return new URL(req.url).origin;
+}
+
+function getFixedOrigin(): string | null {
+  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+  const normalized = configured.trim().replace(/\/$/, "");
+  return normalized || null;
 }
 
 export async function POST(req: Request) {
@@ -72,7 +78,9 @@ export async function POST(req: Request) {
     }
 
     const config = getEcpayConfig();
-    const origin = getOrigin(req);
+    const dynamicOrigin = getDynamicOrigin(req);
+    const fixedOrigin = getFixedOrigin();
+    const origin = fixedOrigin || dynamicOrigin;
     const merchantTradeNo = generateMerchantTradeNo("VIP");
 
     const { error: insertError } = await supabaseAdmin.from("payment_orders").insert({
@@ -95,6 +103,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `建立付款訂單失敗：${insertError.message}` }, { status: 500 });
     }
 
+    const returnUrl = `${origin}/api/payments/ecpay/notify`;
+    const orderResultUrl = `${origin}/api/payments/ecpay/order-result`;
+    const clientBackUrl = `${origin}/pricing`;
+    const itemUrl = `${origin}/pricing`;
+
     const ecpayFields: Record<string, string> = {
       MerchantID: config.merchantId,
       MerchantTradeNo: merchantTradeNo,
@@ -103,19 +116,33 @@ export async function POST(req: Request) {
       TotalAmount: String(VIP_MONTH_PRICE),
       TradeDesc: "ANGANDAO VIP Monthly",
       ItemName: "安感島VIP月方案",
-      ReturnURL: `${origin}/api/payments/ecpay/notify`,
+      ReturnURL: returnUrl,
       ChoosePayment: "Credit",
       EncryptType: "1",
-      ClientBackURL: `${origin}/pricing`,
-      OrderResultURL: `${origin}/api/payments/ecpay/order-result`,
+      ClientBackURL: clientBackUrl,
+      OrderResultURL: orderResultUrl,
       NeedExtraPaidInfo: "Y",
       CustomField1: VIP_MONTH_PLAN_CODE,
       CustomField2: merchantTradeNo,
-      ItemURL: `${origin}/pricing`,
+      ItemURL: itemUrl,
       Remark: "VIP_MONTH",
     };
 
     ecpayFields.CheckMacValue = createCheckMacValue(ecpayFields, config.hashKey, config.hashIV);
+
+    console.info("[ECPAY_CHECKOUT_FIELDS]", {
+      merchantTradeNo,
+      stage: config.stage,
+      merchantId: config.merchantId,
+      action: config.checkoutUrl,
+      originSource: fixedOrigin ? "SITE_URL" : "REQUEST_ORIGIN",
+      dynamicOrigin,
+      fixedOrigin,
+      returnUrl,
+      orderResultUrl,
+      clientBackUrl,
+      itemUrl,
+    });
 
     return NextResponse.json({
       action: config.checkoutUrl,
@@ -124,6 +151,11 @@ export async function POST(req: Request) {
       fields: ecpayFields,
       debug: {
         stage: config.stage,
+        originSource: fixedOrigin ? "SITE_URL" : "REQUEST_ORIGIN",
+        dynamicOrigin,
+        fixedOrigin,
+        returnUrl,
+        orderResultUrl,
       },
     });
   } catch (error: any) {
