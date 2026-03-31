@@ -95,6 +95,42 @@ export async function POST(req: Request) {
       return textResponse("0|MISSING_MERCHANT_TRADE_NO", 400);
     }
 
+    /**
+     * Stage simulate callback is connectivity-only.
+     * We ACK early with 1|OK so vendor-stage can verify ReturnURL reachability.
+     * We still record the payload for inspection, but do NOT grant VIP or mutate payment status here.
+     */
+    if (config.stage && simulatePaid) {
+      let localOrderExists = false;
+
+      const { data: existingOrder, error: existingOrderError } = await supabaseAdmin
+        .from("payment_orders")
+        .select("merchant_trade_no,status")
+        .eq("merchant_trade_no", payload.MerchantTradeNo)
+        .maybeSingle();
+
+      localOrderExists = !!existingOrder && !existingOrderError;
+
+      await recordPaymentEvent({
+        merchant_trade_no: payload.MerchantTradeNo,
+        event_type: localOrderExists
+          ? "return_url_simulate_paid_ack_with_local_order"
+          : "return_url_simulate_paid_ack_without_local_order",
+        raw_payload: {
+          payload,
+          localOrderExists,
+          localOrderError: existingOrderError?.message || null,
+        },
+      });
+
+      console.info("[ECPAY_NOTIFY_SIMULATE_ACK]", {
+        merchantTradeNo: payload.MerchantTradeNo,
+        localOrderExists,
+      });
+
+      return textResponse("1|OK");
+    }
+
     if (payload.MerchantID !== config.merchantId) {
       await recordPaymentEvent({
         merchant_trade_no: payload.MerchantTradeNo,
@@ -124,26 +160,19 @@ export async function POST(req: Request) {
         merchantTradeNo: payload.MerchantTradeNo,
         message: orderError?.message || "missing",
       });
+
+      await recordPaymentEvent({
+        merchant_trade_no: payload.MerchantTradeNo,
+        event_type: "return_url_order_not_found",
+        raw_payload: {
+          payload,
+          orderError: orderError?.message || null,
+        },
+      });
+
       return textResponse("0|ORDER_NOT_FOUND", 404);
     }
 
-    // Phase 1: simulated callbacks are connectivity tests only.
-    // Do NOT mark order paid, do NOT grant VIP, do NOT change local payment state here.
-    if (simulatePaid) {
-      await recordPaymentEvent({
-        merchant_trade_no: payload.MerchantTradeNo,
-        event_type: "return_url_simulate_paid_ack",
-        raw_payload: payload,
-      });
-
-      console.info("[ECPAY_NOTIFY_SIMULATE_ACK]", {
-        merchantTradeNo: payload.MerchantTradeNo,
-      });
-
-      return textResponse("1|OK");
-    }
-
-    // Phase 2: real callbacks update local order state after verification / query.
     const queryResult = await queryEcpayTradeInfo(payload.MerchantTradeNo, config);
 
     await recordPaymentEvent({
