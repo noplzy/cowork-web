@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  buildExpectedCheckMacValue,
   getEcpayConfig,
   parseFormEncodedPayload,
   queryEcpayTradeInfo,
@@ -95,11 +96,6 @@ export async function POST(req: Request) {
       return textResponse("0|MISSING_MERCHANT_TRADE_NO", 400);
     }
 
-    /**
-     * Stage simulate callback is connectivity-only.
-     * We ACK early with 1|OK so vendor-stage can verify ReturnURL reachability.
-     * We still record the payload for inspection, but do NOT grant VIP or mutate payment status here.
-     */
     if (config.stage && simulatePaid) {
       let localOrderExists = false;
 
@@ -140,12 +136,24 @@ export async function POST(req: Request) {
       return textResponse("0|INVALID_MERCHANT", 400);
     }
 
+    const expectedCheckMacValue = buildExpectedCheckMacValue(payload, config.hashKey, config.hashIV);
     if (!verifyCheckMacValue(payload, config.hashKey, config.hashIV)) {
       await recordPaymentEvent({
         merchant_trade_no: payload.MerchantTradeNo,
         event_type: "return_url_invalid_checkmac",
-        raw_payload: payload,
+        raw_payload: {
+          payload,
+          providedCheckMacValue: payload.CheckMacValue || null,
+          expectedCheckMacValue,
+        },
       });
+
+      console.error("[ECPAY_NOTIFY_INVALID_CHECKMAC]", {
+        merchantTradeNo: payload.MerchantTradeNo,
+        providedCheckMacValue: payload.CheckMacValue || null,
+        expectedCheckMacValue,
+      });
+
       return textResponse("0|INVALID_CHECKMAC", 400);
     }
 

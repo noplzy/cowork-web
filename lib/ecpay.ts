@@ -83,13 +83,19 @@ function ecpayUrlEncode(value: string): string {
     .toLowerCase();
 }
 
+/**
+ * IMPORTANT:
+ * - For outbound create-order requests: only include fields you actually send to ECPay.
+ * - For inbound callback verification: keep empty-string fields if ECPay sent them.
+ *   (e.g. StoreID=, CustomField1=, CustomField2= ... must stay in checksum input)
+ */
 export function createCheckMacValue(
   input: Record<string, StringLike | undefined | null>,
   hashKey: string,
   hashIV: string,
 ): string {
   const entries = Object.entries(input)
-    .filter(([key, value]) => key !== "CheckMacValue" && value !== undefined && value !== null && value !== "")
+    .filter(([key, value]) => key !== "CheckMacValue" && value !== undefined && value !== null)
     .map(([key, value]) => [key, normalizeForMac(value as StringLike)] as const)
     .sort(([a], [b]) => a.localeCompare(b));
 
@@ -108,6 +114,14 @@ export function verifyCheckMacValue(
   if (!provided) return false;
   const expected = createCheckMacValue(input, hashKey, hashIV);
   return provided === expected;
+}
+
+export function buildExpectedCheckMacValue(
+  input: Record<string, string | undefined>,
+  hashKey: string,
+  hashIV: string,
+): string {
+  return createCheckMacValue(input, hashKey, hashIV);
 }
 
 export function parseFormEncodedPayload(raw: string): Record<string, string> {
