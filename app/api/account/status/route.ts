@@ -87,6 +87,8 @@ export async function GET(req: Request) {
       free_monthly_allowance: FREE_MONTHLY_CREDITS,
       credits_used: used,
       credits_remaining: isVip ? null : remaining,
+      billing_mode: isVip ? "one_time" : "free",
+      auto_renew_enabled: false,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Unexpected server error" }, { status: 500 });

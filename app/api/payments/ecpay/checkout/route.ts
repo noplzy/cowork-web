@@ -6,16 +6,13 @@ import {
   generateMerchantTradeNo,
   getEcpayConfig,
 } from "@/lib/ecpay";
+import { resolvePurchasableBillingPlan } from "@/lib/billingPlans";
 
 export const runtime = "nodejs";
 
 type CheckoutRequestBody = {
   planCode?: string;
 };
-
-const VIP_MONTH_PRICE = 199;
-const VIP_MONTH_DAYS = 30;
-const VIP_MONTH_PLAN_CODE = "vip_month";
 
 function extractBearer(req: Request): string | null {
   const header = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -86,11 +83,8 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json().catch(() => ({}))) as CheckoutRequestBody;
-    const planCode = String(body.planCode || "").trim() || VIP_MONTH_PLAN_CODE;
-
-    if (planCode !== VIP_MONTH_PLAN_CODE) {
-      return NextResponse.json({ error: "目前只支援 VIP 月方案付款。" }, { status: 400 });
-    }
+    const requestedPlanCode = String(body.planCode || "").trim() || "vip_month";
+    const plan = resolvePurchasableBillingPlan(requestedPlanCode);
 
     const config = getEcpayConfig();
     const dynamicOrigin = getDynamicOrigin(req);
@@ -100,23 +94,33 @@ export async function POST(req: Request) {
     const choosePayment = resolveChoosePayment(config.stage);
 
     const isReturnUrlConnectivityTest = config.stage && choosePayment === "ATM";
+    const tradeDesc = isReturnUrlConnectivityTest
+      ? "ANGANDAO ReturnURL Test"
+      : "ANGANDAO VIP Pilot Monthly";
+    const itemName = isReturnUrlConnectivityTest
+      ? "安感島ReturnURL測試訂單"
+      : "安感島 VIP 月方案（試營運）";
 
     const { error: insertError } = await supabaseAdmin.from("payment_orders").insert({
       user_id: userId,
       provider: "ecpay",
       merchant_trade_no: merchantTradeNo,
-      plan_code: VIP_MONTH_PLAN_CODE,
-      amount: VIP_MONTH_PRICE,
+      plan_code: plan.code,
+      amount: Number(plan.amount || 0),
       currency: "TWD",
       status: "pending",
-      item_name: isReturnUrlConnectivityTest ? "安感島ReturnURL測試訂單" : "安感島 VIP 月方案",
-      trade_desc: isReturnUrlConnectivityTest ? "ANGANDAO ReturnURL Test" : "ANGANDAO VIP Monthly",
-      vip_days: VIP_MONTH_DAYS,
+      item_name: itemName,
+      trade_desc: tradeDesc,
+      vip_days: Number(plan.entitlementDays || 0),
       provider_payload: {
         source: "pricing_page",
         choose_payment: choosePayment,
         stage: config.stage,
         return_url_connectivity_test: isReturnUrlConnectivityTest,
+        billing_mode: plan.billingMode,
+        auto_renew: plan.autoRenew,
+        support_summary: plan.supportSummary,
+        future_launch_reserved: true,
       },
     });
 
@@ -134,25 +138,26 @@ export async function POST(req: Request) {
       MerchantTradeNo: merchantTradeNo,
       MerchantTradeDate: formatTradeDate(new Date()),
       PaymentType: "aio",
-      TotalAmount: String(VIP_MONTH_PRICE),
-      TradeDesc: isReturnUrlConnectivityTest ? "ANGANDAO ReturnURL Test" : "ANGANDAO VIP Monthly",
-      ItemName: isReturnUrlConnectivityTest ? "安感島ReturnURL測試訂單" : "安感島VIP月方案",
+      TotalAmount: String(Number(plan.amount || 0)),
+      TradeDesc: tradeDesc,
+      ItemName: itemName,
       ReturnURL: returnUrl,
       ChoosePayment: choosePayment,
       EncryptType: "1",
       ClientBackURL: clientBackUrl,
       OrderResultURL: orderResultUrl,
       NeedExtraPaidInfo: "Y",
-      CustomField1: VIP_MONTH_PLAN_CODE,
+      CustomField1: plan.code,
       CustomField2: merchantTradeNo,
       ItemURL: itemUrl,
-      Remark: isReturnUrlConnectivityTest ? "RETURN_URL_TEST" : "VIP_MONTH",
+      Remark: isReturnUrlConnectivityTest ? "RETURN_URL_TEST" : "VIP_MONTH_PILOT",
     };
 
     ecpayFields.CheckMacValue = createCheckMacValue(ecpayFields, config.hashKey, config.hashIV);
 
     console.info("[ECPAY_CHECKOUT_FIELDS]", {
       merchantTradeNo,
+      planCode: plan.code,
       stage: config.stage,
       merchantId: config.merchantId,
       action: config.checkoutUrl,
@@ -174,9 +179,9 @@ export async function POST(req: Request) {
       fields: ecpayFields,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.message || "建立付款流程時發生未預期錯誤。" },
-      { status: 500 },
-    );
+    const message = error?.message || "建立付款流程時發生未預期錯誤。";
+    const status = /尚未開放付款/.test(message) ? 400 : 500;
+
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -74,7 +74,11 @@ function CheckoutResultContent() {
       },
     );
 
-    const json = (await response.json().catch(() => null)) as OrderStatusResp | { error?: string } | null;
+    const json = (await response.json().catch(() => null)) as
+      | OrderStatusResp
+      | { error?: string }
+      | null;
+
     if (!response.ok) {
       setMsg((json as { error?: string } | null)?.error || "目前無法確認付款結果。");
       setLoading(false);
@@ -141,9 +145,15 @@ function CheckoutResultContent() {
 
           {!loading && status?.status === "paid" ? (
             <div className="cc-note cc-stack-sm">
-              <div><strong>付款成功。</strong></div>
+              <div>
+                <strong>付款成功。</strong>
+              </div>
               <div>VIP 權益已入帳，可以直接前往帳號頁或同行空間確認。</div>
               {status.paidAt ? <div>付款時間：{new Date(status.paidAt).toLocaleString()}</div> : null}
+              {status.entitlement.vip_until ? (
+                <div>VIP 到期時間：{new Date(status.entitlement.vip_until).toLocaleString()}</div>
+              ) : null}
+              <div>這筆訂單屬於試營運的一次性月方案，不會在下個月自動續扣。</div>
             </div>
           ) : null}
 
@@ -162,9 +172,15 @@ function CheckoutResultContent() {
           {msg ? <div className="cc-note">{msg}</div> : null}
 
           <div className="cc-action-row">
-            <Link href="/account" className="cc-btn-primary">查看帳號 / 權益</Link>
-            <Link href="/rooms" className="cc-btn">前往同行空間</Link>
-            <Link href="/pricing" className="cc-btn">回方案頁</Link>
+            <Link href="/account" className="cc-btn-primary">
+              查看帳號 / 權益
+            </Link>
+            <Link href="/rooms" className="cc-btn">
+              前往同行空間
+            </Link>
+            <Link href="/pricing" className="cc-btn">
+              回方案頁
+            </Link>
           </div>
         </article>
 
@@ -177,6 +193,22 @@ function CheckoutResultContent() {
             <li>確認無誤後，才真的把 VIP 權益入帳。</li>
             <li>若銀行授權較慢，這頁會暫時顯示「確認中」。</li>
           </ul>
+
+          <div className="cc-note cc-stack-sm">
+            <div><strong>需要人工處理時請準備：</strong></div>
+            <div>帳號 Email</div>
+            <div>付款時間與金額</div>
+            <div>MerchantTradeNo</div>
+          </div>
+
+          <div className="cc-action-row">
+            <Link href="/contact" className="cc-btn">
+              客服 / 人工審核
+            </Link>
+            <Link href="/refund-policy" className="cc-btn">
+              退款政策
+            </Link>
+          </div>
         </article>
       </section>
 

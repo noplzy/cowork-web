@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { supabase } from "@/lib/supabaseClient";
-import { fetchAccountStatus, type AccountStatusResp, clearAccountStatusCache } from "@/lib/accountStatusClient";
+import {
+  fetchAccountStatus,
+  type AccountStatusResp,
+  clearAccountStatusCache,
+} from "@/lib/accountStatusClient";
 import { getClientSessionSnapshot } from "@/lib/clientAuth";
 import { ensureOwnPrivateSettings, ensureOwnProfile } from "@/lib/profileClient";
 import {
@@ -303,7 +307,21 @@ export default function AccountCenterPage() {
             <div><strong>公開 ID：</strong>{profile?.handle || "—"}</div>
             <div><strong>手機：</strong>{formatPhoneForHumans(phone)}</div>
             <div><strong>付款方式摘要：</strong>{paymentSummary}</div>
+            <div><strong>扣款模式：</strong>{status?.billing_mode === "one_time" ? "一次性付款（目前不自動續扣）" : "免費方案 / 尚未付費"}</div>
             <div><strong>週期起點：</strong>{status?.month_start ?? "—"}</div>
+            <div><strong>VIP 到期：</strong>{status?.vip_until ? new Date(status.vip_until).toLocaleString() : "—"}</div>
+          </div>
+
+          <div className="cc-action-row">
+            <Link href="/pricing" className="cc-btn">
+              方案頁
+            </Link>
+            <Link href="/service-delivery" className="cc-btn">
+              服務交付
+            </Link>
+            <Link href="/refund-policy" className="cc-btn">
+              退款政策
+            </Link>
           </div>
 
           <div className="cc-caption">
@@ -396,7 +414,7 @@ export default function AccountCenterPage() {
           <div className="cc-note cc-stack-sm">
             <div><strong>手機驗證：</strong>{phone ? "已綁定，可在身份綁定頁調整" : "尚未綁定"}</div>
             <div><strong>卡號摘要：</strong>{paymentSummary}</div>
-            <div><strong>說明：</strong> 卡號摘要未來應由 PSP 寫入，這一版先只做展示落點。</div>
+            <div><strong>付款模式：</strong>目前是試營運單一月方案；月訂閱與年方案尚未開放。</div>
           </div>
 
           <label className="cc-row" style={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -420,6 +438,9 @@ export default function AccountCenterPage() {
             </button>
             <Link href="/account/identity" className="cc-btn">
               前往身份綁定
+            </Link>
+            <Link href="/contact" className="cc-btn">
+              客服 / 人工審核
             </Link>
           </div>
         </article>
