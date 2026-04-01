@@ -6,6 +6,8 @@ export type AccountStatusResp = {
   credits_used: number;
   credits_remaining: number | null;
   month_start: string;
+  billing_mode: "free" | "one_time" | "subscription";
+  auto_renew_enabled: boolean;
 };
 
 const STATUS_TTL_MS = 15_000;

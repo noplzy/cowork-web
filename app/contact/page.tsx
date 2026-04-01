@@ -13,11 +13,12 @@ export default function ContactPage() {
       <section className="cc-section cc-grid-2">
         <article className="cc-card cc-stack-md">
           <span className="cc-kicker">Contact</span>
-          <p className="cc-eyebrow">客服、付款異常、封鎖申訴，現在統一走公開表單。</p>
+          <p className="cc-eyebrow">客服、付款異常、人工退款審核，現在統一走公開表單。</p>
           <h1 className="cc-h2">客服入口先求穩，不再依賴 mailto。</h1>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.85 }}>
             這一版先不做站內私訊客服。
-            你可以直接透過公開 Google Form 送出客服或申訴資料，我們再用你填寫的聯絡 Email 回覆。
+            你可以直接透過公開 Google Form 送出客服、付款異常或人工退款審核資料，
+            我們再用你填寫的聯絡 Email 回覆。
           </p>
 
           <div className="cc-action-row">
@@ -30,7 +31,12 @@ export default function ContactPage() {
                 尚未設定客服表單
               </button>
             )}
-            <Link href="/refund-policy" className="cc-btn">退款 / 取消政策</Link>
+            <Link href="/refund-policy" className="cc-btn">
+              退款 / 取消政策
+            </Link>
+            <Link href="/service-delivery" className="cc-btn">
+              服務交付
+            </Link>
           </div>
 
           {!formReady ? (
@@ -49,16 +55,16 @@ export default function ContactPage() {
           </div>
 
           <ul className="cc-bullets">
-            <li>封鎖申訴</li>
-            <li>付款 / 權益問題</li>
+            <li>付款成功但權益未生效</li>
             <li>重複扣款</li>
-            <li>取消續訂</li>
+            <li>人工退款審核申請</li>
             <li>登入 / 帳號問題</li>
+            <li>封鎖申訴</li>
             <li>其他問題</li>
           </ul>
 
           <div className="cc-note">
-            建議表單必填：聯絡 Email、姓名 / 顯示名稱、安感島帳號 Email、問題類型、問題描述。
+            建議表單必填：聯絡 Email、姓名 / 顯示名稱、安感島帳號 Email、問題類型、問題描述、付款時間、金額、MerchantTradeNo。
           </div>
         </article>
       </section>
@@ -75,11 +81,11 @@ export default function ContactPage() {
         </article>
 
         <article className="cc-card cc-stack-sm">
-          <p className="cc-card-kicker">為什麼不用 mailto</p>
+          <p className="cc-card-kicker">這一版不用處理的事</p>
           <ul className="cc-bullets">
-            <li>很多使用者根本沒有設定預設郵件客戶端。</li>
-            <li>被封鎖帳號也需要一個不受站內導流影響的申訴入口。</li>
-            <li>Google Form + Google Sheets 對現在這個階段更穩、更好管理。</li>
+            <li>目前沒有自動續扣，所以不用申請取消下期續費。</li>
+            <li>目前也沒有年方案，所以不用處理年約解約。</li>
+            <li>先把付款、查單、權益入帳、人工退款審核這條路線跑穩更重要。</li>
           </ul>
         </article>
       </section>
