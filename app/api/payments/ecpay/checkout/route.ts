@@ -57,12 +57,19 @@ function getFixedOrigin(): string | null {
   return normalized || null;
 }
 
-function getChoosePaymentOverride(): "Credit" | "ATM" | "ALL" | null {
+/**
+ * Production rule:
+ * - In production, always use Credit.
+ * - In stage only, you may override payment method with ECPAY_FORCE_CHOOSE_PAYMENT=ATM / ALL / CREDIT.
+ */
+function resolveChoosePayment(isStage: boolean): "Credit" | "ATM" | "ALL" {
+  if (!isStage) return "Credit";
+
   const raw = String(process.env.ECPAY_FORCE_CHOOSE_PAYMENT || "").trim().toUpperCase();
-  if (raw === "CREDIT") return "Credit";
   if (raw === "ATM") return "ATM";
   if (raw === "ALL") return "ALL";
-  return null;
+  if (raw === "CREDIT") return "Credit";
+  return "Credit";
 }
 
 export async function POST(req: Request) {
@@ -90,7 +97,9 @@ export async function POST(req: Request) {
     const fixedOrigin = getFixedOrigin();
     const origin = fixedOrigin || dynamicOrigin;
     const merchantTradeNo = generateMerchantTradeNo("VIP");
-    const choosePayment = getChoosePaymentOverride() || "Credit";
+    const choosePayment = resolveChoosePayment(config.stage);
+
+    const isReturnUrlConnectivityTest = config.stage && choosePayment === "ATM";
 
     const { error: insertError } = await supabaseAdmin.from("payment_orders").insert({
       user_id: userId,
@@ -100,12 +109,14 @@ export async function POST(req: Request) {
       amount: VIP_MONTH_PRICE,
       currency: "TWD",
       status: "pending",
-      item_name: "安感島 VIP 月方案",
-      trade_desc: "ANGANDAO VIP Monthly",
+      item_name: isReturnUrlConnectivityTest ? "安感島ReturnURL測試訂單" : "安感島 VIP 月方案",
+      trade_desc: isReturnUrlConnectivityTest ? "ANGANDAO ReturnURL Test" : "ANGANDAO VIP Monthly",
       vip_days: VIP_MONTH_DAYS,
       provider_payload: {
         source: "pricing_page",
         choose_payment: choosePayment,
+        stage: config.stage,
+        return_url_connectivity_test: isReturnUrlConnectivityTest,
       },
     });
 
@@ -124,8 +135,8 @@ export async function POST(req: Request) {
       MerchantTradeDate: formatTradeDate(new Date()),
       PaymentType: "aio",
       TotalAmount: String(VIP_MONTH_PRICE),
-      TradeDesc: choosePayment === "ATM" ? "ANGANDAO ReturnURL Test" : "ANGANDAO VIP Monthly",
-      ItemName: choosePayment === "ATM" ? "安感島ReturnURL測試訂單" : "安感島VIP月方案",
+      TradeDesc: isReturnUrlConnectivityTest ? "ANGANDAO ReturnURL Test" : "ANGANDAO VIP Monthly",
+      ItemName: isReturnUrlConnectivityTest ? "安感島ReturnURL測試訂單" : "安感島VIP月方案",
       ReturnURL: returnUrl,
       ChoosePayment: choosePayment,
       EncryptType: "1",
@@ -135,7 +146,7 @@ export async function POST(req: Request) {
       CustomField1: VIP_MONTH_PLAN_CODE,
       CustomField2: merchantTradeNo,
       ItemURL: itemUrl,
-      Remark: choosePayment === "ATM" ? "RETURN_URL_TEST" : "VIP_MONTH",
+      Remark: isReturnUrlConnectivityTest ? "RETURN_URL_TEST" : "VIP_MONTH",
     };
 
     ecpayFields.CheckMacValue = createCheckMacValue(ecpayFields, config.hashKey, config.hashIV);
@@ -153,6 +164,7 @@ export async function POST(req: Request) {
       orderResultUrl,
       clientBackUrl,
       itemUrl,
+      isReturnUrlConnectivityTest,
     });
 
     return NextResponse.json({
@@ -160,15 +172,6 @@ export async function POST(req: Request) {
       method: "POST",
       merchantTradeNo,
       fields: ecpayFields,
-      debug: {
-        stage: config.stage,
-        choosePayment,
-        originSource: fixedOrigin ? "SITE_URL" : "REQUEST_ORIGIN",
-        dynamicOrigin,
-        fixedOrigin,
-        returnUrl,
-        orderResultUrl,
-      },
     });
   } catch (error: any) {
     return NextResponse.json(
