@@ -24,6 +24,7 @@ import {
   toDatetimeLocalValue,
   type ActiveRoomScene,
   type InteractionStyle,
+  type PublicProfileRow,
   type RoomCategory,
   type ScheduleVisibility,
 } from "@/lib/socialProfile";
@@ -192,9 +193,7 @@ function buildSceneCounts<T>(rows: T[], getScene: (row: T) => ActiveRoomScene): 
 async function loadRoomsWithFallback(): Promise<Room[]> {
   const enhanced = await supabase
     .from("rooms")
-    .select(
-      "id,title,duration_minutes,mode,max_size,created_at,daily_room_url,room_category,interaction_style,visibility,host_note",
-    )
+    .select("id,title,duration_minutes,mode,max_size,created_at,daily_room_url,room_category,interaction_style,visibility,host_note")
     .order("created_at", { ascending: false });
 
   if (!enhanced.error) {
@@ -394,11 +393,7 @@ export default function RoomsPage() {
     setBusy(true);
     setMsg("");
 
-    const result = await supabase
-      .from("scheduled_room_posts")
-      .delete()
-      .eq("id", postId)
-      .eq("host_user_id", userId);
+    const result = await supabase.from("scheduled_room_posts").delete().eq("id", postId).eq("host_user_id", userId);
 
     setBusy(false);
 
@@ -444,21 +439,87 @@ export default function RoomsPage() {
   const currentScheduleCount = filteredSchedulePosts.length;
   const currentFormScene = activeScene === "all" ? roomCategory : activeScene;
 
+  const summaryItems = [
+    { label: "本月剩餘", value: status?.is_vip ? "∞" : status?.credits_remaining ?? "?" },
+    { label: "每月額度", value: status?.is_vip ? "VIP" : status?.free_monthly_allowance ?? "?" },
+    { label: "週期起點", value: status?.month_start ?? "讀取中…" },
+  ];
+
   return (
     <main className="cc-container">
       <TopNav email={email} />
 
-      <section className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
-        <div className="cc-card cc-stack-md" style={{ padding: 28 }}>
+      <section className="cc-section cc-grid-2" style={{ alignItems: "start", gap: 18 }}>
+        <div className="cc-card cc-stack-sm" style={{ padding: 24 }}>
           <span className="cc-kicker">Shared Spaces</span>
-          <p className="cc-eyebrow">同行空間｜先縮小你現在要看的場景，再決定要立刻進房還是安排之後的時間</p>
-          <h1 className="cc-h1" style={{ fontSize: "clamp(2.3rem, 4vw, 4.6rem)", maxWidth: "8.5ch" }}>
-            先選場景，再決定要現在進房，還是先把時間排起來。
+          <p className="cc-eyebrow">同行空間｜先決定你現在要看的場景，再切到即時房或排程專區</p>
+          <h1
+            className="cc-h1"
+            style={{
+              fontSize: "clamp(2rem, 3.3vw, 3.7rem)",
+              lineHeight: 1.02,
+              letterSpacing: "-0.04em",
+              maxWidth: "10ch",
+            }}
+          >
+            先選場景，再決定現在進房，還是先排時間。
           </h1>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8, maxWidth: "56ch" }}>
-            這一頁先把產品結構做對：場景先行，內容分流。你看到的即時房、排程板與排程表單會維持同一套場景語意，而不是每一塊各講各的話。
+          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.75, maxWidth: "58ch" }}>
+            這頁不再把即時房、排程板和建立表單混成一包。你先選場景，系統再同步切換你現在看到的內容。
           </p>
+        </div>
 
+        <div className="cc-card cc-stack-sm" style={{ padding: 24 }}>
+          <div className="cc-card-row" style={{ alignItems: "center" }}>
+            <div>
+              <p className="cc-card-kicker">本月使用權益</p>
+              <h2 className="cc-h2">規則先清楚，場景才放得開。</h2>
+            </div>
+            <span className={status?.is_vip ? "cc-pill-success" : "cc-pill-warning"}>{status?.is_vip ? "VIP" : "FREE"}</span>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 12,
+            }}
+          >
+            {summaryItems.map((item) => (
+              <div key={item.label} className="cc-panel" style={{ padding: "12px 14px" }}>
+                <div className="cc-caption">{item.label}</div>
+                <div className="cc-h3" style={{ marginTop: 8, fontSize: item.label === "週期起點" ? "1.05rem" : "1.55rem" }}>
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="cc-grid-2" style={{ gap: 12 }}>
+            <div
+              className="cc-card cc-card-soft cc-stack-sm"
+              style={{ padding: 18, ...(currentTone ? subtleSceneCardStyle(activeScene as ActiveRoomScene) : {}) }}
+            >
+              <p className="cc-card-kicker">目前視角</p>
+              <div className="cc-h3">{currentSceneLabel}</div>
+              <div className="cc-muted" style={{ lineHeight: 1.7 }}>
+                {contentMode === "now" ? `現在可進房：${currentNowCount} 間` : `排程板：${currentScheduleCount} 筆`}
+              </div>
+              <div className="cc-caption" style={{ lineHeight: 1.65 }}>{currentSceneDesc}</div>
+            </div>
+
+            <div className="cc-card cc-card-soft cc-stack-sm" style={{ padding: 18 }}>
+              <p className="cc-card-kicker">固定規則</p>
+              <div className="cc-muted-strong" style={{ lineHeight: 1.75 }}>
+                排程仍只支援 25 / 50 / 75 / 100 分鐘，名額只支援 2 / 4 / 6 人。先把規則固定，品質才不會一起鬆掉。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="cc-section cc-card cc-stack-sm" style={{ padding: 22 }}>
+        <div className="cc-grid-2" style={{ alignItems: "start", gap: 18 }}>
           <div className="cc-stack-sm">
             <div className="cc-field-label">場景篩選</div>
             <div className="cc-action-row" style={{ marginTop: 0 }}>
@@ -466,7 +527,11 @@ export default function RoomsPage() {
                 type="button"
                 className="cc-btn"
                 onClick={() => setActiveScene("all")}
-                style={activeScene === "all" ? { borderColor: "rgba(234, 171, 141, 0.36)", background: "rgba(234, 171, 141, 0.12)" } : undefined}
+                style={
+                  activeScene === "all"
+                    ? { borderColor: "rgba(234, 171, 141, 0.36)", background: "rgba(234, 171, 141, 0.12)" }
+                    : undefined
+                }
               >
                 全部場景
                 <span className="cc-pill-soft" style={{ marginLeft: 2 }}>{contentMode === "now" ? roomCounts.all : scheduleCounts.all}</span>
@@ -480,7 +545,9 @@ export default function RoomsPage() {
                   style={sceneButtonStyle(scene.value, activeScene === scene.value)}
                 >
                   {scene.label}
-                  <span className="cc-pill-soft" style={{ marginLeft: 2 }}>{contentMode === "now" ? roomCounts[scene.value] : scheduleCounts[scene.value]}</span>
+                  <span className="cc-pill-soft" style={{ marginLeft: 2 }}>
+                    {contentMode === "now" ? roomCounts[scene.value] : scheduleCounts[scene.value]}
+                  </span>
                 </button>
               ))}
             </div>
@@ -489,11 +556,7 @@ export default function RoomsPage() {
           <div className="cc-stack-sm">
             <div className="cc-field-label">內容區</div>
             <div className="cc-action-row" style={{ marginTop: 0 }}>
-              <button
-                type="button"
-                className={contentMode === "now" ? "cc-btn-primary" : "cc-btn"}
-                onClick={() => setContentMode("now")}
-              >
+              <button type="button" className={contentMode === "now" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("now")}>
                 現在可進房
                 <span className="cc-pill-soft" style={{ marginLeft: 2 }}>{currentNowCount}</span>
               </button>
@@ -508,63 +571,6 @@ export default function RoomsPage() {
             </div>
           </div>
         </div>
-
-        <div className="cc-stack-sm">
-          <div className="cc-card cc-stack-sm" style={{ padding: 24 }}>
-            <div className="cc-card-row" style={{ alignItems: "center" }}>
-              <div>
-                <p className="cc-card-kicker">本月使用權益</p>
-                <h2 className="cc-h2">規則先清楚，場景才放得開。</h2>
-              </div>
-              <span className={status?.is_vip ? "cc-pill-success" : "cc-pill-warning"}>{status?.is_vip ? "VIP" : "FREE"}</span>
-            </div>
-
-            {status ? (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                  gap: 12,
-                }}
-              >
-                <div className="cc-panel" style={{ padding: "14px 16px" }}>
-                  <div className="cc-caption">本月剩餘</div>
-                  <div className="cc-h2" style={{ marginTop: 4 }}>{status.is_vip ? "∞" : (status.credits_remaining ?? "?")}</div>
-                </div>
-                <div className="cc-panel" style={{ padding: "14px 16px" }}>
-                  <div className="cc-caption">每月額度</div>
-                  <div className="cc-h2" style={{ marginTop: 4 }}>{status.is_vip ? "VIP" : status.free_monthly_allowance}</div>
-                </div>
-                <div className="cc-panel" style={{ padding: "14px 16px" }}>
-                  <div className="cc-caption">週期起點</div>
-                  <div className="cc-h3" style={{ marginTop: 8 }}>{status.month_start}</div>
-                </div>
-              </div>
-            ) : (
-              <div className="cc-note">正在讀取你的方案資訊…</div>
-            )}
-          </div>
-
-          <div className="cc-grid-2">
-            <div className="cc-card cc-card-soft cc-stack-sm" style={{ padding: 20, ...(currentTone ? subtleSceneCardStyle(activeScene as ActiveRoomScene) : {}) }}>
-              <p className="cc-card-kicker">目前視角</p>
-              <h3 className="cc-h3">{currentSceneLabel}</h3>
-              <div className="cc-muted" style={{ lineHeight: 1.7 }}>
-                {contentMode === "now"
-                  ? `現在可進房：${currentNowCount} 間`
-                  : `排程板：${currentScheduleCount} 筆`}
-              </div>
-              <div className="cc-caption" style={{ lineHeight: 1.7 }}>{currentSceneDesc}</div>
-            </div>
-
-            <div className="cc-card cc-card-soft cc-stack-sm" style={{ padding: 20 }}>
-              <p className="cc-card-kicker">固定規則</p>
-              <div className="cc-muted-strong" style={{ lineHeight: 1.8 }}>
-                排程仍只支援 25 / 50 / 75 / 100 分鐘，名額只支援 2 / 4 / 6 人。這不是偷懶，是避免免費額度、畫面品質與產品承諾一起失控。
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       {msg ? <div className="cc-alert cc-alert-error cc-section" style={{ whiteSpace: "pre-line" }}>{msg}</div> : null}
@@ -576,7 +582,7 @@ export default function RoomsPage() {
               <p className="cc-card-kicker">現在可進房</p>
               <h2 className="cc-h2">{currentSceneLabel} 的即時同行空間</h2>
               <p className="cc-muted" style={{ marginTop: 8, lineHeight: 1.7 }}>
-                這裡只顯示現在就能加入的房間。你不需要先看排程，也不需要猜這間房的場景屬性。
+                這裡只顯示現在就能加入的房間。即時房與排程板不再混排，所以你可以更快判斷要不要直接進去。
               </p>
             </div>
             <span className="cc-pill-soft">{currentNowCount} spaces</span>
@@ -591,11 +597,7 @@ export default function RoomsPage() {
                 const visibility = room.visibility ?? "public";
                 return (
                   <li key={room.id}>
-                    <Link
-                      className="cc-listlink"
-                      href={`/rooms/${room.id}`}
-                      style={{ borderLeft: `4px solid ${sceneTone.line}` }}
-                    >
+                    <Link className="cc-listlink" href={`/rooms/${room.id}`} style={{ borderLeft: `4px solid ${sceneTone.line}` }}>
                       <div className="cc-stack-sm">
                         <div className="cc-row" style={{ flexWrap: "wrap" }}>
                           <span className="cc-h3">{room.title}</span>
@@ -624,19 +626,19 @@ export default function RoomsPage() {
             <div className="cc-empty-state">
               <div className="cc-stack-sm">
                 <div className="cc-h3">目前沒有符合這個場景的即時房</div>
-                <div className="cc-muted">你可以切到排程專區先把時間掛出來，或切換到其他場景看看。</div>
+                <div className="cc-muted">你可以切到排程專區先把時間掛出來，或切到其他場景看看。</div>
               </div>
             </div>
           )}
         </section>
       ) : (
-        <section id="space-schedule" className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
+        <section id="space-schedule" className="cc-section cc-grid-2" style={{ alignItems: "start", gap: 18 }}>
           <article className="cc-card cc-stack-md">
             <div>
               <p className="cc-card-kicker">排程專區</p>
               <h2 className="cc-h2">先把 {currentSceneLabel} 的時間掛出來</h2>
               <p className="cc-muted" style={{ marginTop: 8, lineHeight: 1.7 }}>
-                排程不是獨立產品，而是同行空間的附屬能力。這一塊只處理時間、場景、互動形式與名額，不把複雜度一次塞爆。
+                排程不是獨立產品，而是同行空間的附屬能力。這裡只處理時間、場景、互動形式與名額，不把複雜度一次塞爆。
               </p>
             </div>
 
@@ -678,12 +680,7 @@ export default function RoomsPage() {
             <div className="cc-grid-2">
               <label className="cc-field">
                 <span className="cc-field-label">開始時間</span>
-                <input
-                  className="cc-input"
-                  type="datetime-local"
-                  value={startAtInput}
-                  onChange={(e) => setStartAtInput(e.target.value)}
-                />
+                <input className="cc-input" type="datetime-local" value={startAtInput} onChange={(e) => setStartAtInput(e.target.value)} />
               </label>
 
               <label className="cc-field">
@@ -756,23 +753,18 @@ export default function RoomsPage() {
                   const isOwn = post.host_user_id === userId;
                   const tone = SCENE_TONES[post.ui_scene];
                   return (
-                    <article
-                      key={post.id}
-                      className="cc-card cc-card-outline cc-stack-sm"
-                      style={{ borderLeft: `4px solid ${tone.line}` }}
-                    >
+                    <article key={post.id} className="cc-card cc-card-outline cc-stack-sm" style={{ borderLeft: `4px solid ${tone.line}` }}>
                       <div className="cc-row" style={{ justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                         <div className="cc-stack-sm" style={{ flex: 1, minWidth: 0 }}>
                           <div className="cc-row" style={{ gap: 8, flexWrap: "wrap" }}>
                             <span className="cc-h3">{post.title}</span>
                             <span className="cc-pill-soft" style={subtleSceneCardStyle(post.ui_scene)}>{labelForRoomScene(post.ui_scene)}</span>
                             <span className="cc-pill-soft">{labelForInteractionStyle(post.interaction_style)}</span>
-                            <span className="cc-pill-soft">{labelForVisibility(post.visibility)}</span>
                           </div>
                           <div className="cc-muted" style={{ lineHeight: 1.7 }}>
                             {formatDateTimeRange(post.start_at, post.end_at)}
                             <br />
-                            名額 {post.seat_limit} 人 · {formatDurationLabel(post.duration_minutes)}
+                            名額 {post.seat_limit} 人 · {labelForVisibility(post.visibility)} · {formatDurationLabel(post.duration_minutes)}
                           </div>
                         </div>
 
