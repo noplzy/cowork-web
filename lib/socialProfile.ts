@@ -1,7 +1,6 @@
 export type ProfileVisibility = "public" | "members" | "friends";
-export type RoomCategory = "focus" | "life" | "share" | "support" | "hobby" | "pro";
-export type ActiveRoomScene = "focus" | "life" | "share" | "hobby";
-export type RoomsCategory = ActiveRoomScene;
+export type RoomCategory = "focus" | "life" | "share" | "hobby";
+export type ActiveRoomScene = RoomCategory;
 export type InteractionStyle = "silent" | "light-chat" | "guided" | "open-share";
 export type ScheduleVisibility = "public" | "members" | "friends" | "invited";
 export type RoomSceneTheme = ActiveRoomScene;
@@ -35,25 +34,19 @@ export type PrivateProfileSettingsRow = {
 
 export const PROFILE_VISIBILITY_OPTIONS: Array<{ value: ProfileVisibility; label: string }> = [
   { value: "public", label: "公開可見" },
-  { value: "members", label: "僅登入會員可見" },
-  { value: "friends", label: "僅自己與好友可見（後續擴充）" },
+  { value: "members", label: "僅 VIP 會員可見" },
+  { value: "friends", label: "僅自己與好友可見" },
 ];
 
 export const ROOM_CATEGORY_OPTIONS: Array<{ value: RoomCategory; label: string; desc: string }> = [
   { value: "focus", label: "專注任務", desc: "共工、讀書、寫作、任務陪跑" },
   { value: "life", label: "生活陪伴", desc: "家務、煮菜、收納、帶小孩時的低壓力同行" },
   { value: "share", label: "主題分享", desc: "某個主題的交流、經驗交換、作品分享" },
-  { value: "support", label: "溫和支持", desc: "深夜陪伴、安靜同行、被接住感" },
   { value: "hobby", label: "興趣同好", desc: "手作、運動、畫圖、共同興趣" },
-  { value: "pro", label: "專業服務", desc: "專業搭子、付費陪跑、教練型同行" },
 ];
 
-export const ACTIVE_ROOM_SCENE_OPTIONS: Array<{ value: ActiveRoomScene; label: string; desc: string }> = [
-  { value: "focus", label: "專注任務", desc: "共工、讀書、寫作、任務陪跑" },
-  { value: "life", label: "生活陪伴", desc: "家務、煮菜、收納、帶小孩時的低壓力同行" },
-  { value: "share", label: "主題分享", desc: "主題交流、經驗交換、作品分享" },
-  { value: "hobby", label: "興趣同好", desc: "手作、運動、畫圖、共同興趣" },
-];
+export const ACTIVE_ROOM_SCENE_OPTIONS: Array<{ value: ActiveRoomScene; label: string; desc: string }> =
+  ROOM_CATEGORY_OPTIONS;
 
 export const INTERACTION_STYLE_OPTIONS: Array<{ value: InteractionStyle; label: string }> = [
   { value: "silent", label: "安靜同行" },
@@ -64,11 +57,12 @@ export const INTERACTION_STYLE_OPTIONS: Array<{ value: InteractionStyle; label: 
 
 export const SCHEDULE_VISIBILITY_OPTIONS: Array<{ value: ScheduleVisibility; label: string }> = [
   { value: "public", label: "公開" },
-  { value: "members", label: "會員可見" },
+  { value: "members", label: "VIP 會員可見" },
   { value: "friends", label: "好友可見" },
   { value: "invited", label: "邀請制" },
 ];
 
+export const INSTANT_ROOM_DURATION_OPTIONS = [25, 50] as const;
 export const SCHEDULE_DURATION_OPTIONS = [25, 50, 75, 100] as const;
 export const SCHEDULE_SEAT_LIMIT_OPTIONS = [2, 4, 6] as const;
 
@@ -145,9 +139,9 @@ export function isActiveRoomScene(value?: string | null): value is ActiveRoomSce
 }
 
 export function normalizeRoomCategoryForUi(value?: string | null): ActiveRoomScene {
-  if (value === "support") return "life";
-  if (value === "pro") return "share";
   if (isActiveRoomScene(value)) return value;
+  if (value === "support" || value === "life") return "life";
+  if (value === "pro") return "share";
   return "focus";
 }
 
@@ -160,15 +154,11 @@ export function labelForRoomCategory(value?: string | null) {
 }
 
 export function labelForRoomScene(value?: string | null) {
-  if (value === "support") return "生活陪伴";
-  if (value === "pro") return "主題分享";
-  return ACTIVE_ROOM_SCENE_OPTIONS.find((item) => item.value === value)?.label ?? "專注任務";
+  return ACTIVE_ROOM_SCENE_OPTIONS.find((item) => item.value === normalizeRoomCategoryForUi(value))?.label ?? "專注任務";
 }
 
 export function descForRoomScene(value?: string | null) {
-  if (value === "support") return "溫和支持先併入生活陪伴顯示";
-  if (value === "pro") return "專業服務不放在 Rooms，舊資料先併入主題分享顯示";
-  return ACTIVE_ROOM_SCENE_OPTIONS.find((item) => item.value === value)?.desc ?? "共工、讀書、寫作、任務陪跑";
+  return ACTIVE_ROOM_SCENE_OPTIONS.find((item) => item.value === normalizeRoomCategoryForUi(value))?.desc ?? "共工、讀書、寫作、任務陪跑";
 }
 
 export function labelForInteractionStyle(value?: string | null) {
