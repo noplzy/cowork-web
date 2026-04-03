@@ -1,7 +1,9 @@
 export type ProfileVisibility = "public" | "members" | "friends";
 export type RoomCategory = "focus" | "life" | "share" | "support" | "hobby" | "pro";
+export type ActiveRoomScene = Exclude<RoomCategory, "support">;
 export type InteractionStyle = "silent" | "light-chat" | "guided" | "open-share";
 export type ScheduleVisibility = "public" | "members" | "friends" | "invited";
+export type RoomSceneTheme = ActiveRoomScene;
 
 export type PublicProfileRow = {
   user_id: string;
@@ -44,6 +46,11 @@ export const ROOM_CATEGORY_OPTIONS: Array<{ value: RoomCategory; label: string; 
   { value: "hobby", label: "興趣同好", desc: "手作、運動、畫圖、共同興趣" },
   { value: "pro", label: "專業服務", desc: "專業搭子、付費陪跑、教練型同行" },
 ];
+
+export const ACTIVE_ROOM_SCENE_OPTIONS: Array<{ value: ActiveRoomScene; label: string; desc: string }> =
+  ROOM_CATEGORY_OPTIONS.filter(
+    (item): item is { value: ActiveRoomScene; label: string; desc: string } => item.value !== "support",
+  );
 
 export const INTERACTION_STYLE_OPTIONS: Array<{ value: InteractionStyle; label: string }> = [
   { value: "silent", label: "安靜同行" },
@@ -130,8 +137,32 @@ export function formatPaymentSummary(brand?: string | null, last4?: string | nul
   return `${brand.toUpperCase()} •••• ${last4}`;
 }
 
+export function isActiveRoomScene(value?: string | null): value is ActiveRoomScene {
+  return value === "focus" || value === "life" || value === "share" || value === "hobby" || value === "pro";
+}
+
+export function normalizeRoomCategoryForUi(value?: string | null): ActiveRoomScene {
+  if (value === "support") return "life";
+  if (isActiveRoomScene(value)) return value;
+  return "focus";
+}
+
+export function roomSceneThemeForCategory(value?: string | null): RoomSceneTheme {
+  return normalizeRoomCategoryForUi(value);
+}
+
 export function labelForRoomCategory(value?: string | null) {
   return ROOM_CATEGORY_OPTIONS.find((item) => item.value === value)?.label ?? "未分類";
+}
+
+export function labelForRoomScene(value?: string | null) {
+  if (value === "support") return "生活陪伴";
+  return ACTIVE_ROOM_SCENE_OPTIONS.find((item) => item.value === value)?.label ?? "專注任務";
+}
+
+export function descForRoomScene(value?: string | null) {
+  if (value === "support") return "先併入生活陪伴顯示";
+  return ACTIVE_ROOM_SCENE_OPTIONS.find((item) => item.value === value)?.desc ?? "共工、讀書、寫作、任務陪跑";
 }
 
 export function labelForInteractionStyle(value?: string | null) {
