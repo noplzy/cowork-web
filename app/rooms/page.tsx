@@ -81,63 +81,51 @@ type SceneTone = {
 const SCENE_TONES: Record<ActiveRoomScene, SceneTone> = {
   focus: {
     active: {
-      borderColor: "rgba(126, 170, 150, 0.38)",
-      background: "rgba(109, 139, 118, 0.16)",
+      borderColor: "rgba(126, 155, 132, 0.38)",
+      background: "rgba(126, 155, 132, 0.14)",
       color: "var(--foreground)",
     },
     subtle: {
-      borderColor: "rgba(126, 170, 150, 0.22)",
-      background: "rgba(109, 139, 118, 0.10)",
+      borderColor: "rgba(126, 155, 132, 0.24)",
+      background: "rgba(126, 155, 132, 0.12)",
     },
-    line: "rgba(126, 170, 150, 0.95)",
+    line: "rgba(126, 155, 132, 0.94)",
   },
   life: {
     active: {
-      borderColor: "rgba(234, 171, 141, 0.42)",
-      background: "rgba(234, 171, 141, 0.14)",
+      borderColor: "rgba(255, 176, 149, 0.42)",
+      background: "rgba(255, 176, 149, 0.14)",
       color: "var(--foreground)",
     },
     subtle: {
-      borderColor: "rgba(234, 171, 141, 0.24)",
-      background: "rgba(234, 171, 141, 0.10)",
+      borderColor: "rgba(255, 176, 149, 0.24)",
+      background: "rgba(255, 176, 149, 0.10)",
     },
-    line: "rgba(234, 171, 141, 0.95)",
+    line: "rgba(255, 176, 149, 0.94)",
   },
   share: {
     active: {
-      borderColor: "rgba(140, 178, 214, 0.42)",
-      background: "rgba(140, 178, 214, 0.14)",
+      borderColor: "rgba(147, 171, 196, 0.42)",
+      background: "rgba(147, 171, 196, 0.14)",
       color: "var(--foreground)",
     },
     subtle: {
-      borderColor: "rgba(140, 178, 214, 0.24)",
-      background: "rgba(140, 178, 214, 0.10)",
+      borderColor: "rgba(147, 171, 196, 0.24)",
+      background: "rgba(147, 171, 196, 0.10)",
     },
-    line: "rgba(140, 178, 214, 0.95)",
+    line: "rgba(147, 171, 196, 0.94)",
   },
   hobby: {
     active: {
-      borderColor: "rgba(193, 154, 199, 0.42)",
-      background: "rgba(193, 154, 199, 0.14)",
+      borderColor: "rgba(188, 164, 201, 0.42)",
+      background: "rgba(188, 164, 201, 0.14)",
       color: "var(--foreground)",
     },
     subtle: {
-      borderColor: "rgba(193, 154, 199, 0.24)",
-      background: "rgba(193, 154, 199, 0.10)",
+      borderColor: "rgba(188, 164, 201, 0.24)",
+      background: "rgba(188, 164, 201, 0.10)",
     },
-    line: "rgba(193, 154, 199, 0.95)",
-  },
-  pro: {
-    active: {
-      borderColor: "rgba(124, 148, 185, 0.42)",
-      background: "rgba(124, 148, 185, 0.14)",
-      color: "var(--foreground)",
-    },
-    subtle: {
-      borderColor: "rgba(124, 148, 185, 0.24)",
-      background: "rgba(124, 148, 185, 0.10)",
-    },
-    line: "rgba(124, 148, 185, 0.95)",
+    line: "rgba(188, 164, 201, 0.94)",
   },
 };
 
@@ -151,10 +139,15 @@ function costLabel(minutes: number) {
 
 function inferLegacySceneFromTitle(title?: string | null): ActiveRoomScene {
   const value = (title ?? "").toLowerCase();
-  if (["分享", "交流", "討論", "主題"].some((token) => value.includes(token))) return "share";
-  if (["生活", "陪伴", "煮", "家務", "整理", "晚餐", "育兒"].some((token) => value.includes(token))) return "life";
-  if (["興趣", "畫", "手作", "運動", "同好", "遊戲"].some((token) => value.includes(token))) return "hobby";
-  if (["專業", "顧問", "教練", "陪跑", "服務"].some((token) => value.includes(token))) return "pro";
+  if (["分享", "交流", "討論", "主題", "顧問", "教練", "陪跑", "服務"].some((token) => value.includes(token))) {
+    return "share";
+  }
+  if (["生活", "陪伴", "煮", "家務", "整理", "晚餐", "育兒"].some((token) => value.includes(token))) {
+    return "life";
+  }
+  if (["興趣", "畫", "手作", "運動", "同好", "遊戲"].some((token) => value.includes(token))) {
+    return "hobby";
+  }
   return "focus";
 }
 
@@ -179,7 +172,6 @@ function buildSceneCounts<T>(rows: T[], getScene: (row: T) => ActiveRoomScene): 
     life: 0,
     share: 0,
     hobby: 0,
-    pro: 0,
   };
 
   rows.forEach((row) => {
@@ -243,7 +235,7 @@ export default function RoomsPage() {
   const [contentMode, setContentMode] = useState<ContentMode>("now");
 
   const [scheduleTitle, setScheduleTitle] = useState("晚間共工 50 分鐘｜安靜同行");
-  const [roomCategory, setRoomCategory] = useState<RoomCategory>("focus");
+  const [roomCategory, setRoomCategory] = useState<ActiveRoomScene>("focus");
   const [interactionStyle, setInteractionStyle] = useState<InteractionStyle>("silent");
   const [scheduleVisibility, setScheduleVisibility] = useState<ScheduleVisibility>("public");
   const [startAtInput, setStartAtInput] = useState(toDatetimeLocalValue());
@@ -385,7 +377,7 @@ export default function RoomsPage() {
       return;
     }
 
-    setMsg("已建立排程。現在這頁的場景篩選、排程板與表單都會維持同一套語意。\n真正進房仍走「現在可進房」。");
+    setMsg("已建立排程。現在這頁的場景篩選、排程板與表單都會維持同一套 Rooms 語意。");
     await loadScheduleBoard();
   }
 
@@ -433,7 +425,10 @@ export default function RoomsPage() {
   );
 
   const currentSceneLabel = activeScene === "all" ? "全部場景" : labelForRoomScene(activeScene);
-  const currentSceneDesc = activeScene === "all" ? "先把所有即時房與排程看完整，再決定要不要縮小。" : descForRoomScene(activeScene);
+  const currentSceneDesc =
+    activeScene === "all"
+      ? "先用現在可進房與排程專區把內容分開看，再決定要不要縮小範圍。"
+      : descForRoomScene(activeScene);
   const currentTone = activeScene === "all" ? null : SCENE_TONES[activeScene];
   const currentNowCount = filteredRooms.length;
   const currentScheduleCount = filteredSchedulePosts.length;
@@ -449,87 +444,28 @@ export default function RoomsPage() {
     <main className="cc-container">
       <TopNav email={email} />
 
-      <section className="cc-section cc-grid-2" style={{ alignItems: "start", gap: 18 }}>
-        <div className="cc-card cc-stack-sm" style={{ padding: 24 }}>
+      <section className="cc-section cc-hero">
+        <article className="cc-card cc-hero-main cc-stack-md">
           <span className="cc-kicker">Shared Spaces</span>
-          <p className="cc-eyebrow">同行空間｜先決定你現在要看的場景，再切到即時房或排程專區</p>
-          <h1
-            className="cc-h1"
-            style={{
-              fontSize: "clamp(2rem, 3.3vw, 3.7rem)",
-              lineHeight: 1.02,
-              letterSpacing: "-0.04em",
-              maxWidth: "10ch",
-            }}
-          >
+          <p className="cc-eyebrow">同行空間｜先決定場景，再選擇現在進房或排程安排</p>
+          <h1 className="cc-h1" style={{ fontSize: "clamp(2rem, 4vw, 4.3rem)", maxWidth: "8.8ch" }}>
             先選場景，再決定現在進房，還是先排時間。
           </h1>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.75, maxWidth: "58ch" }}>
-            這頁不再把即時房、排程板和建立表單混成一包。你先選場景，系統再同步切換你現在看到的內容。
+          <p className="cc-lead">
+            Rooms 只承接低壓力的同行空間：專注任務、生活陪伴、主題分享與興趣同好。付費型專業服務不放在這裡，
+            之後由安感夥伴承接，避免房間語意越做越混。
           </p>
-        </div>
 
-        <div className="cc-card cc-stack-sm" style={{ padding: 24 }}>
-          <div className="cc-card-row" style={{ alignItems: "center" }}>
-            <div>
-              <p className="cc-card-kicker">本月使用權益</p>
-              <h2 className="cc-h2">規則先清楚，場景才放得開。</h2>
-            </div>
-            <span className={status?.is_vip ? "cc-pill-success" : "cc-pill-warning"}>{status?.is_vip ? "VIP" : "FREE"}</span>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: 12,
-            }}
-          >
-            {summaryItems.map((item) => (
-              <div key={item.label} className="cc-panel" style={{ padding: "12px 14px" }}>
-                <div className="cc-caption">{item.label}</div>
-                <div className="cc-h3" style={{ marginTop: 8, fontSize: item.label === "週期起點" ? "1.05rem" : "1.55rem" }}>
-                  {item.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="cc-grid-2" style={{ gap: 12 }}>
-            <div
-              className="cc-card cc-card-soft cc-stack-sm"
-              style={{ padding: 18, ...(currentTone ? subtleSceneCardStyle(activeScene as ActiveRoomScene) : {}) }}
-            >
-              <p className="cc-card-kicker">目前視角</p>
-              <div className="cc-h3">{currentSceneLabel}</div>
-              <div className="cc-muted" style={{ lineHeight: 1.7 }}>
-                {contentMode === "now" ? `現在可進房：${currentNowCount} 間` : `排程板：${currentScheduleCount} 筆`}
-              </div>
-              <div className="cc-caption" style={{ lineHeight: 1.65 }}>{currentSceneDesc}</div>
-            </div>
-
-            <div className="cc-card cc-card-soft cc-stack-sm" style={{ padding: 18 }}>
-              <p className="cc-card-kicker">固定規則</p>
-              <div className="cc-muted-strong" style={{ lineHeight: 1.75 }}>
-                排程仍只支援 25 / 50 / 75 / 100 分鐘，名額只支援 2 / 4 / 6 人。先把規則固定，品質才不會一起鬆掉。
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="cc-section cc-card cc-stack-sm" style={{ padding: 22 }}>
-        <div className="cc-grid-2" style={{ alignItems: "start", gap: 18 }}>
           <div className="cc-stack-sm">
             <div className="cc-field-label">場景篩選</div>
-            <div className="cc-action-row" style={{ marginTop: 0 }}>
+            <div className="cc-chip-group">
               <button
                 type="button"
-                className="cc-btn"
+                className="cc-btn cc-scene-chip"
                 onClick={() => setActiveScene("all")}
                 style={
                   activeScene === "all"
-                    ? { borderColor: "rgba(234, 171, 141, 0.36)", background: "rgba(234, 171, 141, 0.12)" }
+                    ? { borderColor: "rgba(255, 176, 149, 0.36)", background: "rgba(255, 176, 149, 0.12)" }
                     : undefined
                 }
               >
@@ -540,7 +476,8 @@ export default function RoomsPage() {
                 <button
                   key={scene.value}
                   type="button"
-                  className="cc-btn"
+                  className="cc-btn cc-scene-chip"
+                  data-scene={scene.value}
                   onClick={() => setActiveScene(scene.value)}
                   style={sceneButtonStyle(scene.value, activeScene === scene.value)}
                 >
@@ -570,7 +507,50 @@ export default function RoomsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </article>
+
+        <aside className="cc-hero-side">
+          <div className="cc-card cc-stack-md">
+            <div className="cc-card-row" style={{ alignItems: "center" }}>
+              <div>
+                <p className="cc-card-kicker">本月使用權益</p>
+                <h2 className="cc-h2">規則先清楚，場景才放得開。</h2>
+              </div>
+              <span className={status?.is_vip ? "cc-pill-success" : "cc-pill-warning"}>{status?.is_vip ? "VIP" : "FREE"}</span>
+            </div>
+
+            <div className="cc-rooms-summary__metrics">
+              {summaryItems.map((item) => (
+                <div key={item.label} className="cc-panel" style={{ padding: "12px 14px" }}>
+                  <div className="cc-caption">{item.label}</div>
+                  <div className="cc-h3" style={{ marginTop: 8, fontSize: item.label === "週期起點" ? "1.05rem" : "1.55rem" }}>
+                    {item.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="cc-panel cc-stack-sm"
+              style={currentTone ? subtleSceneCardStyle(activeScene as ActiveRoomScene) : undefined}
+            >
+              <p className="cc-card-kicker">目前視角</p>
+              <div className="cc-h3">{currentSceneLabel}</div>
+              <div className="cc-muted" style={{ lineHeight: 1.7 }}>
+                立即加入：{currentNowCount} 間 · 排程板：{currentScheduleCount} 筆
+              </div>
+              <div className="cc-caption">{currentSceneDesc}</div>
+            </div>
+          </div>
+
+          <div className="cc-card cc-card-soft cc-stack-sm">
+            <p className="cc-card-kicker">Rooms 邊界</p>
+            <div className="cc-muted-strong" style={{ lineHeight: 1.78 }}>
+              這裡處理的是同行空間，不處理付費型專業服務。排程仍只支援 25 / 50 / 75 / 100 分鐘，名額只支援 2 / 4 / 6 人，
+              先把規則固定，品質才不會一起鬆掉。
+            </div>
+          </div>
+        </aside>
       </section>
 
       {msg ? <div className="cc-alert cc-alert-error cc-section" style={{ whiteSpace: "pre-line" }}>{msg}</div> : null}
@@ -582,7 +562,7 @@ export default function RoomsPage() {
               <p className="cc-card-kicker">現在可進房</p>
               <h2 className="cc-h2">{currentSceneLabel} 的即時同行空間</h2>
               <p className="cc-muted" style={{ marginTop: 8, lineHeight: 1.7 }}>
-                這裡只顯示現在就能加入的房間。即時房與排程板不再混排，所以你可以更快判斷要不要直接進去。
+                這裡只顯示現在就能加入的房間，不再把即時房與排程板混在一起讓人自己猜。
               </p>
             </div>
             <span className="cc-pill-soft">{currentNowCount} spaces</span>
@@ -638,7 +618,7 @@ export default function RoomsPage() {
               <p className="cc-card-kicker">排程專區</p>
               <h2 className="cc-h2">先把 {currentSceneLabel} 的時間掛出來</h2>
               <p className="cc-muted" style={{ marginTop: 8, lineHeight: 1.7 }}>
-                排程不是獨立產品，而是同行空間的附屬能力。這裡只處理時間、場景、互動形式與名額，不把複雜度一次塞爆。
+                排程是 Rooms 的附屬能力，只處理場景、時間、互動形式與名額，不把付費專業服務混進同行空間。
               </p>
             </div>
 
@@ -658,7 +638,7 @@ export default function RoomsPage() {
                 <select
                   className="cc-select"
                   value={currentFormScene}
-                  onChange={(e) => setRoomCategory(e.target.value as RoomCategory)}
+                  onChange={(e) => setRoomCategory(e.target.value as ActiveRoomScene)}
                   disabled={activeScene !== "all"}
                 >
                   {ACTIVE_ROOM_SCENE_OPTIONS.map((item) => (
@@ -716,7 +696,7 @@ export default function RoomsPage() {
             <label className="cc-field">
               <span className="cc-field-label">補充說明</span>
               <textarea
-                className="cc-input"
+                className="cc-textarea"
                 rows={4}
                 value={scheduleNote}
                 onChange={(e) => setScheduleNote(e.target.value)}
@@ -728,7 +708,6 @@ export default function RoomsPage() {
               <button className="cc-btn-primary" type="button" onClick={createSchedulePost} disabled={busy}>
                 {busy ? "建立中…" : "建立排程"}
               </button>
-              <Link href="/friends" className="cc-btn">好友</Link>
               <Link href="/account" className="cc-btn">我的帳號</Link>
             </div>
           </article>
