@@ -35,12 +35,18 @@ import { formatDateTimeRange, labelForVisibility } from "@/lib/socialProfile";
 
 type TabKey = "market" | "my_services" | "my_bookings";
 
-function authHeaders(token?: string) {
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-      }
-    : {};
+function authHeaders(token?: string): HeadersInit {
+  const headers = new Headers();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return headers;
+}
+
+function jsonHeaders(token?: string): HeadersInit {
+  const headers = new Headers(authHeaders(token));
+  headers.set("Content-Type", "application/json");
+  return headers;
 }
 
 function renderProviderName(service: BuddyServiceListItem) {
@@ -80,9 +86,7 @@ export default function BuddiesPage() {
     if (nextSearch.trim()) query.set("q", nextSearch.trim());
 
     const resp = await fetch(`/api/buddies/services?${query.toString()}`, {
-      headers: {
-        ...authHeaders(token),
-      },
+      headers: authHeaders(token),
       cache: "no-store",
     });
 
@@ -103,15 +107,11 @@ export default function BuddiesPage() {
 
     const [servicesResp, bookingsResp] = await Promise.all([
       fetch("/api/buddies/services?mine=1", {
-        headers: {
-          ...authHeaders(token),
-        },
+        headers: authHeaders(token),
         cache: "no-store",
       }),
       fetch("/api/buddies/bookings", {
-        headers: {
-          ...authHeaders(token),
-        },
+        headers: authHeaders(token),
         cache: "no-store",
       }),
     ]);
@@ -203,10 +203,7 @@ export default function BuddiesPage() {
 
     const resp = await fetch("/api/buddies/services", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify({
         id: editingServiceId || undefined,
         ...serviceForm,
@@ -262,10 +259,7 @@ export default function BuddiesPage() {
 
     const resp = await fetch("/api/buddies/bookings", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify({
         service_id: selectedService.id,
         scheduled_start_at: new Date(bookingStartAt).toISOString(),
@@ -301,10 +295,7 @@ export default function BuddiesPage() {
 
     const resp = await fetch(`/api/buddies/bookings/${bookingId}`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(accessToken),
-      },
+      headers: jsonHeaders(accessToken),
       body: JSON.stringify({
         action,
       }),
