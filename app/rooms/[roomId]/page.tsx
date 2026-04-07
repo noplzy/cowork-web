@@ -8,7 +8,7 @@
 
 "use client";
 
-const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_NO_VB_V1_20260324";
+const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_NO_VB_V1_20260324_ROSTER_SOCIAL_ACTIONS_V2_INVITE_FIX";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +16,7 @@ import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { clearAccountStatusCache, fetchAccountStatus } from "@/lib/accountStatusClient";
 import { getClientSessionSnapshot, invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
+import { labelForVisibility, type PublicProfileRow, sortFriendPair, tagsToInput } from "@/lib/socialProfile";
 
 type Room = {
   id: string;
@@ -26,6 +27,8 @@ type Room = {
   created_at: string;
   created_by: string;
   daily_room_url?: string | null;
+  visibility?: "public" | "members" | "friends" | "invited" | null;
+  invite_code?: string | null;
 };
 
 type TokenResp = {
@@ -37,6 +40,37 @@ type TokenResp = {
   remaining_credits: number | null;
   is_vip: boolean;
   allowed_by_pair_vip_carry: boolean;
+};
+
+type RoomMemberRow = {
+  room_id: string;
+  user_id: string;
+};
+
+type FriendRequestRow = {
+  id: string;
+  requester_user_id: string;
+  addressee_user_id: string;
+  message: string | null;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  created_at: string;
+  updated_at: string;
+};
+
+type FriendshipRow = {
+  user_low: string;
+  user_high: string;
+  created_at: string;
+};
+
+type RosterMemberItem = {
+  user_id: string;
+  profile: PublicProfileRow | null;
+  is_owner: boolean;
+  is_self: boolean;
+  is_friend: boolean;
+  incoming_request: FriendRequestRow | null;
+  outgoing_request: FriendRequestRow | null;
 };
 
 type BgMode = "off" | "blur";
@@ -69,6 +103,30 @@ function isTrackPlayable(trackInfo: any): boolean {
 
 function getParticipantLabel(p: any, fallback: string): string {
   return p?.user_name || p?.userName || p?.user_id || p?.session_id || fallback;
+}
+
+function rosterDisplayName(profile: PublicProfileRow | null, userId: string) {
+  return profile?.display_name?.trim() || `使用者 ${userId.slice(0, 8)}…`;
+}
+
+function rosterSecondaryLabel(profile: PublicProfileRow | null, userId: string) {
+  if (profile?.handle) return `@${profile.handle}`;
+  return `ID ${userId.slice(0, 8)}…`;
+}
+
+function buildReportHref(roomId: string, member: RosterMemberItem) {
+  const label = member.profile?.handle
+    ? `${rosterDisplayName(member.profile, member.user_id)} (@${member.profile.handle})`
+    : rosterDisplayName(member.profile, member.user_id);
+
+  const sp = new URLSearchParams({
+    issue: "report-user",
+    roomId,
+    targetUserId: member.user_id,
+    targetLabel: label,
+  });
+
+  return `/contact?${sp.toString()}`;
 }
 
 async function waitForVideoReady(el: HTMLVideoElement) {
@@ -315,6 +373,17 @@ export default function RoomPage() {
   const [fullBlurPreset, setFullBlurPreset] = useState<FullBlurPreset>("360p");
   const [fullBlurApplying, setFullBlurApplying] = useState(false);
   const [fullBlurMsg, setFullBlurMsg] = useState("");
+
+  // === ROSTER / SOCIAL ACTIONS ===
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [roomMembers, setRoomMembers] = useState<RoomMemberRow[]>([]);
+  const [roomMemberProfiles, setRoomMemberProfiles] = useState<Record<string, PublicProfileRow>>({});
+  const [incomingRoomRequests, setIncomingRoomRequests] = useState<FriendRequestRow[]>([]);
+  const [outgoingRoomRequests, setOutgoingRoomRequests] = useState<FriendRequestRow[]>([]);
+  const [roomFriendships, setRoomFriendships] = useState<FriendshipRow[]>([]);
+  const [socialBusyUserId, setSocialBusyUserId] = useState("");
+  const [inviteCopyMsg, setInviteCopyMsg] = useState("");
+  // === END ROSTER / SOCIAL ACTIONS ===
 
   const dailyCallRef = useRef<any>(null);
   const mobileIframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -794,7 +863,7 @@ export default function RoomPage() {
       const [roomResult, memberResult] = await Promise.all([
         supabase
           .from("rooms")
-          .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url")
+          .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url,visibility,invite_code")
           .eq("id", roomId)
           .single(),
         supabase
@@ -832,7 +901,7 @@ export default function RoomPage() {
     const [roomResult, session] = await Promise.all([
       supabase
         .from("rooms")
-        .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url")
+        .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url,visibility,invite_code")
         .eq("id", roomId)
         .single(),
       getClientSessionSnapshot(),
@@ -851,6 +920,161 @@ export default function RoomPage() {
       } catch {}
     }
   }
+
+  async function copyInviteCode() {
+    const code = room?.invite_code?.trim();
+    if (!code) return;
+
+    try {
+      await navigator.clipboard.writeText(code);
+      setInviteCopyMsg("邀請碼已複製");
+      window.setTimeout(() => setInviteCopyMsg(""), 1800);
+    } catch {
+      setInviteCopyMsg("複製失敗，請手動抄錄");
+      window.setTimeout(() => setInviteCopyMsg(""), 2200);
+    }
+  }
+
+  // === ROSTER / SOCIAL ACTIONS ===
+  async function loadRoomRoster(nextRoom: Room | null, currentUserId: string) {
+    if (!roomId || !nextRoom || !currentUserId || !accessToken) return;
+
+    setRosterLoading(true);
+
+    try {
+      const resp = await fetch("/api/rooms/roster", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ roomId }),
+      });
+
+      const json = await resp.json().catch(() => ({} as any));
+      if (!resp.ok) {
+        throw new Error(json?.error || "房內名單讀取失敗。");
+      }
+
+      const memberRows = ((json?.members ?? []) as RoomMemberRow[]);
+      const profileMap = Object.fromEntries(
+        (((json?.profiles ?? []) as PublicProfileRow[])).map((item) => [item.user_id, item]),
+      );
+      const incomingRows = ((json?.incoming_requests ?? []) as FriendRequestRow[]);
+      const outgoingRows = ((json?.outgoing_requests ?? []) as FriendRequestRow[]);
+      const friendshipRows = ((json?.friendships ?? []) as FriendshipRow[]);
+
+      setRoomMembers(memberRows);
+      setRoomMemberProfiles(profileMap);
+      setIncomingRoomRequests(incomingRows);
+      setOutgoingRoomRequests(outgoingRows);
+      setRoomFriendships(friendshipRows);
+    } catch (error: any) {
+      console.error("[RoomRoster] load failed:", error);
+      setMsg((prev) => prev || error?.message || "房內名單讀取失敗。");
+      setRoomMembers([]);
+      setRoomMemberProfiles({});
+      setIncomingRoomRequests([]);
+      setOutgoingRoomRequests([]);
+      setRoomFriendships([]);
+    } finally {
+      setRosterLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!room || !uid || !isMember) {
+      setRoomMembers([]);
+      setRoomMemberProfiles({});
+      setIncomingRoomRequests([]);
+      setOutgoingRoomRequests([]);
+      setRoomFriendships([]);
+      setRosterLoading(false);
+      return;
+    }
+    void loadRoomRoster(room, uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.id, room?.created_by, uid, isMember, accessToken]);
+
+  async function sendFriendRequestFromRoom(targetUserId: string, targetLabel: string) {
+    if (!uid || !targetUserId || uid === targetUserId) return;
+    setSocialBusyUserId(targetUserId);
+    setMsg("");
+
+    try {
+      const existingResult = await supabase
+        .from("friend_requests")
+        .select("*")
+        .or(
+          `and(requester_user_id.eq.${uid},addressee_user_id.eq.${targetUserId}),and(requester_user_id.eq.${targetUserId},addressee_user_id.eq.${uid})`,
+        )
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (existingResult.error) throw existingResult.error;
+
+      const existing = (existingResult.data ?? [])[0] as FriendRequestRow | undefined;
+      if (existing?.status === "pending") {
+        setMsg(
+          existing.requester_user_id === uid
+            ? "你已經送出過好友邀請了。"
+            : "對方已先送出邀請，請直接點接受好友。",
+        );
+        return;
+      }
+
+      const alreadyFriend = roomFriendships.some((item) => {
+        const otherId = item.user_low === uid ? item.user_high : item.user_low;
+        return otherId === targetUserId;
+      });
+
+      if (alreadyFriend) {
+        setMsg("你們已經是好友。");
+        return;
+      }
+
+      const insertResult = await supabase.from("friend_requests").insert({
+        requester_user_id: uid,
+        addressee_user_id: targetUserId,
+        status: "pending",
+      });
+
+      if (insertResult.error) throw insertResult.error;
+
+      setMsg(`已送出好友邀請給 ${targetLabel}。`);
+      await loadRoomRoster(room, uid);
+    } catch (error: any) {
+      setMsg(error?.message || "送出好友邀請失敗。");
+    } finally {
+      setSocialBusyUserId("");
+    }
+  }
+
+  async function acceptFriendRequestFromRoom(request: FriendRequestRow) {
+    if (!uid) return;
+    setSocialBusyUserId(request.requester_user_id);
+    setMsg("");
+
+    try {
+      const pair = sortFriendPair(request.requester_user_id, request.addressee_user_id);
+
+      const [updateResult, friendshipResult] = await Promise.all([
+        supabase.from("friend_requests").update({ status: "accepted" }).eq("id", request.id),
+        supabase.from("friendships").upsert(pair, { onConflict: "user_low,user_high" }),
+      ]);
+
+      if (updateResult.error) throw updateResult.error;
+      if (friendshipResult.error) throw friendshipResult.error;
+
+      setMsg("已加入好友。");
+      await loadRoomRoster(room, uid);
+    } catch (error: any) {
+      setMsg(error?.message || "接受好友邀請失敗。");
+    } finally {
+      setSocialBusyUserId("");
+    }
+  }
+  // === END ROSTER / SOCIAL ACTIONS ===
 
   async function join() {
     if (!roomId) return;
@@ -1055,6 +1279,49 @@ export default function RoomPage() {
     });
   }, [participantsMap]);
 
+  // === ROSTER / SOCIAL ACTIONS ===
+  const rosterMembers = useMemo<RosterMemberItem[]>(() => {
+    if (!room || !uid) return [];
+
+    const ids = Array.from(
+      new Set([
+        ...roomMembers.map((item) => item.user_id),
+        room.created_by,
+        ...(isMember ? [uid] : []),
+      ]),
+    );
+
+    return ids
+      .map((memberId) => {
+        const incomingRequest =
+          incomingRoomRequests.find((item) => item.requester_user_id === memberId) ?? null;
+        const outgoingRequest =
+          outgoingRoomRequests.find((item) => item.addressee_user_id === memberId) ?? null;
+        const isFriend = roomFriendships.some((item) => {
+          const otherId = item.user_low === uid ? item.user_high : item.user_low;
+          return otherId === memberId;
+        });
+
+        return {
+          user_id: memberId,
+          profile: roomMemberProfiles[memberId] ?? null,
+          is_owner: room.created_by === memberId,
+          is_self: uid === memberId,
+          is_friend: isFriend,
+          incoming_request: incomingRequest,
+          outgoing_request: outgoingRequest,
+        };
+      })
+      .sort((a, b) => {
+        if (a.is_self && !b.is_self) return -1;
+        if (b.is_self && !a.is_self) return 1;
+        if (a.is_owner && !b.is_owner) return -1;
+        if (b.is_owner && !a.is_owner) return 1;
+        return rosterDisplayName(a.profile, a.user_id).localeCompare(rosterDisplayName(b.profile, b.user_id), "zh-Hant");
+      });
+  }, [room, uid, roomMembers, roomMemberProfiles, incomingRoomRequests, outgoingRoomRequests, roomFriendships, isMember]);
+  // === END ROSTER / SOCIAL ACTIONS ===
+
   const connectionLabel = joinedMeeting
     ? "已連線"
     : meetingState === "joining-meeting"
@@ -1163,9 +1430,133 @@ export default function RoomPage() {
           ) : null}
         </div>
 
+        {isMember && room?.visibility === "invited" && room?.created_by === uid && room?.invite_code ? (
+          <div className="cc-note cc-stack-sm">
+            <div className="cc-row" style={{ justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div className="cc-stack-sm" style={{ minWidth: 0 }}>
+                <div className="cc-h3">邀請制房間邀請碼</div>
+                <div className="cc-caption" style={{ lineHeight: 1.7 }}>
+                  這組邀請碼會一直保留在房內頁，不需要在建房成功那一瞬間硬記。
+                </div>
+              </div>
+              <span className="cc-pill-accent">{labelForVisibility(room.visibility)}</span>
+            </div>
+            <div className="cc-row" style={{ justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <div className="cc-h2" style={{ letterSpacing: "0.08em" }}>{room.invite_code}</div>
+              <div className="cc-action-row" style={{ marginTop: 0 }}>
+                <button type="button" className="cc-btn-primary" onClick={copyInviteCode}>
+                  複製邀請碼
+                </button>
+                {inviteCopyMsg ? <span className="cc-pill-success">{inviteCopyMsg}</span> : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {msg ? <div className="cc-alert cc-alert-error">{msg}</div> : null}
 
         <ExtendSessionNotice tokenExp={tokenExp} tokenBusy={tokenBusy} onRefresh={fetchMeetingToken} />
+      </section>
+
+      <section className="cc-card cc-stack-md" style={{ marginTop: 18 }}>
+        <div className="cc-page-header" style={{ marginBottom: 0 }}>
+          <div>
+            <p className="cc-card-kicker">房內名單</p>
+            <h2 className="cc-h2">先把房內名單、加好友與檢舉入口補齊。</h2>
+          </div>
+          <span className="cc-pill-soft">{rosterMembers.length} people</span>
+        </div>
+
+        {!isMember ? (
+          <div className="cc-note">先加入房間後，才會顯示房內名單與社交操作。</div>
+        ) : rosterLoading ? (
+          <div className="cc-note">正在整理房內名單…</div>
+        ) : rosterMembers.length === 0 ? (
+          <div className="cc-note">目前還沒有可顯示的房內名單資料。</div>
+        ) : (
+          <div className="cc-grid-2" style={{ gap: 14 }}>
+            {rosterMembers.map((member) => {
+              const displayName = rosterDisplayName(member.profile, member.user_id);
+              const secondaryLabel = rosterSecondaryLabel(member.profile, member.user_id);
+              const reportHref = buildReportHref(roomId, member);
+              const socialBusy = socialBusyUserId === member.user_id;
+
+              return (
+                <article key={member.user_id} className="cc-card cc-card-soft cc-stack-sm">
+                  <div className="cc-card-row" style={{ alignItems: "flex-start" }}>
+                    <div className="cc-stack-sm" style={{ minWidth: 0 }}>
+                      <div className="cc-h3">{displayName}</div>
+                      <div className="cc-caption">{secondaryLabel}</div>
+                    </div>
+
+                    <div className="cc-action-row" style={{ marginTop: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      {member.is_owner ? <span className="cc-pill-accent">房主</span> : null}
+                      {member.is_self ? <span className="cc-pill-success">你</span> : null}
+                    </div>
+                  </div>
+
+                  {member.profile?.bio ? (
+                    <div className="cc-muted" style={{ lineHeight: 1.75 }}>
+                      {member.profile.bio}
+                    </div>
+                  ) : (
+                    <div className="cc-caption">
+                      這位使用者目前沒有公開更多介紹；先把最小信任與最小治理入口補齊。
+                    </div>
+                  )}
+
+                  {member.profile?.tags?.length ? (
+                    <div className="cc-caption">{tagsToInput(member.profile.tags)}</div>
+                  ) : null}
+
+                  <div className="cc-action-row" style={{ flexWrap: "wrap" }}>
+                    {member.profile?.handle ? (
+                      <Link href={`/u/${member.profile.handle}`} className="cc-btn">
+                        查看檔案
+                      </Link>
+                    ) : null}
+
+                    {!member.is_self && member.is_friend ? (
+                      <span className="cc-pill-success">已是好友</span>
+                    ) : null}
+
+                    {!member.is_self && !member.is_friend && member.incoming_request ? (
+                      <button
+                        className="cc-btn-primary"
+                        type="button"
+                        disabled={socialBusy}
+                        onClick={() => void acceptFriendRequestFromRoom(member.incoming_request!)}
+                      >
+                        {socialBusy ? "處理中…" : "接受好友"}
+                      </button>
+                    ) : null}
+
+                    {!member.is_self && !member.is_friend && !member.incoming_request && member.outgoing_request ? (
+                      <span className="cc-pill-soft">已送出邀請</span>
+                    ) : null}
+
+                    {!member.is_self && !member.is_friend && !member.incoming_request && !member.outgoing_request ? (
+                      <button
+                        className="cc-btn"
+                        type="button"
+                        disabled={socialBusy}
+                        onClick={() => void sendFriendRequestFromRoom(member.user_id, displayName)}
+                      >
+                        {socialBusy ? "送出中…" : "加好友"}
+                      </button>
+                    ) : null}
+
+                    {!member.is_self ? (
+                      <Link href={reportHref} className="cc-btn">
+                        檢舉
+                      </Link>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <hr className="cc-soft-divider" />

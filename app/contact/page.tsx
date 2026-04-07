@@ -3,8 +3,38 @@ import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SUPPORT_FORM_URL, hasSupportFormUrl } from "@/lib/supportForm";
 
-export default function ContactPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function pickParam(sp: SearchParams, key: string): string {
+  const v = sp[key];
+  if (!v) return "";
+  return Array.isArray(v) ? (v[0] ?? "") : v;
+}
+
+function buildReportPacket(searchParams: SearchParams) {
+  const issue = pickParam(searchParams, "issue");
+  if (issue !== "report-user") return null;
+
+  const roomId = pickParam(searchParams, "roomId");
+  const targetUserId = pickParam(searchParams, "targetUserId");
+  const targetLabel = pickParam(searchParams, "targetLabel");
+
+  if (!roomId && !targetUserId) return null;
+
+  const lines = [
+    `【檢舉類型】房內使用者檢舉`,
+    roomId ? `【Room ID】${roomId}` : "",
+    targetUserId ? `【被檢舉 User ID】${targetUserId}` : "",
+    targetLabel ? `【被檢舉標籤】${targetLabel}` : "",
+    `【補充】請描述具體行為、時間點、是否重複發生、是否影響通話 / 體驗。`,
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
+export default function ContactPage({ searchParams }: { searchParams: SearchParams }) {
   const formReady = hasSupportFormUrl();
+  const reportPacket = buildReportPacket(searchParams);
 
   return (
     <main className="cc-container">
@@ -46,6 +76,24 @@ export default function ContactPage() {
               後重新啟動。
             </div>
           ) : null}
+
+          {reportPacket ? (
+            <div className="cc-card cc-card-soft cc-stack-sm" style={{ marginTop: 14 }}>
+              <div className="cc-h3">檢舉資訊（可直接複製貼到客服表單）</div>
+              <div className="cc-caption" style={{ lineHeight: 1.7 }}>
+                這一輪先不做假自動帶入，避免填錯欄位造成誤判。你只要把下方內容貼到表單即可。
+              </div>
+              <textarea
+                className="cc-textarea"
+                readOnly
+                value={reportPacket}
+                style={{
+                  minHeight: 160,
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                }}
+              />
+            </div>
+          ) : null}
         </article>
 
         <article className="cc-card cc-stack-md">
@@ -60,6 +108,7 @@ export default function ContactPage() {
             <li>人工退款審核申請</li>
             <li>登入 / 帳號問題</li>
             <li>封鎖申訴</li>
+            <li>房內使用者檢舉</li>
             <li>其他問題</li>
           </ul>
 

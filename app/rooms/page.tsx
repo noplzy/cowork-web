@@ -128,10 +128,6 @@ function modeLabel(mode: Room["mode"]) {
   return mode === "pair" ? "雙人同行" : "小組同行";
 }
 
-function costLabel(minutes: number) {
-  return `${Math.ceil(minutes / 25)} 場`;
-}
-
 function subtleSceneCardStyle(scene: ActiveRoomScene): CSSProperties {
   return SCENE_TONES[scene].subtle;
 }
@@ -726,6 +722,9 @@ export default function RoomsPage() {
                         const nextMode = e.target.value as "pair" | "group";
                         setInstantMode(nextMode);
                         if (nextMode === "pair") setInstantSize(2);
+                        if (nextMode === "group" && ![2, 4, 6].includes(instantSize)) {
+                          setInstantSize(2);
+                        }
                       }}
                     >
                       <option value="group">小組同行</option>
@@ -738,7 +737,7 @@ export default function RoomsPage() {
                     <select className="cc-select" value={instantDuration} onChange={(e) => setInstantDuration(Number(e.target.value))}>
                       {INSTANT_ROOM_DURATION_OPTIONS.map((item) => (
                         <option key={item} value={item}>
-                          {formatDurationLabel(item)}（{costLabel(item)}）
+                          {formatDurationLabel(item)}
                         </option>
                       ))}
                     </select>
@@ -760,7 +759,7 @@ export default function RoomsPage() {
                   <label className="cc-field">
                     <span className="cc-field-label">名額上限</span>
                     <select className="cc-select" value={instantSize} onChange={(e) => setInstantSize(Number(e.target.value))}>
-                      {[4, 6].map((item) => (
+                      {[2, 4, 6].map((item) => (
                         <option key={item} value={item}>
                           {item} 人
                         </option>
@@ -918,7 +917,7 @@ export default function RoomsPage() {
                 <select className="cc-select" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
                   {SCHEDULE_DURATION_OPTIONS.map((item) => (
                     <option key={item} value={item}>
-                      {formatDurationLabel(item)}（{costLabel(item)}）
+                      {formatDurationLabel(item)}
                     </option>
                   ))}
                 </select>
