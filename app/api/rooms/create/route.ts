@@ -23,7 +23,8 @@ export async function POST(req: Request) {
     const title = (body.title ?? "").trim().slice(0, 80);
     const durationMinutes = Number(body.duration_minutes ?? 50);
     const mode = body.mode === "pair" ? "pair" : "group";
-    const maxSize = mode === "pair" ? 2 : [4, 6].includes(Number(body.max_size)) ? Number(body.max_size) : 4;
+    const allowedGroupSizes = [2, 4, 6];
+    const maxSize = mode === "pair" ? 2 : allowedGroupSizes.includes(Number(body.max_size)) ? Number(body.max_size) : 4;
     const roomCategory = (body.room_category ?? "focus") as CreateRoomBody["room_category"];
     const interactionStyle = (body.interaction_style ?? "silent") as CreateRoomBody["interaction_style"];
     const visibility = (body.visibility ?? "public") as CreateRoomBody["visibility"];
@@ -33,8 +34,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "請先填寫同行空間名稱。" }, { status: 400 });
     }
 
-    if (![25, 50].includes(durationMinutes)) {
-      return NextResponse.json({ error: "即時同行空間目前只支援 25 / 50 分鐘。" }, { status: 400 });
+    if (![25, 50, 75, 100].includes(durationMinutes)) {
+      return NextResponse.json({ error: "即時同行空間目前只支援 25 / 50 / 75 / 100 分鐘。" }, { status: 400 });
     }
 
     if (!["focus", "life", "share", "hobby"].includes(roomCategory ?? "")) {

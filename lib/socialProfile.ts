@@ -62,7 +62,7 @@ export const SCHEDULE_VISIBILITY_OPTIONS: Array<{ value: ScheduleVisibility; lab
   { value: "invited", label: "邀請制" },
 ];
 
-export const INSTANT_ROOM_DURATION_OPTIONS = [25, 50] as const;
+export const INSTANT_ROOM_DURATION_OPTIONS = [25, 50, 75, 100] as const;
 export const SCHEDULE_DURATION_OPTIONS = [25, 50, 75, 100] as const;
 export const SCHEDULE_SEAT_LIMIT_OPTIONS = [2, 4, 6] as const;
 
