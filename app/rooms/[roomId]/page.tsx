@@ -8,11 +8,11 @@
 
 "use client";
 
-const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_NO_VB_V1_20260324_ROSTER_SOCIAL_ACTIONS_V2_INVITE_FIX";
+const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_NO_VB_V1_20260324_ROSTER_SOCIAL_ACTIONS_V2_INVITE_JOIN_FIX";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { clearAccountStatusCache, fetchAccountStatus } from "@/lib/accountStatusClient";
 import { getClientSessionSnapshot, invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
@@ -332,7 +332,10 @@ function MediaTile({
 export default function RoomPage() {
   const router = useRouter();
   const params = useParams<{ roomId: string }>();
+  const searchParams = useSearchParams();
   const roomId = params?.roomId;
+
+  const inviteFromUrl = (searchParams?.get("invite") || searchParams?.get("code") || "").trim().toUpperCase();
 
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -344,6 +347,7 @@ export default function RoomPage() {
 
   const [room, setRoom] = useState<Room | null>(null);
   const [isMember, setIsMember] = useState(false);
+  const [inviteCodeInput, setInviteCodeInput] = useState("");
 
   const [dailyToken, setDailyToken] = useState("");
   const [tokenBusy, setTokenBusy] = useState(false);
@@ -410,6 +414,12 @@ export default function RoomPage() {
   const [localVideoOn, setLocalVideoOn] = useState(true);
   const [audioToggleBusy, setAudioToggleBusy] = useState(false);
   const [videoToggleBusy, setVideoToggleBusy] = useState(false);
+
+  useEffect(() => {
+    if (inviteFromUrl && !inviteCodeInput) {
+      setInviteCodeInput(inviteFromUrl);
+    }
+  }, [inviteFromUrl, inviteCodeInput]);
 
   useEffect(() => {
     try {
@@ -935,6 +945,21 @@ export default function RoomPage() {
     }
   }
 
+  async function copyInviteLink() {
+    const code = room?.invite_code?.trim();
+    if (!code || !roomId) return;
+
+    try {
+      const link = `${window.location.origin}/rooms/${roomId}?invite=${encodeURIComponent(code)}`;
+      await navigator.clipboard.writeText(link);
+      setInviteCopyMsg("邀請連結已複製");
+      window.setTimeout(() => setInviteCopyMsg(""), 1800);
+    } catch {
+      setInviteCopyMsg("複製失敗，請手動分享邀請碼");
+      window.setTimeout(() => setInviteCopyMsg(""), 2200);
+    }
+  }
+
   // === ROSTER / SOCIAL ACTIONS ===
   async function loadRoomRoster(nextRoom: Room | null, currentUserId: string) {
     if (!roomId || !nextRoom || !currentUserId || !accessToken) return;
@@ -1081,21 +1106,49 @@ export default function RoomPage() {
     setBusy(true);
     setMsg("");
 
-    const session = uid ? null : await getClientSessionSnapshot();
-    const userId = uid || session?.user.id;
-    if (!userId) {
+    let bearer = accessToken;
+    if (!bearer) {
+      const session = await getClientSessionSnapshot({ force: true }).catch(() => null);
+      bearer = session?.accessToken ?? "";
+      if (bearer) setAccessToken(bearer);
+    }
+    if (!bearer) {
       setBusy(false);
       router.replace("/auth/login");
       return;
     }
 
-    const { error } = await supabase
-      .from("room_members")
-      .upsert({ room_id: roomId, user_id: userId }, { onConflict: "room_id,user_id" });
+    const payload: Record<string, string> = { roomId };
 
+    if (room?.visibility === "invited") {
+      const code = (inviteCodeInput || "").trim().toUpperCase();
+      if (!code) {
+        setBusy(false);
+        setMsg("這間是邀請制房間，請先輸入邀請碼。");
+        return;
+      }
+      payload.inviteCode = code;
+    }
+
+    const resp = await fetch("/api/rooms/join", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${bearer}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await resp.json().catch(() => ({} as any));
     setBusy(false);
-    if (error) return setMsg(error.message);
+
+    if (!resp.ok) {
+      setMsg(json?.error || "加入房間失敗。");
+      return;
+    }
+
     setIsMember(true);
+    await refreshRoom();
   }
 
   async function leave() {
@@ -1398,7 +1451,17 @@ export default function RoomPage() {
           )}
         </div>
 
-        <div className="cc-action-row">
+        <div className="cc-action-row" style={{ flexWrap: "wrap" }}>
+          {!isMember && room?.visibility === "invited" ? (
+            <input
+              className="cc-input"
+              style={{ maxWidth: 220 }}
+              value={inviteCodeInput}
+              onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
+              placeholder="輸入邀請碼"
+            />
+          ) : null}
+
           {!isMember ? (
             <button disabled={busy} onClick={join} className="cc-btn-primary" type="button">
               加入房間
@@ -1446,6 +1509,9 @@ export default function RoomPage() {
               <div className="cc-action-row" style={{ marginTop: 0 }}>
                 <button type="button" className="cc-btn-primary" onClick={copyInviteCode}>
                   複製邀請碼
+                </button>
+                <button type="button" className="cc-btn" onClick={copyInviteLink}>
+                  複製邀請連結
                 </button>
                 {inviteCopyMsg ? <span className="cc-pill-success">{inviteCopyMsg}</span> : null}
               </div>
