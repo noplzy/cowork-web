@@ -445,30 +445,10 @@ export default function RoomsPage() {
     }
   }
 
-  async function joinInvitedRoom(inviteCode: string) {
-    setBusy(true);
-    setMsg("");
-
-    const resp = await fetch("/api/rooms/join", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ inviteCode }),
-    });
-
-    const json = await resp.json().catch(() => ({} as any));
-    setBusy(false);
-
-    if (!resp.ok) {
-      setMsg(json?.error || "加入邀請房失敗。");
-      return;
-    }
-
-    if (json?.roomId) {
-      router.push(`/rooms/${json.roomId}`);
-    }
+  function openInvitedRoom(inviteCode: string, roomId: string) {
+    const normalizedCode = inviteCode.trim().toUpperCase();
+    if (!normalizedCode || !roomId) return;
+    router.push(`/rooms/${roomId}?invite=${encodeURIComponent(normalizedCode)}`);
   }
 
   const summaryItems = [
@@ -612,9 +592,9 @@ export default function RoomsPage() {
                   type="button"
                   className="cc-btn-primary"
                   disabled={busy}
-                  onClick={() => joinInvitedRoom(inviteResult.room.invite_code ?? inviteCodeInput)}
+                  onClick={() => openInvitedRoom(inviteResult.room.invite_code ?? inviteCodeInput, inviteResult.room.id)}
                 >
-                  使用邀請碼加入
+                  前往邀請房
                 </button>
               </div>
             ) : null}
