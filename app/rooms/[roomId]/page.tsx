@@ -8,7 +8,7 @@
 
 "use client";
 
-const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_NO_VB_V1_20260324_ROSTER_SOCIAL_ACTIONS_V2_INVITE_JOIN_FIX";
+const __BUILD_TAG = "ROOMS_DESKTOP_CUSTOM_NO_VB_V1_20260324_LONG_TERM_BOOTSTRAP_FIX";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,6 +40,15 @@ type TokenResp = {
   remaining_credits: number | null;
   is_vip: boolean;
   allowed_by_pair_vip_carry: boolean;
+};
+
+type RoomBootstrapResp = {
+  room: Room;
+  is_owner: boolean;
+  is_member: boolean;
+  can_join: boolean;
+  requires_invite_code: boolean;
+  invite_code_accepted: boolean;
 };
 
 type RoomMemberRow = {
@@ -347,6 +356,7 @@ export default function RoomPage() {
 
   const [room, setRoom] = useState<Room | null>(null);
   const [isMember, setIsMember] = useState(false);
+  const [canJoinRoom, setCanJoinRoom] = useState(false);
   const [inviteCodeInput, setInviteCodeInput] = useState("");
 
   const [dailyToken, setDailyToken] = useState("");
@@ -421,6 +431,41 @@ export default function RoomPage() {
     }
   }, [inviteFromUrl, inviteCodeInput]);
 
+  async function fetchRoomBootstrap(currentAccessToken: string, currentInviteCode?: string) {
+    if (!roomId) {
+      throw new Error("Missing roomId");
+    }
+
+    const resp = await fetch("/api/rooms/bootstrap", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentAccessToken}`,
+      },
+      body: JSON.stringify({
+        roomId,
+        inviteCode: (currentInviteCode ?? "").trim().toUpperCase() || undefined,
+      }),
+    });
+
+    const json = (await resp.json().catch(() => ({}))) as any;
+
+    if (!resp.ok) {
+      throw new Error(json?.error || "讀取房間資訊失敗。");
+    }
+
+    return json as RoomBootstrapResp;
+  }
+
+  async function applyRoomBootstrap(currentAccessToken: string, currentInviteCode?: string) {
+    const data = await fetchRoomBootstrap(currentAccessToken, currentInviteCode);
+
+    setRoom(data.room);
+    setIsMember(Boolean(data.is_member || data.is_owner));
+    setCanJoinRoom(Boolean(data.can_join || data.is_member || data.is_owner));
+    return data;
+  }
+
   useEffect(() => {
     try {
       const ua = navigator.userAgent || "";
@@ -459,10 +504,6 @@ export default function RoomPage() {
   }, []);
 
   const effectsMvpDisabled = runtimeCaps?.isMobile ?? false;
-
-  useEffect(() => {
-    fullBlurPxRef.current = fullBlurPx;
-  }, [fullBlurPx]);
 
   useEffect(() => {
     if (!effectsMvpDisabled) return;
@@ -858,6 +899,7 @@ export default function RoomPage() {
 
     (async () => {
       if (!roomId) return;
+      setChecking(true);
 
       const session = await getClientSessionSnapshot();
       if (!session) {
@@ -870,64 +912,54 @@ export default function RoomPage() {
       setEmail(session.email);
       setAccessToken(session.accessToken ?? "");
 
-      const [roomResult, memberResult] = await Promise.all([
-        supabase
-          .from("rooms")
-          .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url,visibility,invite_code")
-          .eq("id", roomId)
-          .single(),
-        supabase
-          .from("room_members")
-          .select("room_id,user_id")
-          .eq("room_id", roomId)
-          .eq("user_id", session.user.id)
-          .maybeSingle(),
-      ]);
-
-      if (cancelled) return;
-
-      if (roomResult.error) {
-        setMsg(roomResult.error.message);
-        setChecking(false);
-        return;
+      try {
+        const bootstrap = await fetchRoomBootstrap(session.accessToken ?? "", inviteFromUrl);
+        if (cancelled) return;
+        setRoom(bootstrap.room);
+        setIsMember(Boolean(bootstrap.is_member || bootstrap.is_owner));
+        setCanJoinRoom(Boolean(bootstrap.can_join || bootstrap.is_member || bootstrap.is_owner));
+        setMsg("");
+      } catch (error: any) {
+        if (cancelled) return;
+        setMsg(error?.message || "讀取房間資訊失敗。");
+        setRoom(null);
+        setIsMember(false);
+        setCanJoinRoom(false);
+      } finally {
+        if (!cancelled) setChecking(false);
       }
-
-      if (memberResult.error) {
-        setMsg(memberResult.error.message);
-      }
-
-      setRoom(roomResult.data as Room);
-      setIsMember(Boolean(memberResult.data));
-      setChecking(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [router, roomId]);
+  }, [router, roomId, inviteFromUrl]);
 
-  async function refreshRoom() {
+  async function refreshRoom(nextInviteCode?: string) {
     if (!roomId) return;
-    const [roomResult, session] = await Promise.all([
-      supabase
-        .from("rooms")
-        .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url,visibility,invite_code")
-        .eq("id", roomId)
-        .single(),
-      getClientSessionSnapshot(),
-    ]);
+    const session = await getClientSessionSnapshot();
+    const currentAccessToken = session?.accessToken ?? accessToken;
 
-    if (roomResult.error) return setMsg(roomResult.error.message);
-    setRoom(roomResult.data as Room);
+    if (!currentAccessToken) {
+      router.replace("/auth/login");
+      return;
+    }
 
-    if (session?.accessToken) {
-      setAccessToken(session.accessToken);
-      try {
-        const nextStatus = await fetchAccountStatus(session.accessToken, { force: true });
-        setIsVip(Boolean(nextStatus.is_vip));
-        setRemainingCredits(nextStatus.credits_remaining ?? null);
-        setMonthlyAllowance(nextStatus.free_monthly_allowance ?? 4);
-      } catch {}
+    setAccessToken(currentAccessToken);
+
+    try {
+      const bootstrap = await fetchRoomBootstrap(currentAccessToken, nextInviteCode ?? inviteCodeInput);
+      setRoom(bootstrap.room);
+      setIsMember(Boolean(bootstrap.is_member || bootstrap.is_owner));
+      setCanJoinRoom(Boolean(bootstrap.can_join || bootstrap.is_member || bootstrap.is_owner));
+      setMsg("");
+
+      const nextStatus = await fetchAccountStatus(currentAccessToken, { force: true });
+      setIsVip(Boolean(nextStatus.is_vip));
+      setRemainingCredits(nextStatus.credits_remaining ?? null);
+      setMonthlyAllowance(nextStatus.free_monthly_allowance ?? 4);
+    } catch (error: any) {
+      setMsg(error?.message || "讀取房間資訊失敗。");
     }
   }
 
@@ -1148,7 +1180,8 @@ export default function RoomPage() {
     }
 
     setIsMember(true);
-    await refreshRoom();
+    setCanJoinRoom(true);
+    await refreshRoom(payload.inviteCode);
   }
 
   async function leave() {
@@ -1182,6 +1215,7 @@ export default function RoomPage() {
     if (error) return setMsg(error.message);
 
     setIsMember(false);
+    setCanJoinRoom(false);
     setDailyToken("");
     setTokenExp(0);
   }
@@ -1463,7 +1497,7 @@ export default function RoomPage() {
           ) : null}
 
           {!isMember ? (
-            <button disabled={busy} onClick={join} className="cc-btn-primary" type="button">
+            <button disabled={busy || (room?.visibility === "invited" && !canJoinRoom && !inviteCodeInput.trim())} onClick={join} className="cc-btn-primary" type="button">
               加入房間
             </button>
           ) : (
@@ -1472,7 +1506,7 @@ export default function RoomPage() {
             </button>
           )}
 
-          <button disabled={busy} onClick={refreshRoom} className="cc-btn" type="button">
+          <button disabled={busy} onClick={() => refreshRoom()} className="cc-btn" type="button">
             重新整理
           </button>
 
