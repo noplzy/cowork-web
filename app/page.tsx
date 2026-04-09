@@ -6,6 +6,33 @@ import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { getClientSessionSnapshot } from "@/lib/clientAuth";
 
+const quickCards = [
+  {
+    title: "現在進房",
+    body: "想立刻找人一起開始，就先進同行空間。",
+    href: "/rooms",
+    cta: "前往同行空間",
+  },
+  {
+    title: "找安感夥伴",
+    body: "想找更明確的陪跑、陪伴或預約服務，就去安感夥伴。",
+    href: "/buddies",
+    cta: "查看安感夥伴",
+  },
+  {
+    title: "先看規則",
+    body: "想先知道免費額度、VIP 與客服規則，就先看方案與價格。",
+    href: "/pricing",
+    cta: "查看方案 / 價格",
+  },
+];
+
+const useCases = [
+  "專注共工：一起開工、一起收尾。",
+  "生活陪伴：做家務、整理、日常陪伴。",
+  "主題交流：有一個清楚主題，一起聊完。",
+];
+
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -14,9 +41,7 @@ export default function Home() {
 
     (async () => {
       const session = await getClientSessionSnapshot().catch(() => null);
-      if (!cancelled) {
-        setIsLoggedIn(Boolean(session));
-      }
+      if (!cancelled) setIsLoggedIn(Boolean(session));
     })();
 
     return () => {
@@ -28,68 +53,79 @@ export default function Home() {
     <main className="cc-container">
       <TopNav />
 
-      <section className="cc-section cc-grid-2">
-        <article className="cc-card cc-stack-md">
-          <span className="cc-kicker">Warm Quiet Digital Sanctuary</span>
-          <p className="cc-eyebrow">安感島｜不只做共工，而是承接不同低壓力同行場景的品牌</p>
-          <h1 className="cc-h2" style={{ fontSize: "clamp(2rem, 4vw, 3.8rem)" }}>
-            先把同行空間做穩，再慢慢把這座島長出來。
+      <section className="cc-hero">
+        <article className="cc-card cc-hero-main cc-stack-md">
+          <span className="cc-kicker">Calm&Co / 安感島</span>
+          <p className="cc-eyebrow">低壓力陪伴與同行平台</p>
+          <h1 className="cc-h1" style={{ maxWidth: "9ch" }}>
+            不想一個人撐著時，先來這裡。
           </h1>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.9 }}>
-            安感島不是把一堆功能堆在首頁上，而是先把真正常用的入口做清楚。
-            現在最成熟的主線是同行空間：你可以直接進房，也可以先安排下一段想一起待著的時間。
+          <p className="cc-lead" style={{ maxWidth: "38ch" }}>
+            安感島不是要你先讀很多規則，而是先幫你找到下一步：現在進房、找安感夥伴，或先看方案。
           </p>
 
           <div className="cc-action-row">
             <Link href="/rooms" className="cc-btn-primary">
-              {isLoggedIn ? "前往同行空間" : "開始使用"}
+              {isLoggedIn ? "進入同行空間" : "開始使用"}
             </Link>
-            <Link href="/buddies" className="cc-btn">了解安感夥伴</Link>
-            <Link href={isLoggedIn ? "/account" : "/pricing"} className="cc-btn-link">
-              {isLoggedIn ? "查看我的帳號 →" : "先看方案規則 →"}
+            <Link href="/buddies" className="cc-btn">
+              找安感夥伴
             </Link>
           </div>
+
+          <div className="cc-page-meta">
+            <span className="cc-pill-warning">免費每月 4 場</span>
+            <span className="cc-pill-soft">可即時進房</span>
+            <span className="cc-pill-soft">可排程</span>
+            <span className="cc-pill-soft">有公開規則與客服</span>
+          </div>
+        </article>
+
+        <aside className="cc-hero-side">
+          <div className="cc-card cc-stack-md">
+            <div>
+              <p className="cc-card-kicker">今天你可以做的事</p>
+              <h2 className="cc-h2">先選一條路，不要一次理解整座島。</h2>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              {quickCards.map((card) => (
+                <article key={card.title} className="cc-card cc-card-soft cc-stack-sm" style={{ padding: 16 }}>
+                  <div className="cc-h3">{card.title}</div>
+                  <div className="cc-muted" style={{ lineHeight: 1.7 }}>
+                    {card.body}
+                  </div>
+                  <Link href={card.href} className="cc-btn-link">
+                    {card.cta} →
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section className="cc-section cc-grid-2">
+        <article className="cc-card cc-stack-md">
+          <div>
+            <p className="cc-card-kicker">適合的場景</p>
+            <h2 className="cc-h2">不只共工，但每一種場景都要夠清楚。</h2>
+          </div>
+          <ul className="cc-bullets">
+            {useCases.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </article>
 
         <article className="cc-card cc-stack-md">
           <div>
-            <p className="cc-card-kicker">現在先做好的事情</p>
-            <h2 className="cc-h2">不要把入口做成雜物間。</h2>
+            <p className="cc-card-kicker">使用原則</p>
+            <h2 className="cc-h2">先把好上手做出來，再慢慢加深。</h2>
           </div>
-
           <div className="cc-note cc-stack-sm">
-            <div><strong>同行空間：</strong> 即時加入與排程功能都放在同一條主線裡。</div>
-            <div><strong>安感夥伴：</strong> 保留未來的陪伴與專業服務擴張空間。</div>
-            <div><strong>方案與客服：</strong> 對外公開資訊維持清楚、可查、可申訴。</div>
-          </div>
-
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            我們刻意不把好友、排程、個人檔案全部抬到首頁主導航，
-            因為那會讓品牌看起來像功能堆疊，而不是一個主線清楚的產品。
-          </p>
-        </article>
-      </section>
-
-      <section className="cc-section cc-grid-2">
-        <article className="cc-card cc-stack-sm">
-          <p className="cc-card-kicker">目前主線</p>
-          <h2 className="cc-h2">同行空間</h2>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            不管你是要專注共工、生活陪伴，還是先安排下一次一起待著的時段，
-            現在都從同行空間開始。
-          </p>
-          <div className="cc-action-row">
-            <Link href="/rooms" className="cc-btn-primary">進入同行空間</Link>
-          </div>
-        </article>
-
-        <article className="cc-card cc-stack-sm">
-          <p className="cc-card-kicker">公開資訊</p>
-          <h2 className="cc-h2">先把規則說清楚，再讓人決定要不要留下。</h2>
-          <div className="cc-action-row">
-            <Link href="/pricing" className="cc-btn">方案 / 價格</Link>
-            <Link href="/contact" className="cc-btn">客服</Link>
-            <Link href="/refund-policy" className="cc-btn">退款政策</Link>
+            <div>首頁先告訴你能做什麼，不先塞滿功能說明。</div>
+            <div>Rooms 先承接即時與排程，Buddies 承接預約與陪伴服務。</div>
+            <div>規則、付款、客服都有公開頁，但不該壓在第一屏。</div>
           </div>
         </article>
       </section>
