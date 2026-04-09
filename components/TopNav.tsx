@@ -71,7 +71,7 @@ export function TopNav({ email, onSignOut }: Props) {
             <span className="cc-brandmark">島</span>
             <span className="cc-navbrandtext">
               <span className="cc-brandtitle">安感島</span>
-              <span className="cc-brandsubtitle">給獨自撐著的你，一個安靜靠岸的地方</span>
+              <span className="cc-brandsubtitle">低壓力陪伴與同行平台</span>
             </span>
           </Link>
 
@@ -99,15 +99,21 @@ export function TopNav({ email, onSignOut }: Props) {
           {!resolved ? null : isLoggedIn ? (
             <>
               <span className="cc-navemail">{currentEmail}</span>
-              <Link className="cc-btn" href="/account">我的帳號</Link>
+              <Link className="cc-btn" href="/account">
+                我的帳號
+              </Link>
               <button className="cc-btn cc-navsignout" onClick={handleSignOut} type="button">
                 登出
               </button>
             </>
           ) : (
             <>
-              <Link className="cc-btn-link" href="/auth/login">登入</Link>
-              <Link className="cc-btn" href="/auth/signup">註冊</Link>
+              <Link className="cc-btn-link" href="/auth/login">
+                登入
+              </Link>
+              <Link className="cc-btn" href="/auth/signup">
+                註冊
+              </Link>
             </>
           )}
         </div>
