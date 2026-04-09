@@ -37,7 +37,7 @@ export function SiteFooter() {
             flexWrap: "wrap",
           }}
         >
-          <div style={{ maxWidth: 520 }}>
+          <div style={{ maxWidth: 560 }}>
             <div
               style={{
                 color: "rgba(255,245,238,0.92)",
@@ -56,7 +56,8 @@ export function SiteFooter() {
                 fontSize: "0.95rem",
               }}
             >
-              讓人不用總是一個人撐著。先把同行空間做穩，再把安感夥伴、信任與服務體驗慢慢補齊。
+              給想找人一起開始、一起撐過一段時間、一起把事情做完的人。先把同行空間做穩，再把安感夥伴、
+              信任機制與服務體驗慢慢補齊。
             </p>
           </div>
 

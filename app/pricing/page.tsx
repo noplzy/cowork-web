@@ -117,9 +117,9 @@ export default function PricingPage() {
       <section className="cc-hero">
         <article className="cc-card cc-hero-main cc-stack-md">
           <span className="cc-kicker">Pricing</span>
-          <p className="cc-eyebrow">先選你現在需要的，不先讀一大段營運備忘錄。</p>
+          <p className="cc-eyebrow">先開始，再決定要不要升級。</p>
           <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
-            先開始，再決定要不要升級。
+            先用免費方案，覺得適合再升級。
           </h1>
           <p className="cc-lead" style={{ maxWidth: "38ch" }}>
             免費方案適合先熟悉節奏。VIP 適合已經會固定進房、希望不受每月額度限制的人。
@@ -134,8 +134,8 @@ export default function PricingPage() {
         <aside className="cc-hero-side">
           <div className="cc-card cc-stack-md">
             <div>
-              <p className="cc-card-kicker">目前方案狀態</p>
-              <h2 className="cc-h2">先看你現在在哪一種方案。</h2>
+              <p className="cc-card-kicker">你的目前狀態</p>
+              <h2 className="cc-h2">先知道自己現在在哪個方案。</h2>
             </div>
             {loadingStatus ? (
               <div className="cc-note">正在讀取方案狀態…</div>
@@ -153,11 +153,11 @@ export default function PricingPage() {
               <div className="cc-note">登入後可直接看到你的目前方案與剩餘額度。</div>
             )}
             <div className="cc-action-row">
-              <Link href="/refund-policy" className="cc-btn">
-                退款政策
-              </Link>
               <Link href="/contact" className="cc-btn">
                 客服
+              </Link>
+              <Link href="/refund-policy" className="cc-btn">
+                退款政策
               </Link>
             </div>
           </div>
@@ -167,11 +167,11 @@ export default function PricingPage() {
       {msg ? <div className="cc-alert cc-alert-error cc-section">{msg}</div> : null}
 
       <section className="cc-section cc-grid-2">
-        <article className="cc-card cc-stack-md">
+        <article className="cc-card cc-stack-md" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.34), var(--cc-scene-focus))" }}>
           <div className="cc-card-row">
             <div>
               <p className="cc-card-kicker">Free</p>
-              <h2 className="cc-h2">先熟悉整體節奏</h2>
+              <h2 className="cc-h2">先感受整體節奏</h2>
             </div>
             <span className="cc-pill-warning">NT$0</span>
           </div>
@@ -187,7 +187,7 @@ export default function PricingPage() {
           </div>
         </article>
 
-        <article className="cc-card cc-stack-md">
+        <article className="cc-card cc-stack-md" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.34), var(--cc-scene-life))" }}>
           <div className="cc-card-row">
             <div>
               <p className="cc-card-kicker">VIP</p>
@@ -201,7 +201,7 @@ export default function PricingPage() {
             <li>目前不自動續扣</li>
             <li>客服與退款走公開規則</li>
           </ul>
-          <div className="cc-caption">這一版先把一次性付款、權益入帳、客服追查這條主線做穩。</div>
+          <div className="cc-caption">這一版先把付款成功、權益入帳、客服可追查這條主線做好。</div>
           <div className="cc-action-row">
             {isVip ? (
               <Link href="/account" className="cc-btn-primary">
@@ -219,8 +219,8 @@ export default function PricingPage() {
       <section className="cc-section">
         <article className="cc-card cc-stack-md">
           <div>
-            <p className="cc-card-kicker">下一階段保留方案</p>
-            <h2 className="cc-h2">先保留，不先把還沒穩定的按鈕打開。</h2>
+            <p className="cc-card-kicker">接下來可能會有</p>
+            <h2 className="cc-h2">先保留，不把還沒穩定的按鈕提早打開。</h2>
           </div>
           <div className="cc-grid-2">
             {FUTURE_BILLING_PLANS.map((plan) => (

@@ -124,8 +124,8 @@ const INTERACTION_LABEL: Record<InteractionStyle, string> = {
 
 const VISIBILITY_LABEL: Record<ServiceVisibility, string> = {
   public: "公開",
-  members: "會員",
-  friends: "好友",
+  members: "會員限定",
+  friends: "好友限定",
 };
 
 const STATUS_LABEL: Record<ServiceStatus, string> = {
@@ -142,6 +142,27 @@ const BOOKING_STATUS_LABEL: Record<string, string> = {
   cancelled: "已取消",
   completed: "已完成",
 };
+
+const sceneIdeas = [
+  {
+    title: "專注陪伴",
+    body: "讀書、工作、寫履歷、整理文件。重點是有人一起，不是一直聊天。",
+    pills: ["安靜同行", "適合新手"],
+    tone: "var(--cc-scene-focus)",
+  },
+  {
+    title: "生活陪伴",
+    body: "整理房間、做家務、煮晚餐、陪自己過完一段生活時間。",
+    pills: ["輕聊天", "低壓力"],
+    tone: "var(--cc-scene-life)",
+  },
+  {
+    title: "情感支持",
+    body: "不是高強度諮商，而是在需要時，有人陪你撐過一段時間。",
+    pills: ["溫和陪伴", "可預約"],
+    tone: "var(--cc-scene-share)",
+  },
+];
 
 const emptyExamples = [
   {
@@ -357,12 +378,12 @@ export default function BuddiesPage() {
       <section className="cc-hero">
         <article className="cc-card cc-hero-main cc-stack-md">
           <span className="cc-kicker">Buddies</span>
-          <p className="cc-eyebrow">找人與提供服務，要一進來就分清楚。</p>
-          <h1 className="cc-h1" style={{ maxWidth: "9ch" }}>
-            找安感夥伴，或成為安感夥伴。
+          <p className="cc-eyebrow">找安感夥伴，或成為安感夥伴。</p>
+          <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
+            想找人陪你，或想把自己的陪伴服務放上來，都可以從這裡開始。
           </h1>
           <p className="cc-lead" style={{ maxWidth: "40ch" }}>
-            這裡不是理念說明頁，而是安感夥伴的市場入口。先找人、先上架、或先看自己的預約，都應該一眼就看懂。
+            你可以先逛服務、先上架自己的服務，或回來看自己目前的預約狀態。
           </p>
           <div className="cc-action-row">
             <button type="button" className={tab === "market" ? "cc-btn-primary" : "cc-btn"} onClick={() => setTab("market")}>
@@ -380,8 +401,32 @@ export default function BuddiesPage() {
         <aside className="cc-hero-side">
           <div className="cc-card cc-stack-md">
             <div>
+              <p className="cc-card-kicker">先看這裡能提供什麼</p>
+              <h2 className="cc-h2">不是只有一種搭子，而是不同場景的陪伴方式。</h2>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              {sceneIdeas.map((item) => (
+                <article
+                  key={item.title}
+                  className="cc-card cc-card-soft cc-stack-sm"
+                  style={{ padding: 16, background: `linear-gradient(180deg, rgba(255,255,255,0.28), ${item.tone})` }}
+                >
+                  <div className="cc-h3">{item.title}</div>
+                  <div className="cc-muted" style={{ lineHeight: 1.7 }}>{item.body}</div>
+                  <div className="cc-action-row" style={{ marginTop: 0 }}>
+                    {item.pills.map((pill) => (
+                      <span key={pill} className="cc-pill-soft">{pill}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="cc-card cc-stack-md">
+            <div>
               <p className="cc-card-kicker">目前概況</p>
-              <h2 className="cc-h2">先知道市場裡有什麼，再決定下一步。</h2>
+              <h2 className="cc-h2">先知道市場裡現在有什麼。</h2>
             </div>
             <div className="cc-grid-3" style={{ gap: 12 }}>
               <div className="cc-panel">
@@ -397,10 +442,6 @@ export default function BuddiesPage() {
                 <div className="cc-h2" style={{ marginTop: 8 }}>{pendingCount}</div>
               </div>
             </div>
-            <div className="cc-note cc-stack-sm">
-              <div>服務先按小時計價，預約成立後再往 Rooms 履約延伸。</div>
-              <div>安全、身份驗證、申訴是平台基礎，不是 VIP 特權。</div>
-            </div>
           </div>
         </aside>
       </section>
@@ -410,8 +451,8 @@ export default function BuddiesPage() {
       <section className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
         <article className="cc-card cc-stack-md">
           <div>
-            <p className="cc-card-kicker">探索篩選</p>
-            <h2 className="cc-h2">先縮小選項，再挑適合的人。</h2>
+            <p className="cc-card-kicker">探索與篩選</p>
+            <h2 className="cc-h2">先把選項縮小，再挑適合自己的人。</h2>
           </div>
           <div className="cc-field">
             <span className="cc-field-label">搜尋</span>
@@ -419,7 +460,7 @@ export default function BuddiesPage() {
               className="cc-input"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="例如：深夜讀書、陪煮晚餐、跑步陪跑、拍照打卡…"
+              placeholder="搜尋服務名稱、關鍵字，例如：陪跑、陪聊、電影搭子"
             />
           </div>
           <div className="cc-action-row" style={{ marginTop: 0 }}>
@@ -467,11 +508,11 @@ export default function BuddiesPage() {
             <p className="cc-card-kicker">信任與規則</p>
             <h2 className="cc-h2">讓人敢按預約，比堆功能更重要。</h2>
           </div>
-          <ul className="cc-bullets">
-            <li>服務卡要清楚顯示分類、價格、提供方式與互動風格。</li>
-            <li>是否已驗證、是否接受新手、是否接受臨時單，要直接可見。</li>
-            <li>安全規則、客服、退款與申訴，不該只藏在頁尾。</li>
-          </ul>
+          <div className="cc-note cc-stack-sm">
+            <div>卡片會直接顯示分類、價格、提供方式與互動風格。</div>
+            <div>是否接受新手、是否接受臨時單，也會直接標出來。</div>
+            <div>客服、退款與公開規則都有固定入口，不用自己猜。</div>
+          </div>
           <div className="cc-action-row">
             <Link href="/contact" className="cc-btn">客服</Link>
             <Link href="/refund-policy" className="cc-btn">退款政策</Link>
@@ -484,7 +525,7 @@ export default function BuddiesPage() {
           <div className="cc-page-header" style={{ marginBottom: 0 }}>
             <div>
               <p className="cc-card-kicker">找安感夥伴</p>
-              <h2 className="cc-h2">先看卡片，再決定要不要深入。</h2>
+              <h2 className="cc-h2">先看服務卡，再決定要不要深入。</h2>
             </div>
             <span className="cc-pill-soft">{marketCount} services</span>
           </div>
@@ -516,7 +557,13 @@ export default function BuddiesPage() {
           ) : (
             <div className="cc-grid-3" style={{ gap: 14 }}>
               {services.map((service) => (
-                <article key={service.id} className="cc-card cc-stack-sm">
+                <article
+                  key={service.id}
+                  className="cc-card cc-stack-sm"
+                  style={{
+                    background: `linear-gradient(180deg, rgba(255,255,255,0.34), ${service.buddy_category === "focus" ? "var(--cc-scene-focus)" : service.buddy_category === "life" ? "var(--cc-scene-life)" : service.buddy_category === "share" ? "var(--cc-scene-share)" : "rgba(255,255,255,0.08)"})`,
+                  }}
+                >
                   <div className="cc-card-row" style={{ alignItems: "flex-start" }}>
                     <div>
                       <div className="cc-h3">{service.title}</div>
@@ -541,7 +588,7 @@ export default function BuddiesPage() {
                     <span className="cc-pill-soft">{VISIBILITY_LABEL[service.visibility]}</span>
                   </div>
                   <div className="cc-caption">
-                    {service.accepts_new_users ? "接受新手" : "需熟悉彼此節奏"}
+                    {service.accepts_new_users ? "接受新手" : "較適合已熟悉彼此節奏的人"}
                     {service.accepts_last_minute ? " · 接受臨時單" : ""}
                   </div>
                   <div className="cc-action-row">
@@ -568,7 +615,7 @@ export default function BuddiesPage() {
             <div className="cc-card-row">
               <div>
                 <p className="cc-card-kicker">我的服務</p>
-                <h2 className="cc-h2">上架表單要夠清楚，不要像在填問卷。</h2>
+                <h2 className="cc-h2">把你想提供的陪伴方式說清楚，讓人一眼看懂。</h2>
               </div>
               {editingId ? <span className="cc-pill-accent">編輯中</span> : null}
             </div>
@@ -582,7 +629,7 @@ export default function BuddiesPage() {
             </label>
             <label className="cc-field">
               <span className="cc-field-label">詳細說明</span>
-              <textarea className="cc-textarea" value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="用簡單文字說清楚會怎麼互動、適合什麼人。" />
+              <textarea className="cc-textarea" value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="用簡單文字說清楚你會怎麼互動、適合什麼人。" />
             </label>
             <div className="cc-grid-3" style={{ gap: 12 }}>
               <label className="cc-field">
@@ -620,8 +667,8 @@ export default function BuddiesPage() {
                 <span className="cc-field-label">可見性</span>
                 <select className="cc-select" value={form.visibility} onChange={(e) => setForm((prev) => ({ ...prev, visibility: e.target.value as ServiceVisibility }))}>
                   <option value="public">公開</option>
-                  <option value="members">會員</option>
-                  <option value="friends">好友</option>
+                  <option value="members">會員限定</option>
+                  <option value="friends">好友限定</option>
                 </select>
               </label>
               <label className="cc-field">
@@ -668,14 +715,14 @@ export default function BuddiesPage() {
             <div className="cc-page-header" style={{ marginBottom: 0 }}>
               <div>
                 <p className="cc-card-kicker">我的服務列表</p>
-                <h2 className="cc-h2">不是只有上架按鈕，還要能管理自己正在賣什麼。</h2>
+                <h2 className="cc-h2">上架之後，也要能回頭看自己正在提供什麼。</h2>
               </div>
               <span className="cc-pill-soft">{myServices.length} services</span>
             </div>
             {loading ? (
               <div className="cc-note">正在讀取你的服務…</div>
             ) : myServices.length === 0 ? (
-              <div className="cc-note">目前還沒有你自己的服務。第一步不是把頁面講滿，而是先讓第一個服務上架。</div>
+              <div className="cc-note">目前還沒有你自己的服務。你可以先上架第一個服務，再慢慢修整細節。</div>
             ) : (
               <div className="cc-stack-sm">
                 {myServices.map((service) => (
@@ -711,7 +758,7 @@ export default function BuddiesPage() {
           <article className="cc-card cc-stack-md">
             <div>
               <p className="cc-card-kicker">收到的預約</p>
-              <h2 className="cc-h2">供給側應該清楚看到誰預約了自己。</h2>
+              <h2 className="cc-h2">如果有人預約你，這裡會清楚顯示。</h2>
             </div>
             {incomingBookings.length === 0 ? (
               <div className="cc-note">目前還沒有收到任何預約。</div>
@@ -737,7 +784,7 @@ export default function BuddiesPage() {
           <article className="cc-card cc-stack-md">
             <div>
               <p className="cc-card-kicker">我送出的預約</p>
-              <h2 className="cc-h2">需求側也要清楚知道目前預約在哪個狀態。</h2>
+              <h2 className="cc-h2">如果你已經約了別人，這裡能看到目前進度。</h2>
             </div>
             {outgoingBookings.length === 0 ? (
               <div className="cc-note">目前還沒有你送出的預約。</div>

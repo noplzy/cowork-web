@@ -99,6 +99,29 @@ const SCENE_TONES: Record<ActiveRoomScene, SceneTone> = {
   },
 };
 
+const SCENE_COPY: Record<ActiveRoomScene, { title: string; body: string; pills: string[] }> = {
+  focus: {
+    title: "專注同行",
+    body: "適合讀書、工作、寫作、整理資料。重點不是聊天，而是有人一起開始。",
+    pills: ["安靜同行", "25 / 50 分鐘"],
+  },
+  life: {
+    title: "生活陪伴",
+    body: "整理房間、煮飯、做家務、陪自己過完一段普通日常，也可以有人一起。",
+    pills: ["低壓力", "輕聊天"],
+  },
+  share: {
+    title: "主題交流",
+    body: "有一個明確主題，想把一場對話聊完，比散亂聊天室更輕鬆。",
+    pills: ["主題房", "開放分享"],
+  },
+  hobby: {
+    title: "興趣同好",
+    body: "閱讀、手作、畫圖、拉伸、玩自己的興趣，也可以有同伴一起待著。",
+    pills: ["同好房", "一起做喜歡的事"],
+  },
+};
+
 function modeLabel(mode: Room["mode"]) {
   return mode === "pair" ? "雙人同行" : "小組同行";
 }
@@ -356,11 +379,10 @@ export default function RoomsPage() {
   }
 
   const sceneCountSource = contentMode === "now" ? roomCounts : scheduleCounts;
-  const topCards = [
-    { title: "現在進房", body: "直接看現在可加入的房，想開始就馬上開始。" },
-    { title: "建立房間", body: "想自己開節奏，就立刻建立一間房。" },
-    { title: "排程安排", body: "現在不方便，也可以先把下一次時間掛上去。" },
-  ];
+  const topSceneCards = ACTIVE_ROOM_SCENE_OPTIONS.map((item) => ({
+    ...item,
+    ...SCENE_COPY[item.value],
+  }));
 
   return (
     <main className="cc-container">
@@ -369,12 +391,12 @@ export default function RoomsPage() {
       <section className="cc-hero">
         <article className="cc-card cc-hero-main cc-stack-md">
           <span className="cc-kicker">Rooms</span>
-          <p className="cc-eyebrow">先決定你現在要做什麼，再挑工具。</p>
-          <h1 className="cc-h1" style={{ maxWidth: "9ch" }}>
-            現在進房，或先把時間排好。
+          <p className="cc-eyebrow">想立刻開始，或先把時間排好，都可以從這裡開始。</p>
+          <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
+            先看現在能去哪裡，再決定要不要自己開房。
           </h1>
           <p className="cc-lead" style={{ maxWidth: "40ch" }}>
-            Rooms 是安感島目前最成熟的主線。想立刻開始，就看現在可進房；想先約好，就去排程專區。
+            想立刻找一段有人一起的時間，就看現在可進房。想先約好，就去排程專區。
           </p>
           <div className="cc-action-row">
             <button type="button" className={contentMode === "now" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("now")}>
@@ -405,19 +427,38 @@ export default function RoomsPage() {
         <aside className="cc-hero-side">
           <div className="cc-card cc-stack-md">
             <div>
-              <p className="cc-card-kicker">快速理解</p>
-              <h2 className="cc-h2">先知道這裡能幹嘛，不先看一堆規則。</h2>
+              <p className="cc-card-kicker">這裡有哪些場景</p>
+              <h2 className="cc-h2">不一定都是共工，但每一種都要夠清楚。</h2>
             </div>
             <div style={{ display: "grid", gap: 12 }}>
-              {topCards.map((card) => (
-                <article key={card.title} className="cc-card cc-card-soft cc-stack-sm" style={{ padding: 16 }}>
+              {topSceneCards.map((card) => (
+                <article
+                  key={card.value}
+                  className="cc-card cc-card-soft cc-stack-sm"
+                  style={{
+                    padding: 16,
+                    background: `linear-gradient(180deg, rgba(255,255,255,0.28), ${SCENE_TONES[card.value].subtle.background})`,
+                  }}
+                >
                   <div className="cc-h3">{card.title}</div>
                   <div className="cc-muted" style={{ lineHeight: 1.7 }}>{card.body}</div>
+                  <div className="cc-action-row" style={{ marginTop: 0 }}>
+                    {card.pills.map((pill) => (
+                      <span key={pill} className="cc-pill-soft">
+                        {pill}
+                      </span>
+                    ))}
+                  </div>
                 </article>
               ))}
             </div>
+          </div>
+
+          <div className="cc-card cc-stack-sm">
+            <p className="cc-card-kicker">你的目前狀態</p>
+            <h2 className="cc-h2">先知道自己現在能怎麼用。</h2>
             <div className="cc-note cc-stack-sm">
-              <div>你的目前狀態：<strong>{status?.is_vip ? "VIP" : "FREE"}</strong></div>
+              <div>目前方案：<strong>{status?.is_vip ? "VIP" : "FREE"}</strong></div>
               <div>本月剩餘：<strong>{status?.is_vip ? "不限" : `${status?.credits_remaining ?? "?"} / ${status?.free_monthly_allowance ?? "?"}`}</strong></div>
             </div>
           </div>
@@ -431,7 +472,11 @@ export default function RoomsPage() {
           <div className="cc-page-header" style={{ marginBottom: 0 }}>
             <div>
               <p className="cc-card-kicker">{contentMode === "now" ? "現在可進房" : "排程板"}</p>
-              <h2 className="cc-h2">{contentMode === "now" ? "先看現在有哪些房，想開始就直接進去。" : "先看接下來的安排，想要就先掛時間。"}</h2>
+              <h2 className="cc-h2">
+                {contentMode === "now"
+                  ? "先看眼前有哪些房，覺得適合就直接進去。"
+                  : "先看接下來的安排，想要的時段就先掛上去。"}
+              </h2>
             </div>
             <span className="cc-pill-soft">{contentMode === "now" ? filteredRooms.length : filteredSchedulePosts.length}</span>
           </div>
@@ -442,7 +487,7 @@ export default function RoomsPage() {
             filteredRooms.length === 0 ? (
               <div className="cc-note cc-stack-sm">
                 <div className="cc-h3">目前這個場景還沒有即時房。</div>
-                <div className="cc-muted">現在不是資訊不足，而是剛好還沒人開。你可以成為第一個開房的人。</div>
+                <div className="cc-muted">如果你現在就想開始，可以直接在右邊開一間。第一個開房的人，常常也是第一個開始的人。</div>
               </div>
             ) : (
               <ul className="cc-list">
@@ -454,14 +499,15 @@ export default function RoomsPage() {
                           <span className="cc-h3">{room.title}</span>
                           <span className="cc-pill-soft">{labelForRoomScene(room.ui_scene)}</span>
                           <span className="cc-pill-soft">{labelForInteractionStyle(room.interaction_style)}</span>
-                          <span className="cc-pill-soft">{labelForVisibility(room.visibility)}</span>
                           <span className="cc-pill-soft">{modeLabel(room.mode)}</span>
                           <span className="cc-pill-soft">{formatDurationLabel(room.duration_minutes)}</span>
                         </div>
-                        <div className="cc-muted">最多 {room.max_size} 人 · 建立於 {new Date(room.created_at).toLocaleDateString("zh-TW")}</div>
+                        <div className="cc-muted">
+                          {labelForVisibility(room.visibility)} · 最多 {room.max_size} 人 · 建立於 {new Date(room.created_at).toLocaleDateString("zh-TW")}
+                        </div>
                         {room.host_note ? <div className="cc-caption">{room.host_note}</div> : null}
                       </div>
-                      <span className="cc-btn-link">進房 →</span>
+                      <span className="cc-btn-link">立即加入 →</span>
                     </Link>
                   </li>
                 ))}
@@ -470,7 +516,7 @@ export default function RoomsPage() {
           ) : filteredSchedulePosts.length === 0 ? (
             <div className="cc-note cc-stack-sm">
               <div className="cc-h3">目前還沒有這個場景的排程。</div>
-              <div className="cc-muted">如果你知道自己想在什麼時間開始，先掛出你的時間會比等別人更快。</div>
+              <div className="cc-muted">如果你知道自己想在什麼時間開始，先掛出你的時間通常比等別人更快。</div>
             </div>
           ) : (
             <div className="cc-stack-sm">
@@ -486,7 +532,9 @@ export default function RoomsPage() {
                           <span className="cc-pill-soft">{labelForInteractionStyle(post.interaction_style)}</span>
                         </div>
                         <div className="cc-muted">{formatDateTimeRange(post.start_at, post.end_at)}</div>
-                        <div className="cc-caption">房主：{host?.display_name ?? "安感島使用者"} · {labelForVisibility(post.visibility)} · {post.seat_limit} 人</div>
+                        <div className="cc-caption">
+                          房主：{host?.display_name ?? "安感島使用者"} · {labelForVisibility(post.visibility)} · {post.seat_limit} 人
+                        </div>
                         {post.note ? <div className="cc-note">{post.note}</div> : null}
                       </div>
                       {post.host_user_id === userId ? (
@@ -505,14 +553,13 @@ export default function RoomsPage() {
         <article className="cc-card cc-stack-md">
           <div>
             <p className="cc-card-kicker">建立與加入</p>
-            <h2 className="cc-h2">工具放右邊，讓內容先被看見。</h2>
+            <h2 className="cc-h2">想自己開，或別人給你邀請碼，都在這裡。</h2>
           </div>
 
           <div className="cc-note cc-stack-sm">
-            <div><strong>你現在要做哪一種？</strong></div>
-            <div>想立刻開始，就建立即時房。</div>
+            <div>想立刻開始，就建立一間即時房。</div>
             <div>想先約好，就建立排程。</div>
-            <div>別人給你邀請碼，就直接在這裡輸入。</div>
+            <div>別人給你邀請碼，就直接在下面輸入。</div>
           </div>
 
           <div className="cc-action-row" style={{ marginTop: 0 }}>
