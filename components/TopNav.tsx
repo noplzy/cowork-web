@@ -71,7 +71,7 @@ export function TopNav({ email, onSignOut }: Props) {
             <span className="cc-brandmark">島</span>
             <span className="cc-navbrandtext">
               <span className="cc-brandtitle">安感島</span>
-              <span className="cc-brandsubtitle">低壓力陪伴與同行平台</span>
+              <span className="cc-brandsubtitle">不用一個人撐著，也能開始</span>
             </span>
           </Link>
 
