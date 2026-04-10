@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -164,6 +164,7 @@ async function loadRooms(): Promise<Room[]> {
 
 export default function RoomsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [accessToken, setAccessToken] = useState("");
@@ -194,6 +195,19 @@ export default function RoomsPage() {
   const [scheduleNote, setScheduleNote] = useState("");
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [inviteResult, setInviteResult] = useState<InviteResult>(null);
+
+  useEffect(() => {
+    const scene = searchParams.get("scene");
+    const mode = searchParams.get("mode");
+
+    if (scene === "focus" || scene === "life" || scene === "share" || scene === "hobby") {
+      setActiveScene(scene);
+    }
+
+    if (mode === "now" || mode === "schedule") {
+      setContentMode(mode);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (activeScene !== "all") {
@@ -389,7 +403,7 @@ export default function RoomsPage() {
   }
 
   const sceneCountSource = contentMode === "now" ? roomCounts : scheduleCounts;
-  const topSceneCards = ACTIVE_ROOM_SCENE_OPTIONS.map((item) => ({
+  const sceneGalleryCards = ACTIVE_ROOM_SCENE_OPTIONS.map((item) => ({
     ...item,
     ...SCENE_COPY[item.value],
   }));
@@ -416,7 +430,7 @@ export default function RoomsPage() {
             先看現在能去哪裡，再決定要不要自己開房。
           </h1>
           <p className="cc-lead" style={{ maxWidth: "40ch" }}>
-            想立刻找一段有人一起的時間，就看現在可進房。想先約好，就去排程專區。
+            想立刻找一段有人一起的時間，就看現在可進房。想先約好，就去排程專區。先選場景，再看房與排程。
           </p>
           <div className="cc-action-row">
             <button type="button" className={contentMode === "now" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("now")}>
@@ -447,42 +461,14 @@ export default function RoomsPage() {
         <aside className="cc-hero-side">
           <div className="cc-card cc-stack-md">
             <div>
-              <p className="cc-card-kicker">先選場景，再看房與排程</p>
-              <h2 className="cc-h2">這些卡片是讓你一眼知道差別，不是要你先讀完規則。</h2>
+              <p className="cc-card-kicker">怎麼挑場景</p>
+              <h2 className="cc-h2">先用場景分家，再看房與排程，畫面會比較乾淨。</h2>
             </div>
-            <div style={{ display: "grid", gap: 12 }}>
-              {topSceneCards.map((card) => (
-                <article
-                  key={card.value}
-                  className="cc-card cc-card-soft cc-stack-sm"
-                  style={{
-                    padding: 14,
-                    background: `linear-gradient(180deg, rgba(255,255,255,0.32), ${SCENE_TONES[card.value].subtle.background})`,
-                  }}
-                >
-                  <div
-                    aria-label={card.alt}
-                    style={{
-                      width: "100%",
-                      aspectRatio: "16 / 10",
-                      borderRadius: 16,
-                      border: "1px solid rgba(89,88,82,0.10)",
-                      backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${card.image})`,
-                      backgroundPosition: "center",
-                      backgroundSize: "cover",
-                    }}
-                  />
-                  <div className="cc-h3">{card.title}</div>
-                  <div className="cc-muted" style={{ lineHeight: 1.7 }}>{card.body}</div>
-                  <div className="cc-action-row" style={{ marginTop: 0 }}>
-                    {card.pills.map((pill) => (
-                      <span key={pill} className="cc-pill-soft">
-                        {pill}
-                      </span>
-                    ))}
-                  </div>
-                </article>
-              ))}
+            <div className="cc-note cc-stack-sm">
+              <div>專注任務：開始做事，不是一直聊天。</div>
+              <div>生活陪伴：陪自己過完一段普通日常。</div>
+              <div>主題分享：圍繞同一個主題，把一場對話聊完。</div>
+              <div>興趣同好：一起做喜歡的事，不一定要熱鬧。</div>
             </div>
           </div>
 
@@ -497,9 +483,68 @@ export default function RoomsPage() {
         </aside>
       </section>
 
+      <section className="cc-section cc-stack-md">
+        <div className="cc-page-header" style={{ marginBottom: 0 }}>
+          <div>
+            <p className="cc-card-kicker">Rooms 場景卡</p>
+            <h2 className="cc-h2">先看四種場景，點下去就直接套用篩選。</h2>
+          </div>
+          <Link href="/rooms?mode=now#rooms-board" className="cc-btn">
+            看全部房間
+          </Link>
+        </div>
+
+        <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+          {sceneGalleryCards.map((card) => (
+            <button
+              key={card.value}
+              type="button"
+              className="cc-card cc-card-link"
+              onClick={() => {
+                setActiveScene(card.value);
+                setContentMode("now");
+                window.location.hash = "rooms-board";
+              }}
+              style={{
+                display: "grid",
+                gap: 14,
+                textAlign: "left",
+                minHeight: "100%",
+                background: `linear-gradient(180deg, rgba(255,255,255,0.30), ${SCENE_TONES[card.value].subtle.background})`,
+              }}
+            >
+              <div
+                aria-label={card.alt}
+                style={{
+                  width: "100%",
+                  aspectRatio: "16 / 10",
+                  borderRadius: 16,
+                  border: "1px solid rgba(89,88,82,0.10)",
+                  backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${card.image})`,
+                  backgroundPosition: "center",
+                  backgroundSize: "cover",
+                }}
+              />
+              <div className="cc-stack-sm">
+                <div className="cc-h3">{card.title}</div>
+                <div className="cc-muted" style={{ lineHeight: 1.7 }}>{card.body}</div>
+                <div className="cc-action-row" style={{ marginTop: 0 }}>
+                  {card.pills.map((pill) => (
+                    <span key={pill} className="cc-pill-soft">
+                      {pill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <span className="cc-btn-link">套用這個場景 →</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       {msg ? <div className="cc-alert cc-alert-error cc-section">{msg}</div> : null}
 
-      <section className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
+      <section id="rooms-board" className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
         <article className="cc-card cc-stack-md">
           <div className="cc-page-header" style={{ marginBottom: 0 }}>
             <div>
