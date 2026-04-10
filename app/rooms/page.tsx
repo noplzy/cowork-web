@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -152,6 +152,25 @@ function minDatetimeLocalValue() {
   return toDatetimeLocalValue(new Date().toISOString());
 }
 
+function readRoomsRouteState(): { scene: SceneFilter; mode: ContentMode } {
+  if (typeof window === "undefined") {
+    return { scene: "all", mode: "now" };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const sceneParam = params.get("scene");
+  const modeParam = params.get("mode");
+
+  const scene: SceneFilter =
+    sceneParam === "focus" || sceneParam === "life" || sceneParam === "share" || sceneParam === "hobby"
+      ? sceneParam
+      : "all";
+
+  const mode: ContentMode = modeParam === "schedule" ? "schedule" : "now";
+
+  return { scene, mode };
+}
+
 async function loadRooms(): Promise<Room[]> {
   const result = await supabase
     .from("rooms")
@@ -164,7 +183,6 @@ async function loadRooms(): Promise<Room[]> {
 
 export default function RoomsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [accessToken, setAccessToken] = useState("");
@@ -197,17 +215,42 @@ export default function RoomsPage() {
   const [inviteResult, setInviteResult] = useState<InviteResult>(null);
 
   useEffect(() => {
-    const scene = searchParams.get("scene");
-    const mode = searchParams.get("mode");
+    if (typeof window === "undefined") return;
 
-    if (scene === "focus" || scene === "life" || scene === "share" || scene === "hobby") {
-      setActiveScene(scene);
-    }
+    const applyRouteState = () => {
+      const nextState = readRoomsRouteState();
+      setActiveScene(nextState.scene);
+      setContentMode(nextState.mode);
+    };
 
-    if (mode === "now" || mode === "schedule") {
-      setContentMode(mode);
-    }
-  }, [searchParams]);
+    const notify = () => applyRouteState();
+    const originalPushState = window.history.pushState.bind(window.history);
+    const originalReplaceState = window.history.replaceState.bind(window.history);
+
+    applyRouteState();
+
+    window.history.pushState = function (...args) {
+      const result = originalPushState(...args);
+      window.dispatchEvent(new Event("cc-locationchange"));
+      return result;
+    };
+
+    window.history.replaceState = function (...args) {
+      const result = originalReplaceState(...args);
+      window.dispatchEvent(new Event("cc-locationchange"));
+      return result;
+    };
+
+    window.addEventListener("popstate", notify);
+    window.addEventListener("cc-locationchange", notify);
+
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener("popstate", notify);
+      window.removeEventListener("cc-locationchange", notify);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeScene !== "all") {
