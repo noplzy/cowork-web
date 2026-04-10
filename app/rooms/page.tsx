@@ -76,6 +76,16 @@ type SceneTone = {
   line: string;
 };
 
+type SceneCardCopy = {
+  title: string;
+  body: string;
+  pills: string[];
+  image: string;
+  alt: string;
+  imagePosition: string;
+  imageScale: number;
+};
+
 const SCENE_TONES: Record<ActiveRoomScene, SceneTone> = {
   focus: {
     active: { borderColor: "rgba(155, 186, 169, 0.44)", background: "rgba(135, 170, 151, 0.12)" },
@@ -99,13 +109,15 @@ const SCENE_TONES: Record<ActiveRoomScene, SceneTone> = {
   },
 };
 
-const SCENE_COPY: Record<ActiveRoomScene, { title: string; body: string; pills: string[]; image: string; alt: string }> = {
+const SCENE_COPY: Record<ActiveRoomScene, SceneCardCopy> = {
   focus: {
     title: "專注任務",
     body: "適合讀書、工作、寫作、整理資料。重點不是聊天，而是有人一起開始。",
     pills: ["安靜同行", "25 / 50 分鐘"],
     image: "/site-assets/rooms/focus.png",
     alt: "專注任務場景圖",
+    imagePosition: "20% 72%",
+    imageScale: 1.02,
   },
   life: {
     title: "生活陪伴",
@@ -113,6 +125,8 @@ const SCENE_COPY: Record<ActiveRoomScene, { title: string; body: string; pills: 
     pills: ["低壓力", "輕聊天"],
     image: "/site-assets/rooms/life.png",
     alt: "生活陪伴場景圖",
+    imagePosition: "50% 60%",
+    imageScale: 1.02,
   },
   share: {
     title: "主題分享",
@@ -120,6 +134,8 @@ const SCENE_COPY: Record<ActiveRoomScene, { title: string; body: string; pills: 
     pills: ["主題房", "開放分享"],
     image: "/site-assets/rooms/share.png",
     alt: "主題分享場景圖",
+    imagePosition: "50% 56%",
+    imageScale: 1.01,
   },
   hobby: {
     title: "興趣同好",
@@ -127,10 +143,63 @@ const SCENE_COPY: Record<ActiveRoomScene, { title: string; body: string; pills: 
     pills: ["同好房", "一起做喜歡的事"],
     image: "/site-assets/rooms/hobby.png",
     alt: "興趣同好場景圖",
+    imagePosition: "84% 56%",
+    imageScale: 1,
   },
 };
 
 const EMPTY_ROOM_ASSET = "/site-assets/rooms/empty-room.png";
+
+function SceneArt({
+  image,
+  alt,
+  position,
+  scale,
+}: {
+  image: string;
+  alt: string;
+  position: string;
+  scale: number;
+}) {
+  return (
+    <div
+      aria-label={alt}
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "16 / 10",
+        borderRadius: 16,
+        border: "1px solid rgba(89,88,82,0.10)",
+        overflow: "hidden",
+        background: "rgba(255,255,255,0.08)",
+      }}
+    >
+      <img
+        src={image}
+        alt={alt}
+        loading="lazy"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: position,
+          transform: `scale(${scale})`,
+        }}
+      />
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.00) 48%, rgba(17,19,24,0.08) 100%)",
+        }}
+      />
+    </div>
+  );
+}
 
 function modeLabel(mode: Room["mode"]) {
   return mode === "pair" ? "雙人同行" : "小組同行";
@@ -140,8 +209,17 @@ function costLabel(minutes: number) {
   return `${Math.ceil(minutes / 25)} 場`;
 }
 
-function buildSceneCounts<T>(rows: T[], getScene: (row: T) => ActiveRoomScene): Record<SceneFilter, number> {
-  const base: Record<SceneFilter, number> = { all: rows.length, focus: 0, life: 0, share: 0, hobby: 0 };
+function buildSceneCounts<T>(
+  rows: T[],
+  getScene: (row: T) => ActiveRoomScene,
+): Record<SceneFilter, number> {
+  const base: Record<SceneFilter, number> = {
+    all: rows.length,
+    focus: 0,
+    life: 0,
+    share: 0,
+    hobby: 0,
+  };
   rows.forEach((row) => {
     base[getScene(row)] += 1;
   });
@@ -162,7 +240,10 @@ function readRoomsRouteState(): { scene: SceneFilter; mode: ContentMode } {
   const modeParam = params.get("mode");
 
   const scene: SceneFilter =
-    sceneParam === "focus" || sceneParam === "life" || sceneParam === "share" || sceneParam === "hobby"
+    sceneParam === "focus" ||
+    sceneParam === "life" ||
+    sceneParam === "share" ||
+    sceneParam === "hobby"
       ? sceneParam
       : "all";
 
@@ -174,7 +255,9 @@ function readRoomsRouteState(): { scene: SceneFilter; mode: ContentMode } {
 async function loadRooms(): Promise<Room[]> {
   const result = await supabase
     .from("rooms")
-    .select("id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url,room_category,interaction_style,visibility,host_note,invite_code")
+    .select(
+      "id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url,room_category,interaction_style,visibility,host_note,invite_code",
+    )
     .order("created_at", { ascending: false });
 
   if (result.error) throw result.error;
@@ -217,13 +300,24 @@ export default function RoomsPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let pendingTimer: number | null = null;
+
     const applyRouteState = () => {
       const nextState = readRoomsRouteState();
-      setActiveScene(nextState.scene);
-      setContentMode(nextState.mode);
+      setActiveScene((prev) => (prev === nextState.scene ? prev : nextState.scene));
+      setContentMode((prev) => (prev === nextState.mode ? prev : nextState.mode));
     };
 
-    const notify = () => applyRouteState();
+    const scheduleApplyRouteState = () => {
+      if (pendingTimer !== null) {
+        window.clearTimeout(pendingTimer);
+      }
+      pendingTimer = window.setTimeout(() => {
+        pendingTimer = null;
+        applyRouteState();
+      }, 0);
+    };
+
     const originalPushState = window.history.pushState.bind(window.history);
     const originalReplaceState = window.history.replaceState.bind(window.history);
 
@@ -231,24 +325,25 @@ export default function RoomsPage() {
 
     window.history.pushState = function (...args) {
       const result = originalPushState(...args);
-      window.dispatchEvent(new Event("cc-locationchange"));
+      scheduleApplyRouteState();
       return result;
     };
 
     window.history.replaceState = function (...args) {
       const result = originalReplaceState(...args);
-      window.dispatchEvent(new Event("cc-locationchange"));
+      scheduleApplyRouteState();
       return result;
     };
 
-    window.addEventListener("popstate", notify);
-    window.addEventListener("cc-locationchange", notify);
+    window.addEventListener("popstate", scheduleApplyRouteState);
 
     return () => {
+      if (pendingTimer !== null) {
+        window.clearTimeout(pendingTimer);
+      }
       window.history.pushState = originalPushState;
       window.history.replaceState = originalReplaceState;
-      window.removeEventListener("popstate", notify);
-      window.removeEventListener("cc-locationchange", notify);
+      window.removeEventListener("popstate", scheduleApplyRouteState);
     };
   }, []);
 
@@ -279,7 +374,9 @@ export default function RoomsPage() {
 
     const profilesResult = await supabase.from("profiles").select("*").in("user_id", hostIds);
     if (profilesResult.error) throw profilesResult.error;
-    const profileMap = Object.fromEntries(((profilesResult.data ?? []) as PublicProfileRow[]).map((item) => [item.user_id, item]));
+    const profileMap = Object.fromEntries(
+      ((profilesResult.data ?? []) as PublicProfileRow[]).map((item) => [item.user_id, item]),
+    );
     setHostProfiles(profileMap);
   }
 
@@ -287,7 +384,9 @@ export default function RoomsPage() {
     setLoading(true);
     try {
       const [statusResult, roomRows] = await Promise.all([
-        currentAccessToken ? fetchAccountStatus(currentAccessToken).catch(() => null) : Promise.resolve(null),
+        currentAccessToken
+          ? fetchAccountStatus(currentAccessToken).catch(() => null)
+          : Promise.resolve(null),
         loadRooms(),
       ]);
       if (statusResult) setStatus(statusResult);
@@ -325,22 +424,41 @@ export default function RoomsPage() {
   );
 
   const normalizedSchedulePosts = useMemo(
-    () => schedulePosts.map((post) => ({ ...post, ui_scene: normalizeRoomCategoryForUi(post.room_category) })),
+    () =>
+      schedulePosts.map((post) => ({
+        ...post,
+        ui_scene: normalizeRoomCategoryForUi(post.room_category),
+      })),
     [schedulePosts],
   );
 
   const filteredRooms = useMemo(
-    () => (activeScene === "all" ? normalizedRooms : normalizedRooms.filter((room) => room.ui_scene === activeScene)),
+    () =>
+      activeScene === "all"
+        ? normalizedRooms
+        : normalizedRooms.filter((room) => room.ui_scene === activeScene),
     [activeScene, normalizedRooms],
   );
   const filteredSchedulePosts = useMemo(
-    () => (activeScene === "all" ? normalizedSchedulePosts : normalizedSchedulePosts.filter((post) => post.ui_scene === activeScene)),
+    () =>
+      activeScene === "all"
+        ? normalizedSchedulePosts
+        : normalizedSchedulePosts.filter((post) => post.ui_scene === activeScene),
     [activeScene, normalizedSchedulePosts],
   );
 
-  const roomCounts = useMemo(() => buildSceneCounts(normalizedRooms, (room) => room.ui_scene), [normalizedRooms]);
-  const scheduleCounts = useMemo(() => buildSceneCounts(normalizedSchedulePosts, (post) => post.ui_scene), [normalizedSchedulePosts]);
-  const ownRoom = useMemo(() => normalizedRooms.find((room) => room.created_by === userId) ?? null, [normalizedRooms, userId]);
+  const roomCounts = useMemo(
+    () => buildSceneCounts(normalizedRooms, (room) => room.ui_scene),
+    [normalizedRooms],
+  );
+  const scheduleCounts = useMemo(
+    () => buildSceneCounts(normalizedSchedulePosts, (post) => post.ui_scene),
+    [normalizedSchedulePosts],
+  );
+  const ownRoom = useMemo(
+    () => normalizedRooms.find((room) => room.created_by === userId) ?? null,
+    [normalizedRooms, userId],
+  );
   const ownFutureScheduleCount = useMemo(
     () => normalizedSchedulePosts.filter((post) => post.host_user_id === userId).length,
     [normalizedSchedulePosts, userId],
@@ -371,7 +489,11 @@ export default function RoomsPage() {
   async function deleteSchedulePost(postId: string) {
     setBusy(true);
     setMsg("");
-    const result = await supabase.from("scheduled_room_posts").delete().eq("id", postId).eq("host_user_id", userId);
+    const result = await supabase
+      .from("scheduled_room_posts")
+      .delete()
+      .eq("id", postId)
+      .eq("host_user_id", userId);
     setBusy(false);
     if (result.error) return setMsg(result.error.message);
     setMsg("已刪除排程。");
@@ -456,7 +578,8 @@ export default function RoomsPage() {
     aspectRatio: "4 / 3",
     borderRadius: 18,
     border: "1px solid rgba(89,88,82,0.10)",
-    backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${EMPTY_ROOM_ASSET})`,
+    backgroundImage:
+      `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${EMPTY_ROOM_ASSET})`,
     backgroundSize: "cover",
     backgroundPosition: "center",
   };
@@ -468,43 +591,67 @@ export default function RoomsPage() {
       <section className="cc-hero">
         <article className="cc-card cc-hero-main cc-stack-md">
           <span className="cc-kicker">Rooms</span>
-          <p className="cc-eyebrow">想立刻開始，或先把時間排好，都可以從這裡開始。</p>
+          <p className="cc-eyebrow">
+            想立刻開始，或先把時間排好，都可以從這裡開始。
+          </p>
           <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
             先看現在能去哪裡，再決定要不要自己開房。
           </h1>
           <p className="cc-lead" style={{ maxWidth: "40ch" }}>
             想立刻找一段有人一起的時間，就看現在可進房。想先約好，就去排程專區。先選場景，再看房與排程。
           </p>
-          <div className="cc-action-row">
-            <button type="button" className={contentMode === "now" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("now")}>
-              現在可進房 <span className="cc-pill-soft">{filteredRooms.length}</span>
-            </button>
-            <button type="button" className={contentMode === "schedule" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("schedule")}>
-              排程專區 <span className="cc-pill-soft">{filteredSchedulePosts.length}</span>
-            </button>
-          </div>
-          <div className="cc-action-row" style={{ marginTop: 0 }}>
-            {ACTIVE_ROOM_SCENE_OPTIONS.map((scene) => (
+
+          <div className="cc-control-group">
+            <div className="cc-control-label">第 1 步：現在要做哪件事</div>
+            <div className="cc-segment-grid">
               <button
-                key={scene.value}
                 type="button"
-                className={activeScene === scene.value ? "cc-btn-primary" : "cc-btn"}
-                style={activeScene === scene.value ? SCENE_TONES[scene.value].active : undefined}
-                onClick={() => setActiveScene(scene.value)}
+                className={`cc-segment-btn ${contentMode === "now" ? "is-active" : ""}`}
+                onClick={() => setContentMode("now")}
               >
-                {scene.label} <span className="cc-pill-soft">{sceneCountSource[scene.value]}</span>
+                <span className="cc-segment-btn__title">現在可進房</span>
+                <span className="cc-segment-btn__meta">{filteredRooms.length} 間可立即加入</span>
               </button>
-            ))}
-            <button type="button" className={activeScene === "all" ? "cc-btn-primary" : "cc-btn"} onClick={() => setActiveScene("all")}>
-              全部 <span className="cc-pill-soft">{sceneCountSource.all}</span>
-            </button>
+              <button
+                type="button"
+                className={`cc-segment-btn ${contentMode === "schedule" ? "is-active" : ""}`}
+                onClick={() => setContentMode("schedule")}
+              >
+                <span className="cc-segment-btn__title">排程專區</span>
+                <span className="cc-segment-btn__meta">{filteredSchedulePosts.length} 個接下來的時段</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="cc-control-group">
+            <div className="cc-control-label">第 2 步：你想待在哪一種場景</div>
+            <div className="cc-filter-row">
+              {ACTIVE_ROOM_SCENE_OPTIONS.map((scene) => (
+                <button
+                  key={scene.value}
+                  type="button"
+                  className={`cc-filter-chip ${activeScene === scene.value ? "is-active" : ""}`}
+                  style={activeScene === scene.value ? SCENE_TONES[scene.value].active : undefined}
+                  onClick={() => setActiveScene(scene.value)}
+                >
+                  {scene.label} <span className="cc-pill-soft">{sceneCountSource[scene.value]}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className={`cc-filter-chip ${activeScene === "all" ? "is-active" : ""}`}
+                onClick={() => setActiveScene("all")}
+              >
+                全部 <span className="cc-pill-soft">{sceneCountSource.all}</span>
+              </button>
+            </div>
           </div>
         </article>
 
         <aside className="cc-hero-side">
           <div className="cc-card cc-stack-md">
             <div>
-              <p className="cc-card-kicker">怎麼挑場景</p>
+              <p className="cc-card-kicker">怎麼挑比較快</p>
               <h2 className="cc-h2">先用場景分家，再看房與排程，畫面會比較乾淨。</h2>
             </div>
             <div className="cc-note cc-stack-sm">
@@ -519,8 +666,18 @@ export default function RoomsPage() {
             <p className="cc-card-kicker">你的目前狀態</p>
             <h2 className="cc-h2">先知道自己現在能怎麼用。</h2>
             <div className="cc-note cc-stack-sm">
-              <div>目前方案：<strong>{status?.is_vip ? "VIP" : "FREE"}</strong></div>
-              <div>本月剩餘：<strong>{status?.is_vip ? "不限" : `${status?.credits_remaining ?? "?"} / ${status?.free_monthly_allowance ?? "?"}`}</strong></div>
+              <div>
+                目前方案：<strong>{status?.is_vip ? "VIP" : "FREE"}</strong>
+              </div>
+              <div>
+                本月剩餘：
+                <strong>
+                  {" "}
+                  {status?.is_vip
+                    ? "不限"
+                    : `${status?.credits_remaining ?? "?"} / ${status?.free_monthly_allowance ?? "?"}`}
+                </strong>
+              </div>
             </div>
           </div>
         </aside>
@@ -537,7 +694,13 @@ export default function RoomsPage() {
           </Link>
         </div>
 
-        <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 14,
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          }}
+        >
           {sceneGalleryCards.map((card) => (
             <button
               key={card.value}
@@ -556,18 +719,7 @@ export default function RoomsPage() {
                 background: `linear-gradient(180deg, rgba(255,255,255,0.30), ${SCENE_TONES[card.value].subtle.background})`,
               }}
             >
-              <div
-                aria-label={card.alt}
-                style={{
-                  width: "100%",
-                  aspectRatio: "16 / 10",
-                  borderRadius: 16,
-                  border: "1px solid rgba(89,88,82,0.10)",
-                  backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${card.image})`,
-                  backgroundPosition: "center",
-                  backgroundSize: "cover",
-                }}
-              />
+              <SceneArt image={card.image} alt={card.alt} position={card.imagePosition} scale={card.imageScale} />
               <div className="cc-stack-sm">
                 <div className="cc-h3">{card.title}</div>
                 <div className="cc-muted" style={{ lineHeight: 1.7 }}>{card.body}</div>
@@ -598,7 +750,9 @@ export default function RoomsPage() {
                   : "先看接下來的安排，想要的時段就先掛上去。"}
               </h2>
             </div>
-            <span className="cc-pill-soft">{contentMode === "now" ? filteredRooms.length : filteredSchedulePosts.length}</span>
+            <span className="cc-pill-soft">
+              {contentMode === "now" ? filteredRooms.length : filteredSchedulePosts.length}
+            </span>
           </div>
 
           {loading ? (
@@ -609,14 +763,20 @@ export default function RoomsPage() {
                 <div style={emptyVisualStyle} />
                 <div className="cc-stack-sm">
                   <div className="cc-h3">目前這個場景還沒有人開房。</div>
-                  <div className="cc-muted">如果你現在就想開始，可以直接在右邊開一間。第一個開房的人，常常也是第一個開始的人。</div>
+                  <div className="cc-muted">
+                    如果你現在就想開始，可以直接在右邊開一間。第一個開房的人，常常也是第一個開始的人。
+                  </div>
                 </div>
               </div>
             ) : (
               <ul className="cc-list">
                 {filteredRooms.map((room) => (
                   <li key={room.id}>
-                    <Link className="cc-listlink" href={`/rooms/${room.id}`} style={{ borderLeft: `4px solid ${SCENE_TONES[room.ui_scene].line}` }}>
+                    <Link
+                      className="cc-listlink"
+                      href={`/rooms/${room.id}`}
+                      style={{ borderLeft: `4px solid ${SCENE_TONES[room.ui_scene].line}` }}
+                    >
                       <div className="cc-stack-sm">
                         <div className="cc-row" style={{ flexWrap: "wrap" }}>
                           <span className="cc-h3">{room.title}</span>
@@ -626,7 +786,8 @@ export default function RoomsPage() {
                           <span className="cc-pill-soft">{formatDurationLabel(room.duration_minutes)}</span>
                         </div>
                         <div className="cc-muted">
-                          {labelForVisibility(room.visibility)} · 最多 {room.max_size} 人 · 建立於 {new Date(room.created_at).toLocaleDateString("zh-TW")}
+                          {labelForVisibility(room.visibility)} · 最多 {room.max_size} 人 · 建立於{" "}
+                          {new Date(room.created_at).toLocaleDateString("zh-TW")}
                         </div>
                         {room.host_note ? <div className="cc-caption">{room.host_note}</div> : null}
                       </div>
@@ -641,7 +802,9 @@ export default function RoomsPage() {
               <div style={emptyVisualStyle} />
               <div className="cc-stack-sm">
                 <div className="cc-h3">目前還沒有這個場景的排程。</div>
-                <div className="cc-muted">如果你知道自己想在什麼時間開始，先掛出你的時間通常比等別人更快。</div>
+                <div className="cc-muted">
+                  如果你知道自己想在什麼時間開始，先掛出你的時間通常比等別人更快。
+                </div>
               </div>
             </div>
           ) : (
@@ -649,8 +812,15 @@ export default function RoomsPage() {
               {filteredSchedulePosts.map((post) => {
                 const host = hostProfiles[post.host_user_id];
                 return (
-                  <article key={post.id} className="cc-card cc-card-outline cc-stack-sm" style={{ borderLeft: `4px solid ${SCENE_TONES[post.ui_scene].line}` }}>
-                    <div className="cc-row" style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
+                  <article
+                    key={post.id}
+                    className="cc-card cc-card-outline cc-stack-sm"
+                    style={{ borderLeft: `4px solid ${SCENE_TONES[post.ui_scene].line}` }}
+                  >
+                    <div
+                      className="cc-row"
+                      style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}
+                    >
                       <div className="cc-stack-sm" style={{ flex: 1, minWidth: 0 }}>
                         <div className="cc-row" style={{ flexWrap: "wrap" }}>
                           <span className="cc-h3">{post.title}</span>
@@ -704,7 +874,9 @@ export default function RoomsPage() {
                 <div className="cc-muted">{ownRoom.title}</div>
                 <div className="cc-action-row">
                   <Link href={`/rooms/${ownRoom.id}`} className="cc-btn-primary">進入我的房間</Link>
-                  {ownRoom.visibility === "invited" && ownRoom.invite_code ? <span className="cc-pill-accent">邀請碼：{ownRoom.invite_code}</span> : null}
+                  {ownRoom.visibility === "invited" && ownRoom.invite_code ? (
+                    <span className="cc-pill-accent">邀請碼：{ownRoom.invite_code}</span>
+                  ) : null}
                 </div>
               </div>
             ) : (
@@ -730,11 +902,15 @@ export default function RoomsPage() {
                 <div className="cc-grid-3" style={{ gap: 12 }}>
                   <label className="cc-field">
                     <span className="cc-field-label">房型</span>
-                    <select className="cc-select" value={instantMode} onChange={(e) => {
-                      const nextMode = e.target.value as "pair" | "group";
-                      setInstantMode(nextMode);
-                      if (nextMode === "pair") setInstantSize(2);
-                    }}>
+                    <select
+                      className="cc-select"
+                      value={instantMode}
+                      onChange={(e) => {
+                        const nextMode = e.target.value as "pair" | "group";
+                        setInstantMode(nextMode);
+                        if (nextMode === "pair") setInstantSize(2);
+                      }}
+                    >
                       <option value="group">小組同行</option>
                       <option value="pair">雙人同行</option>
                     </select>
@@ -842,7 +1018,9 @@ export default function RoomsPage() {
             {inviteResult?.kind === "room" ? (
               <div className="cc-note cc-stack-sm">
                 <div className="cc-h3">{inviteResult.room.title}</div>
-                <div className="cc-muted">{labelForRoomScene(normalizeRoomCategoryForUi(inviteResult.room.room_category))} · {labelForInteractionStyle((inviteResult.room.interaction_style ?? "silent") as InteractionStyle)}</div>
+                <div className="cc-muted">
+                  {labelForRoomScene(normalizeRoomCategoryForUi(inviteResult.room.room_category))} · {labelForInteractionStyle((inviteResult.room.interaction_style ?? "silent") as InteractionStyle)}
+                </div>
                 <button type="button" className="cc-btn-primary" disabled={busy} onClick={() => joinInvitedRoom(inviteResult.room.invite_code ?? inviteCodeInput)}>
                   使用邀請碼加入
                 </button>
@@ -852,7 +1030,9 @@ export default function RoomsPage() {
               <div className="cc-note cc-stack-sm">
                 <div className="cc-h3">{inviteResult.post.title}</div>
                 <div className="cc-muted">{formatDateTimeRange(inviteResult.post.start_at, inviteResult.post.end_at)}</div>
-                <div className="cc-caption">{labelForRoomScene(inviteResult.post.room_category)} · {labelForInteractionStyle(inviteResult.post.interaction_style)}</div>
+                <div className="cc-caption">
+                  {labelForRoomScene(inviteResult.post.room_category)} · {labelForInteractionStyle(inviteResult.post.interaction_style)}
+                </div>
               </div>
             ) : null}
           </div>
