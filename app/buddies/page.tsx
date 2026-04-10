@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { getClientSessionSnapshot } from "@/lib/clientAuth";
@@ -87,6 +87,8 @@ type ServicePayload = {
   availability_note: string;
   status: ServiceStatus;
 };
+
+const BUDDIES_IMAGE = "/site-assets/buddies/buddies-entry.png";
 
 const CATEGORY_OPTIONS: Array<{ value: "all" | BuddyCategory; label: string }> = [
   { value: "all", label: "全部" },
@@ -371,6 +373,17 @@ export default function BuddiesPage() {
     [bookings, userId],
   );
 
+  const buddiesMediaStyle: CSSProperties = {
+    width: "100%",
+    aspectRatio: "4 / 5",
+    borderRadius: 18,
+    border: "1px solid rgba(89,88,82,0.10)",
+    backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${BUDDIES_IMAGE})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    boxShadow: "var(--cc-shadow-sm)",
+  };
+
   return (
     <main className="cc-container">
       <TopNav email={email} />
@@ -402,6 +415,18 @@ export default function BuddiesPage() {
           <div className="cc-card cc-stack-md">
             <div>
               <p className="cc-card-kicker">先看這裡能提供什麼</p>
+              <h2 className="cc-h2">不是 brochure，而是一個能直接理解的服務入口。</h2>
+            </div>
+            <div style={buddiesMediaStyle} aria-label="Buddies 入口視覺圖" />
+            <div className="cc-note cc-stack-sm">
+              <div>你可以找人、上架服務、看自己的預約。</div>
+              <div>安全、退款、客服規則保留，但不搶第一屏閱讀焦點。</div>
+            </div>
+          </div>
+
+          <div className="cc-card cc-stack-md">
+            <div>
+              <p className="cc-card-kicker">這裡目前有哪些方向</p>
               <h2 className="cc-h2">不是只有一種搭子，而是不同場景的陪伴方式。</h2>
             </div>
             <div style={{ display: "grid", gap: 12 }}>
@@ -533,26 +558,36 @@ export default function BuddiesPage() {
           {loading ? (
             <div className="cc-card cc-empty-state">正在讀取安感夥伴服務…</div>
           ) : services.length === 0 ? (
-            <div className="cc-grid-3" style={{ gap: 14 }}>
-              {emptyExamples.map((item) => (
-                <article key={item.title} className="cc-card cc-card-soft cc-stack-sm">
-                  <div className="cc-card-row">
-                    <div>
-                      <div className="cc-h3">{item.title}</div>
-                      <div className="cc-caption">{CATEGORY_LABEL[item.category as BuddyCategory]}</div>
+            <div className="cc-grid-2" style={{ gap: 16 }}>
+              <article className="cc-card cc-stack-md">
+                <div style={buddiesMediaStyle} aria-label="Buddies 服務入口示意圖" />
+                <div className="cc-stack-sm">
+                  <div className="cc-h3">目前還沒有正式上架中的服務。</div>
+                  <div className="cc-muted">這一區先保留暖空狀態，不拿假熱鬧資料硬撐活躍感。等你要開放更多服務時，再把它補齊。</div>
+                </div>
+              </article>
+
+              <div className="cc-stack-sm">
+                {emptyExamples.map((item) => (
+                  <article key={item.title} className="cc-card cc-card-soft cc-stack-sm">
+                    <div className="cc-card-row">
+                      <div>
+                        <div className="cc-h3">{item.title}</div>
+                        <div className="cc-caption">{CATEGORY_LABEL[item.category as BuddyCategory]}</div>
+                      </div>
+                      <span className="cc-pill-soft">{item.note}</span>
                     </div>
-                    <span className="cc-pill-soft">{item.note}</span>
-                  </div>
-                  <div className="cc-muted" style={{ lineHeight: 1.75 }}>{item.summary}</div>
-                  <div className="cc-page-meta">
-                    <span className="cc-pill-success">NT${item.price} / 小時</span>
-                    <span className="cc-pill-soft">線上</span>
-                  </div>
-                  <button className="cc-btn" type="button" disabled>
-                    查看詳情（示例）
-                  </button>
-                </article>
-              ))}
+                    <div className="cc-muted" style={{ lineHeight: 1.75 }}>{item.summary}</div>
+                    <div className="cc-page-meta">
+                      <span className="cc-pill-success">NT${item.price} / 小時</span>
+                      <span className="cc-pill-soft">線上</span>
+                    </div>
+                    <button className="cc-btn" type="button" disabled>
+                      查看詳情（示例）
+                    </button>
+                  </article>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="cc-grid-3" style={{ gap: 14 }}>
@@ -561,7 +596,15 @@ export default function BuddiesPage() {
                   key={service.id}
                   className="cc-card cc-stack-sm"
                   style={{
-                    background: `linear-gradient(180deg, rgba(255,255,255,0.34), ${service.buddy_category === "focus" ? "var(--cc-scene-focus)" : service.buddy_category === "life" ? "var(--cc-scene-life)" : service.buddy_category === "share" ? "var(--cc-scene-share)" : "rgba(255,255,255,0.08)"})`,
+                    background: `linear-gradient(180deg, rgba(255,255,255,0.34), ${
+                      service.buddy_category === "focus"
+                        ? "var(--cc-scene-focus)"
+                        : service.buddy_category === "life"
+                        ? "var(--cc-scene-life)"
+                        : service.buddy_category === "share"
+                        ? "var(--cc-scene-share)"
+                        : "rgba(255,255,255,0.08)"
+                    })`,
                   }}
                 >
                   <div className="cc-card-row" style={{ alignItems: "flex-start" }}>
