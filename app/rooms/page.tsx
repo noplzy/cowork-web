@@ -99,28 +99,38 @@ const SCENE_TONES: Record<ActiveRoomScene, SceneTone> = {
   },
 };
 
-const SCENE_COPY: Record<ActiveRoomScene, { title: string; body: string; pills: string[] }> = {
+const SCENE_COPY: Record<ActiveRoomScene, { title: string; body: string; pills: string[]; image: string; alt: string }> = {
   focus: {
-    title: "專注同行",
+    title: "專注任務",
     body: "適合讀書、工作、寫作、整理資料。重點不是聊天，而是有人一起開始。",
     pills: ["安靜同行", "25 / 50 分鐘"],
+    image: "/site-assets/rooms/focus.png",
+    alt: "專注任務場景圖",
   },
   life: {
     title: "生活陪伴",
     body: "整理房間、煮飯、做家務、陪自己過完一段普通日常，也可以有人一起。",
     pills: ["低壓力", "輕聊天"],
+    image: "/site-assets/rooms/life.png",
+    alt: "生活陪伴場景圖",
   },
   share: {
-    title: "主題交流",
+    title: "主題分享",
     body: "有一個明確主題，想把一場對話聊完，比散亂聊天室更輕鬆。",
     pills: ["主題房", "開放分享"],
+    image: "/site-assets/rooms/share.png",
+    alt: "主題分享場景圖",
   },
   hobby: {
     title: "興趣同好",
-    body: "閱讀、手作、畫圖、拉伸、玩自己的興趣，也可以有同伴一起待著。",
+    body: "閱讀、手作、畫圖、音樂、伸展、玩自己的興趣，也可以有同伴一起待著。",
     pills: ["同好房", "一起做喜歡的事"],
+    image: "/site-assets/rooms/hobby.png",
+    alt: "興趣同好場景圖",
   },
 };
+
+const EMPTY_ROOM_ASSET = "/site-assets/rooms/empty-room.png";
 
 function modeLabel(mode: Room["mode"]) {
   return mode === "pair" ? "雙人同行" : "小組同行";
@@ -384,6 +394,16 @@ export default function RoomsPage() {
     ...SCENE_COPY[item.value],
   }));
 
+  const emptyVisualStyle: CSSProperties = {
+    width: "100%",
+    aspectRatio: "4 / 3",
+    borderRadius: 18,
+    border: "1px solid rgba(89,88,82,0.10)",
+    backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${EMPTY_ROOM_ASSET})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  };
+
   return (
     <main className="cc-container">
       <TopNav email={email} />
@@ -427,8 +447,8 @@ export default function RoomsPage() {
         <aside className="cc-hero-side">
           <div className="cc-card cc-stack-md">
             <div>
-              <p className="cc-card-kicker">這裡有哪些場景</p>
-              <h2 className="cc-h2">不一定都是共工，但每一種都要夠清楚。</h2>
+              <p className="cc-card-kicker">先選場景，再看房與排程</p>
+              <h2 className="cc-h2">這些卡片是讓你一眼知道差別，不是要你先讀完規則。</h2>
             </div>
             <div style={{ display: "grid", gap: 12 }}>
               {topSceneCards.map((card) => (
@@ -436,10 +456,22 @@ export default function RoomsPage() {
                   key={card.value}
                   className="cc-card cc-card-soft cc-stack-sm"
                   style={{
-                    padding: 16,
-                    background: `linear-gradient(180deg, rgba(255,255,255,0.28), ${SCENE_TONES[card.value].subtle.background})`,
+                    padding: 14,
+                    background: `linear-gradient(180deg, rgba(255,255,255,0.32), ${SCENE_TONES[card.value].subtle.background})`,
                   }}
                 >
+                  <div
+                    aria-label={card.alt}
+                    style={{
+                      width: "100%",
+                      aspectRatio: "16 / 10",
+                      borderRadius: 16,
+                      border: "1px solid rgba(89,88,82,0.10)",
+                      backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${card.image})`,
+                      backgroundPosition: "center",
+                      backgroundSize: "cover",
+                    }}
+                  />
                   <div className="cc-h3">{card.title}</div>
                   <div className="cc-muted" style={{ lineHeight: 1.7 }}>{card.body}</div>
                   <div className="cc-action-row" style={{ marginTop: 0 }}>
@@ -485,9 +517,12 @@ export default function RoomsPage() {
             <div className="cc-card cc-empty-state">正在整理目前可見的房間與排程…</div>
           ) : contentMode === "now" ? (
             filteredRooms.length === 0 ? (
-              <div className="cc-note cc-stack-sm">
-                <div className="cc-h3">目前這個場景還沒有即時房。</div>
-                <div className="cc-muted">如果你現在就想開始，可以直接在右邊開一間。第一個開房的人，常常也是第一個開始的人。</div>
+              <div className="cc-note cc-stack-md">
+                <div style={emptyVisualStyle} />
+                <div className="cc-stack-sm">
+                  <div className="cc-h3">目前這個場景還沒有人開房。</div>
+                  <div className="cc-muted">如果你現在就想開始，可以直接在右邊開一間。第一個開房的人，常常也是第一個開始的人。</div>
+                </div>
               </div>
             ) : (
               <ul className="cc-list">
@@ -514,9 +549,12 @@ export default function RoomsPage() {
               </ul>
             )
           ) : filteredSchedulePosts.length === 0 ? (
-            <div className="cc-note cc-stack-sm">
-              <div className="cc-h3">目前還沒有這個場景的排程。</div>
-              <div className="cc-muted">如果你知道自己想在什麼時間開始，先掛出你的時間通常比等別人更快。</div>
+            <div className="cc-note cc-stack-md">
+              <div style={emptyVisualStyle} />
+              <div className="cc-stack-sm">
+                <div className="cc-h3">目前還沒有這個場景的排程。</div>
+                <div className="cc-muted">如果你知道自己想在什麼時間開始，先掛出你的時間通常比等別人更快。</div>
+              </div>
             </div>
           ) : (
             <div className="cc-stack-sm">
