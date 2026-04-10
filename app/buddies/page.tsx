@@ -375,13 +375,14 @@ export default function BuddiesPage() {
 
   const buddiesMediaStyle: CSSProperties = {
     width: "100%",
-    aspectRatio: "4 / 5",
+    aspectRatio: "16 / 10",
     borderRadius: 18,
     border: "1px solid rgba(89,88,82,0.10)",
     backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${BUDDIES_IMAGE})`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     boxShadow: "var(--cc-shadow-sm)",
+    minHeight: 240,
   };
 
   return (

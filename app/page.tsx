@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CSSProperties, useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { getClientSessionSnapshot } from "@/lib/clientAuth";
@@ -13,7 +13,7 @@ const quickCards = [
   {
     title: "現在就進房",
     body: "想立刻開始，就先進同行空間，找一段現在能進去的時間。",
-    href: "/rooms",
+    href: "/rooms?mode=now#rooms-board",
     cta: "進入同行空間",
     tone: "var(--cc-scene-focus)",
   },
@@ -35,49 +35,64 @@ const quickCards = [
 
 const sceneCards = [
   {
+    key: "focus",
     title: "專注任務",
     body: "讀書、工作、寫作、整理資料。有人一起，開始比較不難。",
     pills: ["25 / 50 分鐘", "安靜同行"],
     tone: "var(--cc-scene-focus)",
     image: "/site-assets/rooms/focus.png",
     alt: "專注任務場景卡圖",
+    href: "/rooms?mode=now&scene=focus#rooms-board",
   },
   {
+    key: "life",
     title: "生活陪伴",
     body: "做家務、收納、煮飯、陪自己過完一段普通日常。",
     pills: ["低壓力", "輕聊天"],
     tone: "var(--cc-scene-life)",
     image: "/site-assets/rooms/life.png",
     alt: "生活陪伴場景卡圖",
+    href: "/rooms?mode=now&scene=life#rooms-board",
   },
   {
+    key: "share",
     title: "主題分享",
     body: "有一個明確主題，大家一起聊完，不需要把自己丟進吵雜群組。",
     pills: ["分享房", "開放交流"],
     tone: "var(--cc-scene-share)",
     image: "/site-assets/rooms/share.png",
     alt: "主題分享場景卡圖",
+    href: "/rooms?mode=now&scene=share#rooms-board",
   },
   {
+    key: "hobby",
     title: "興趣同好",
     body: "讀書會、手作、畫圖、樂器、一起做喜歡的事，不一定要熱鬧。",
     pills: ["同好房", "有呼吸感"],
     tone: "var(--cc-scene-hobby)",
     image: "/site-assets/rooms/hobby.png",
     alt: "興趣同好場景卡圖",
+    href: "/rooms?mode=now&scene=hobby#rooms-board",
   },
-];
+] as const;
 
-const mediaCardStyle: CSSProperties = {
+const sceneGridStyle: CSSProperties = {
+  display: "grid",
+  gap: 14,
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+};
+
+const sceneCardStyle: CSSProperties = {
   display: "grid",
   gap: 14,
   minHeight: "100%",
+  alignContent: "start",
   overflow: "hidden",
 };
 
-const mediaFrameStyle = (image: string): CSSProperties => ({
+const sceneMediaStyle = (image: string): CSSProperties => ({
   width: "100%",
-  aspectRatio: "4 / 3",
+  aspectRatio: "16 / 10",
   borderRadius: 18,
   border: "1px solid rgba(89,88,82,0.10)",
   backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04)), url(${image})`,
@@ -88,6 +103,8 @@ const mediaFrameStyle = (image: string): CSSProperties => ({
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
+  const [heroVideoFailed, setHeroVideoFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,10 +140,14 @@ export default function Home() {
             style={{
               position: "absolute",
               inset: 0,
-              overflow: "hidden",
               borderRadius: 22,
+              backgroundImage: `linear-gradient(90deg, rgba(250,245,240,0.78) 0%, rgba(250,245,240,0.68) 36%, rgba(248,241,233,0.22) 72%, rgba(248,241,233,0.10) 100%), url(${HERO_POSTER})`,
+              backgroundPosition: "center center",
+              backgroundSize: "cover",
             }}
-          >
+          />
+
+          {!heroVideoFailed ? (
             <video
               autoPlay
               muted
@@ -134,32 +155,32 @@ export default function Home() {
               playsInline
               poster={HERO_POSTER}
               preload="metadata"
+              onLoadedData={() => setHeroVideoReady(true)}
+              onError={() => setHeroVideoFailed(true)}
               style={{
+                position: "absolute",
+                inset: 0,
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
                 objectPosition: "center center",
+                opacity: heroVideoReady ? 1 : 0,
+                transition: "opacity 240ms ease",
               }}
             >
               <source src={HERO_VIDEO} type="video/mp4" />
             </video>
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(90deg, rgba(250,245,240,0.84) 0%, rgba(250,245,240,0.72) 36%, rgba(248,241,233,0.28) 72%, rgba(248,241,233,0.16) 100%)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.00) 24%, rgba(28,28,28,0.04) 100%)",
-              }}
-            />
-          </div>
+          ) : null}
+
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.00) 24%, rgba(28,28,28,0.04) 100%)",
+            }}
+          />
 
           <div
             className="cc-stack-md"
@@ -171,7 +192,7 @@ export default function Home() {
               justifyContent: "space-between",
             }}
           >
-            <div className="cc-stack-md">
+            <div className="cc-stack-md" style={{ maxWidth: 620 }}>
               <span className="cc-kicker">Calm&Co / 安感島</span>
               <p className="cc-eyebrow">低壓力陪伴與同行平台</p>
               <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
@@ -182,7 +203,7 @@ export default function Home() {
               </p>
 
               <div className="cc-action-row">
-                <Link href="/rooms" className="cc-btn-primary">
+                <Link href="/rooms?mode=now#rooms-board" className="cc-btn-primary">
                   {isLoggedIn ? "進入同行空間" : "開始使用"}
                 </Link>
                 <Link href="/buddies" className="cc-btn">
@@ -248,10 +269,10 @@ export default function Home() {
           </div>
 
           <div className="cc-card cc-stack-sm">
-            <p className="cc-card-kicker">你會在這裡遇到的場景</p>
-            <h2 className="cc-h2">先看得懂差別，再決定要去哪裡。</h2>
+            <p className="cc-card-kicker">首頁的任務很單純</p>
+            <h2 className="cc-h2">先看得懂入口，再往下一步走。</h2>
             <div className="cc-caption">
-              場景卡不是為了做花，是為了讓人一眼知道：現在要進的是工作、生活、交流，還是興趣房。
+              Hero 影片只留在首頁第一屏。Rooms 與 Buddies 之後都改成用靜態圖卡做場景辨識，不讓整站變吵。
             </div>
           </div>
         </aside>
@@ -263,16 +284,16 @@ export default function Home() {
             <p className="cc-card-kicker">同行場景</p>
             <h2 className="cc-h2">一眼看懂你要進哪一種房，而不是先讀一堆說明。</h2>
           </div>
-          <Link href="/rooms" className="cc-btn">
+          <Link href="/rooms?mode=now#rooms-board" className="cc-btn">
             進入 Rooms
           </Link>
         </div>
 
-        <div className="cc-grid-2">
+        <div style={sceneGridStyle}>
           {sceneCards.map((card) => (
-            <Link key={card.title} href="/rooms" className="cc-card cc-card-link" style={mediaCardStyle}>
-              <div style={mediaFrameStyle(card.image)} aria-label={card.alt} />
-              <div className="cc-stack-sm">
+            <Link key={card.key} href={card.href} className="cc-card cc-card-link" style={sceneCardStyle}>
+              <div style={sceneMediaStyle(card.image)} aria-label={card.alt} />
+              <div className="cc-stack-sm" style={{ minHeight: 0 }}>
                 <div className="cc-h3">{card.title}</div>
                 <div className="cc-muted" style={{ lineHeight: 1.75 }}>
                   {card.body}
@@ -285,6 +306,7 @@ export default function Home() {
                   ))}
                 </div>
               </div>
+              <span className="cc-btn-link">看這種房 →</span>
             </Link>
           ))}
         </div>
