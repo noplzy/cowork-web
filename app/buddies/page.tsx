@@ -375,14 +375,19 @@ export default function BuddiesPage() {
 
   const buddiesMediaStyle: CSSProperties = {
     width: "100%",
-    aspectRatio: "16 / 10",
+    aspectRatio: "4 / 3",
     borderRadius: 18,
     border: "1px solid rgba(89,88,82,0.10)",
     backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${BUDDIES_IMAGE})`,
     backgroundSize: "cover",
-    backgroundPosition: "center",
+    backgroundPosition: "42% 46%",
     boxShadow: "var(--cc-shadow-sm)",
-    minHeight: 240,
+  };
+
+  const buddiesCompactMediaStyle: CSSProperties = {
+    ...buddiesMediaStyle,
+    aspectRatio: "5 / 4",
+    backgroundPosition: "44% 46%",
   };
 
   return (
@@ -390,16 +395,34 @@ export default function BuddiesPage() {
       <TopNav email={email} />
 
       <section className="cc-hero">
-        <article className="cc-card cc-hero-main cc-stack-md">
-          <span className="cc-kicker">Buddies</span>
-          <p className="cc-eyebrow">找安感夥伴，或成為安感夥伴。</p>
-          <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
-            想找人陪你，或想把自己的陪伴服務放上來，都可以從這裡開始。
-          </h1>
-          <p className="cc-lead" style={{ maxWidth: "40ch" }}>
-            你可以先逛服務、先上架自己的服務，或回來看自己目前的預約狀態。
-          </p>
-          <div className="cc-action-row">
+        <article
+          className="cc-card cc-hero-main cc-stack-md"
+          style={{
+            justifyContent: "space-between",
+            minHeight: 0,
+            gap: 22,
+          }}
+        >
+          <div className="cc-stack-md">
+            <span className="cc-kicker">Buddies</span>
+            <p className="cc-eyebrow">找安感夥伴，或把你的陪伴服務整理成能被理解的入口。</p>
+            <h1
+              className="cc-h1"
+              style={{
+                maxWidth: "11ch",
+                fontSize: "clamp(3rem, 6vw, 5.2rem)",
+                lineHeight: 0.98,
+                letterSpacing: "-0.04em",
+              }}
+            >
+              想找人陪你，或想開始提供陪伴，都可以從這裡開始。
+            </h1>
+            <p className="cc-lead" style={{ maxWidth: "34ch" }}>
+              先逛市場，再決定要不要上架；先看自己的服務與預約，再慢慢補細節。Buddies 應該像入口，不是厚重說明頁。
+            </p>
+          </div>
+
+          <div className="cc-action-row" style={{ flexWrap: "wrap" }}>
             <button type="button" className={tab === "market" ? "cc-btn-primary" : "cc-btn"} onClick={() => setTab("market")}>
               找安感夥伴
             </button>
@@ -410,18 +433,38 @@ export default function BuddiesPage() {
               我的預約
             </button>
           </div>
+
+          <div className="cc-grid-3" style={{ gap: 12 }}>
+            <div className="cc-panel">
+              <div className="cc-caption">市場服務數</div>
+              <div className="cc-h2" style={{ marginTop: 8 }}>{marketCount}</div>
+            </div>
+            <div className="cc-panel">
+              <div className="cc-caption">你上架中的服務</div>
+              <div className="cc-h2" style={{ marginTop: 8 }}>{myActiveCount}</div>
+            </div>
+            <div className="cc-panel">
+              <div className="cc-caption">待回覆預約</div>
+              <div className="cc-h2" style={{ marginTop: 8 }}>{pendingCount}</div>
+            </div>
+          </div>
+
+          <div className="cc-note cc-stack-sm" style={{ maxWidth: 560 }}>
+            <div>你可以先找人、先上架自己的服務，或回來看自己目前的預約狀態。</div>
+            <div>安全、退款、客服規則保留，但不搶第一屏閱讀焦點。</div>
+          </div>
         </article>
 
         <aside className="cc-hero-side">
           <div className="cc-card cc-stack-md">
             <div>
               <p className="cc-card-kicker">先看這裡能提供什麼</p>
-              <h2 className="cc-h2">不是 brochure，而是一個能直接理解的服務入口。</h2>
+              <h2 className="cc-h2">先給你市場入口，而不是先灌一整頁說明。</h2>
             </div>
-            <div style={buddiesMediaStyle} aria-label="Buddies 入口視覺圖" />
+            <div style={buddiesCompactMediaStyle} aria-label="Buddies 入口視覺圖" />
             <div className="cc-note cc-stack-sm">
-              <div>你可以找人、上架服務、看自己的預約。</div>
-              <div>安全、退款、客服規則保留，但不搶第一屏閱讀焦點。</div>
+              <div>找陪跑、陪伴、可預約服務，先從入口卡開始就好。</div>
+              <div>等你真的要深入，再去看服務詳情、預約規則與客服頁面。</div>
             </div>
           </div>
 
@@ -446,27 +489,6 @@ export default function BuddiesPage() {
                   </div>
                 </article>
               ))}
-            </div>
-          </div>
-
-          <div className="cc-card cc-stack-md">
-            <div>
-              <p className="cc-card-kicker">目前概況</p>
-              <h2 className="cc-h2">先知道市場裡現在有什麼。</h2>
-            </div>
-            <div className="cc-grid-3" style={{ gap: 12 }}>
-              <div className="cc-panel">
-                <div className="cc-caption">市場服務數</div>
-                <div className="cc-h2" style={{ marginTop: 8 }}>{marketCount}</div>
-              </div>
-              <div className="cc-panel">
-                <div className="cc-caption">你上架中的服務</div>
-                <div className="cc-h2" style={{ marginTop: 8 }}>{myActiveCount}</div>
-              </div>
-              <div className="cc-panel">
-                <div className="cc-caption">待回覆預約</div>
-                <div className="cc-h2" style={{ marginTop: 8 }}>{pendingCount}</div>
-              </div>
             </div>
           </div>
         </aside>
@@ -559,12 +581,21 @@ export default function BuddiesPage() {
           {loading ? (
             <div className="cc-card cc-empty-state">正在讀取安感夥伴服務…</div>
           ) : services.length === 0 ? (
-            <div className="cc-grid-2" style={{ gap: 16 }}>
+            <div
+              style={{
+                display: "grid",
+                gap: 16,
+                gridTemplateColumns: "minmax(300px, 0.92fr) minmax(320px, 1.08fr)",
+                alignItems: "start",
+              }}
+            >
               <article className="cc-card cc-stack-md">
                 <div style={buddiesMediaStyle} aria-label="Buddies 服務入口示意圖" />
                 <div className="cc-stack-sm">
                   <div className="cc-h3">目前還沒有正式上架中的服務。</div>
-                  <div className="cc-muted">這一區先保留暖空狀態，不拿假熱鬧資料硬撐活躍感。等你要開放更多服務時，再把它補齊。</div>
+                  <div className="cc-muted">
+                    這一區先保留暖空狀態，不拿假熱鬧資料硬撐活躍感。等你要開放更多服務時，再把它補齊。
+                  </div>
                 </div>
               </article>
 
