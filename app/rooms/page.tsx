@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { TopNav } from "@/components/TopNav";
@@ -37,7 +37,6 @@ type Room = {
   max_size: number;
   created_at: string;
   created_by: string;
-  daily_room_url?: string | null;
   room_category?: RoomCategory | null;
   interaction_style?: InteractionStyle | null;
   visibility?: ScheduleVisibility | null;
@@ -57,62 +56,19 @@ type ScheduledRoomPostRow = {
   duration_minutes: number;
   seat_limit: number;
   note: string | null;
-  created_at: string;
-  updated_at: string;
   invite_code?: string | null;
 };
 
 type ContentMode = "now" | "schedule";
 type SceneFilter = "all" | ActiveRoomScene;
+type MobileComposerMode = "instant" | "schedule" | "invite";
 
-type InviteResult =
-  | { kind: "room"; room: Room }
-  | { kind: "schedule"; post: ScheduledRoomPostRow }
-  | null;
+const EMPTY_ROOM_ASSET = "/site-assets/rooms/empty-room.png";
 
-type SceneTone = {
-  active: CSSProperties;
-  subtle: CSSProperties;
-  line: string;
-};
-
-type SceneCardCopy = {
-  title: string;
-  body: string;
-  pills: string[];
-  image: string;
-  alt: string;
-  imagePosition: string;
-  imageScale: number;
-};
-
-const SCENE_TONES: Record<ActiveRoomScene, SceneTone> = {
-  focus: {
-    active: { borderColor: "rgba(155, 186, 169, 0.44)", background: "rgba(135, 170, 151, 0.12)" },
-    subtle: { borderColor: "rgba(155, 186, 169, 0.22)", background: "rgba(135, 170, 151, 0.10)" },
-    line: "rgba(155, 186, 169, 0.96)",
-  },
-  life: {
-    active: { borderColor: "rgba(245, 181, 150, 0.42)", background: "rgba(245, 181, 150, 0.12)" },
-    subtle: { borderColor: "rgba(245, 181, 150, 0.22)", background: "rgba(245, 181, 150, 0.10)" },
-    line: "rgba(245, 181, 150, 0.96)",
-  },
-  share: {
-    active: { borderColor: "rgba(161, 179, 204, 0.42)", background: "rgba(161, 179, 204, 0.12)" },
-    subtle: { borderColor: "rgba(161, 179, 204, 0.22)", background: "rgba(161, 179, 204, 0.10)" },
-    line: "rgba(161, 179, 204, 0.96)",
-  },
-  hobby: {
-    active: { borderColor: "rgba(196, 170, 196, 0.42)", background: "rgba(196, 170, 196, 0.12)" },
-    subtle: { borderColor: "rgba(196, 170, 196, 0.22)", background: "rgba(196, 170, 196, 0.10)" },
-    line: "rgba(196, 170, 196, 0.96)",
-  },
-};
-
-const SCENE_COPY: Record<ActiveRoomScene, SceneCardCopy> = {
+const SCENE_COPY = {
   focus: {
     title: "專注任務",
-    body: "適合讀書、工作、寫作、整理資料。重點不是聊天，而是有人一起開始。",
+    body: "讀書、工作、寫作、整理資料。重點不是聊天，而是有人一起開始。",
     pills: ["安靜同行", "25 / 50 分鐘"],
     image: "/site-assets/rooms/focus.png",
     alt: "專注任務場景圖",
@@ -121,7 +77,7 @@ const SCENE_COPY: Record<ActiveRoomScene, SceneCardCopy> = {
   },
   life: {
     title: "生活陪伴",
-    body: "整理房間、煮飯、做家務、陪自己過完一段普通日常，也可以有人一起。",
+    body: "整理房間、煮飯、做家務。普通日常也可以有人一起撐完。",
     pills: ["低壓力", "輕聊天"],
     image: "/site-assets/rooms/life.png",
     alt: "生活陪伴場景圖",
@@ -130,7 +86,7 @@ const SCENE_COPY: Record<ActiveRoomScene, SceneCardCopy> = {
   },
   share: {
     title: "主題分享",
-    body: "有一個明確主題，想把一場對話聊完，比散亂聊天室更輕鬆。",
+    body: "有一個明確主題，把一場對話好好聊完，比散亂聊天室更輕鬆。",
     pills: ["主題房", "開放分享"],
     image: "/site-assets/rooms/share.png",
     alt: "主題分享場景圖",
@@ -139,16 +95,21 @@ const SCENE_COPY: Record<ActiveRoomScene, SceneCardCopy> = {
   },
   hobby: {
     title: "興趣同好",
-    body: "閱讀、手作、畫圖、音樂、伸展、玩自己的興趣，也可以有同伴一起待著。",
-    pills: ["同好房", "一起做喜歡的事"],
+    body: "閱讀、手作、畫圖、音樂、伸展。做喜歡的事，也可以有同伴。",
+    pills: ["同好房", "有呼吸感"],
     image: "/site-assets/rooms/hobby.png",
     alt: "興趣同好場景圖",
     imagePosition: "84% 56%",
     imageScale: 1,
   },
-};
+} as const;
 
-const EMPTY_ROOM_ASSET = "/site-assets/rooms/empty-room.png";
+const SCENE_LINE: Record<ActiveRoomScene, string> = {
+  focus: "rgba(155, 186, 169, 0.96)",
+  life: "rgba(245, 181, 150, 0.96)",
+  share: "rgba(161, 179, 204, 0.96)",
+  hobby: "rgba(196, 170, 196, 0.96)",
+};
 
 function SceneArt({
   image,
@@ -188,15 +149,6 @@ function SceneArt({
           transform: `scale(${scale})`,
         }}
       />
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.00) 48%, rgba(17,19,24,0.08) 100%)",
-        }}
-      />
     </div>
   );
 }
@@ -209,57 +161,28 @@ function costLabel(minutes: number) {
   return `${Math.ceil(minutes / 25)} 場`;
 }
 
-function buildSceneCounts<T>(
-  rows: T[],
-  getScene: (row: T) => ActiveRoomScene,
-): Record<SceneFilter, number> {
-  const base: Record<SceneFilter, number> = {
-    all: rows.length,
-    focus: 0,
-    life: 0,
-    share: 0,
-    hobby: 0,
-  };
-  rows.forEach((row) => {
-    base[getScene(row)] += 1;
-  });
-  return base;
-}
-
 function minDatetimeLocalValue() {
   return toDatetimeLocalValue(new Date().toISOString());
 }
 
 function readRoomsRouteState(): { scene: SceneFilter; mode: ContentMode } {
-  if (typeof window === "undefined") {
-    return { scene: "all", mode: "now" };
-  }
-
+  if (typeof window === "undefined") return { scene: "all", mode: "now" };
   const params = new URLSearchParams(window.location.search);
   const sceneParam = params.get("scene");
   const modeParam = params.get("mode");
-
   const scene: SceneFilter =
-    sceneParam === "focus" ||
-    sceneParam === "life" ||
-    sceneParam === "share" ||
-    sceneParam === "hobby"
+    sceneParam === "focus" || sceneParam === "life" || sceneParam === "share" || sceneParam === "hobby"
       ? sceneParam
       : "all";
-
   const mode: ContentMode = modeParam === "schedule" ? "schedule" : "now";
-
   return { scene, mode };
 }
 
-async function loadRooms(): Promise<Room[]> {
+async function loadRooms() {
   const result = await supabase
     .from("rooms")
-    .select(
-      "id,title,duration_minutes,mode,max_size,created_at,created_by,daily_room_url,room_category,interaction_style,visibility,host_note,invite_code",
-    )
+    .select("id,title,duration_minutes,mode,max_size,created_at,created_by,room_category,interaction_style,visibility,host_note,invite_code")
     .order("created_at", { ascending: false });
-
   if (result.error) throw result.error;
   return (result.data ?? []) as Room[];
 }
@@ -279,7 +202,7 @@ export default function RoomsPage() {
   const [activeScene, setActiveScene] = useState<SceneFilter>("all");
   const [contentMode, setContentMode] = useState<ContentMode>("now");
   const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
-  const [mobileComposerMode, setMobileComposerMode] = useState<"instant" | "schedule" | "invite">("instant");
+  const [mobileComposerMode, setMobileComposerMode] = useState<MobileComposerMode>("instant");
 
   const [instantTitle, setInstantTitle] = useState("晚間共工 50 分鐘｜安靜同行");
   const [instantCategory, setInstantCategory] = useState<RoomCategory>("focus");
@@ -289,6 +212,7 @@ export default function RoomsPage() {
   const [instantDuration, setInstantDuration] = useState<number>(50);
   const [instantSize, setInstantSize] = useState<number>(4);
   const [instantNote, setInstantNote] = useState("");
+
   const [scheduleTitle, setScheduleTitle] = useState("晚間共工 50 分鐘｜安靜同行");
   const [roomCategory, setRoomCategory] = useState<RoomCategory>("focus");
   const [interactionStyle, setInteractionStyle] = useState<InteractionStyle>("silent");
@@ -297,8 +221,10 @@ export default function RoomsPage() {
   const [durationMinutes, setDurationMinutes] = useState<number>(50);
   const [seatLimit, setSeatLimit] = useState<number>(4);
   const [scheduleNote, setScheduleNote] = useState("");
+
   const [inviteCodeInput, setInviteCodeInput] = useState("");
-  const [inviteResult, setInviteResult] = useState<InviteResult>(null);
+  const [inviteLookup, setInviteLookup] = useState<Room | ScheduledRoomPostRow | null>(null);
+  const [inviteLookupKind, setInviteLookupKind] = useState<"room" | "schedule" | null>(null);
 
   function syncRoomsQuery(nextMode: ContentMode, nextScene: SceneFilter) {
     const params = new URLSearchParams();
@@ -314,8 +240,7 @@ export default function RoomsPage() {
 
   function handleSceneChange(nextScene: SceneFilter) {
     setActiveScene(nextScene);
-    const nextMode = contentMode;
-    syncRoomsQuery(nextMode, nextScene);
+    syncRoomsQuery(contentMode, nextScene);
   }
 
   useEffect(() => {
@@ -343,7 +268,6 @@ export default function RoomsPage() {
       .gt("start_at", new Date().toISOString())
       .order("start_at", { ascending: true })
       .limit(20);
-
     if (postsResult.error) throw postsResult.error;
     const postRows = (postsResult.data ?? []) as ScheduledRoomPostRow[];
     setSchedulePosts(postRows);
@@ -353,22 +277,18 @@ export default function RoomsPage() {
       setHostProfiles({});
       return;
     }
-
     const profilesResult = await supabase.from("profiles").select("*").in("user_id", hostIds);
     if (profilesResult.error) throw profilesResult.error;
-    const profileMap = Object.fromEntries(
-      ((profilesResult.data ?? []) as PublicProfileRow[]).map((item) => [item.user_id, item]),
-    );
+    const profileMap = Object.fromEntries(((profilesResult.data ?? []) as PublicProfileRow[]).map((item) => [item.user_id, item]));
     setHostProfiles(profileMap);
   }
 
   async function reloadAll(currentAccessToken?: string) {
     setLoading(true);
+    setMsg("");
     try {
       const [statusResult, roomRows] = await Promise.all([
-        currentAccessToken
-          ? fetchAccountStatus(currentAccessToken).catch(() => null)
-          : Promise.resolve(null),
+        currentAccessToken ? fetchAccountStatus(currentAccessToken).catch(() => null) : Promise.resolve(null),
         loadRooms(),
       ]);
       if (statusResult) setStatus(statusResult);
@@ -404,21 +324,13 @@ export default function RoomsPage() {
     () => rooms.map((room) => ({ ...room, ui_scene: normalizeRoomCategoryForUi(room.room_category) })),
     [rooms],
   );
-
   const normalizedSchedulePosts = useMemo(
-    () =>
-      schedulePosts.map((post) => ({
-        ...post,
-        ui_scene: normalizeRoomCategoryForUi(post.room_category),
-      })),
+    () => schedulePosts.map((post) => ({ ...post, ui_scene: normalizeRoomCategoryForUi(post.room_category) })),
     [schedulePosts],
   );
 
   const filteredRooms = useMemo(
-    () =>
-      activeScene === "all"
-        ? normalizedRooms
-        : normalizedRooms.filter((room) => room.ui_scene === activeScene),
+    () => (activeScene === "all" ? normalizedRooms : normalizedRooms.filter((room) => room.ui_scene === activeScene)),
     [activeScene, normalizedRooms],
   );
   const filteredSchedulePosts = useMemo(
@@ -429,59 +341,22 @@ export default function RoomsPage() {
     [activeScene, normalizedSchedulePosts],
   );
 
-  const roomCounts = useMemo(
-    () => buildSceneCounts(normalizedRooms, (room) => room.ui_scene),
-    [normalizedRooms],
-  );
-  const scheduleCounts = useMemo(
-    () => buildSceneCounts(normalizedSchedulePosts, (post) => post.ui_scene),
-    [normalizedSchedulePosts],
-  );
-  const ownRoom = useMemo(
-    () => normalizedRooms.find((room) => room.created_by === userId) ?? null,
-    [normalizedRooms, userId],
-  );
+  const sceneGalleryCards = ACTIVE_ROOM_SCENE_OPTIONS.map((item) => ({ ...item, ...SCENE_COPY[item.value] }));
+  const ownRoom = useMemo(() => normalizedRooms.find((room) => room.created_by === userId) ?? null, [normalizedRooms, userId]);
   const ownFutureScheduleCount = useMemo(
     () => normalizedSchedulePosts.filter((post) => post.host_user_id === userId).length,
     [normalizedSchedulePosts, userId],
   );
 
-  async function createSchedulePost() {
-    setBusy(true);
-    setMsg("");
-    const result = await supabase.from("scheduled_room_posts").insert({
-      host_user_id: userId,
-      title: scheduleTitle.trim().slice(0, 80),
-      room_category: activeScene === "all" ? roomCategory : activeScene,
-      interaction_style: interactionStyle,
-      visibility: scheduleVisibility,
-      start_at: new Date(startAtInput).toISOString(),
-      end_at: new Date(new Date(startAtInput).getTime() + durationMinutes * 60000).toISOString(),
-      duration_minutes: durationMinutes,
-      seat_limit: seatLimit,
-      note: scheduleNote.trim() || null,
-    });
-
-    setBusy(false);
-    if (result.error) return setMsg(result.error.message);
-    setMsg("已建立排程。若是邀請制，系統會自動產生邀請碼。");
-    setMobileComposerOpen(false);
-    await reloadAll(accessToken);
-  }
-
-  async function deleteSchedulePost(postId: string) {
-    setBusy(true);
-    setMsg("");
-    const result = await supabase
-      .from("scheduled_room_posts")
-      .delete()
-      .eq("id", postId)
-      .eq("host_user_id", userId);
-    setBusy(false);
-    if (result.error) return setMsg(result.error.message);
-    setMsg("已刪除排程。");
-    await reloadAll(accessToken);
-  }
+  const emptyVisualStyle: CSSProperties = {
+    width: "100%",
+    aspectRatio: "4 / 3",
+    borderRadius: 18,
+    border: "1px solid rgba(89,88,82,0.10)",
+    backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${EMPTY_ROOM_ASSET})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  };
 
   async function createInstantRoom() {
     setBusy(true);
@@ -503,22 +378,52 @@ export default function RoomsPage() {
         host_note: instantNote.trim() || null,
       }),
     });
-
     const json = await resp.json().catch(() => ({} as any));
     setBusy(false);
     if (!resp.ok) return setMsg(json?.error || "建立同行空間失敗。");
-    const nextRoomId = json?.room?.id as string | undefined;
-    const inviteCode = json?.invite_code as string | null | undefined;
-    setMsg(inviteCode ? `已建立同行空間。邀請碼：${inviteCode}` : "已建立同行空間。");
+    setMsg(json?.invite_code ? `已建立同行空間。邀請碼：${json.invite_code}` : "已建立同行空間。");
     setMobileComposerOpen(false);
     await reloadAll(accessToken);
-    if (nextRoomId) router.push(`/rooms/${nextRoomId}`);
+    if (json?.room?.id) router.push(`/rooms/${json.room.id}`);
+  }
+
+  async function createSchedulePost() {
+    setBusy(true);
+    setMsg("");
+    const result = await supabase.from("scheduled_room_posts").insert({
+      host_user_id: userId,
+      title: scheduleTitle.trim().slice(0, 80),
+      room_category: activeScene === "all" ? roomCategory : activeScene,
+      interaction_style: interactionStyle,
+      visibility: scheduleVisibility,
+      start_at: new Date(startAtInput).toISOString(),
+      end_at: new Date(new Date(startAtInput).getTime() + durationMinutes * 60000).toISOString(),
+      duration_minutes: durationMinutes,
+      seat_limit: seatLimit,
+      note: scheduleNote.trim() || null,
+    });
+    setBusy(false);
+    if (result.error) return setMsg(result.error.message);
+    setMsg("已建立排程。若是邀請制，系統會自動產生邀請碼。");
+    setMobileComposerOpen(false);
+    await reloadAll(accessToken);
+  }
+
+  async function deleteSchedulePost(postId: string) {
+    setBusy(true);
+    setMsg("");
+    const result = await supabase.from("scheduled_room_posts").delete().eq("id", postId).eq("host_user_id", userId);
+    setBusy(false);
+    if (result.error) return setMsg(result.error.message);
+    setMsg("已刪除排程。");
+    await reloadAll(accessToken);
   }
 
   async function resolveInviteCode() {
     setBusy(true);
     setMsg("");
-    setInviteResult(null);
+    setInviteLookup(null);
+    setInviteLookupKind(null);
     const resp = await fetch("/api/rooms/invite/resolve", {
       method: "POST",
       headers: {
@@ -530,8 +435,14 @@ export default function RoomsPage() {
     const json = await resp.json().catch(() => ({} as any));
     setBusy(false);
     if (!resp.ok) return setMsg(json?.error || "查找邀請碼失敗。");
-    if (json.kind === "room") setInviteResult({ kind: "room", room: json.room as Room });
-    if (json.kind === "schedule") setInviteResult({ kind: "schedule", post: json.post as ScheduledRoomPostRow });
+    if (json.kind === "room") {
+      setInviteLookupKind("room");
+      setInviteLookup(json.room as Room);
+    }
+    if (json.kind === "schedule") {
+      setInviteLookupKind("schedule");
+      setInviteLookup(json.post as ScheduledRoomPostRow);
+    }
   }
 
   async function joinInvitedRoom(inviteCode: string) {
@@ -551,23 +462,6 @@ export default function RoomsPage() {
     setMobileComposerOpen(false);
     if (json?.roomId) router.push(`/rooms/${json.roomId}`);
   }
-
-  const sceneCountSource = contentMode === "now" ? roomCounts : scheduleCounts;
-  const sceneGalleryCards = ACTIVE_ROOM_SCENE_OPTIONS.map((item) => ({
-    ...item,
-    ...SCENE_COPY[item.value],
-  }));
-
-  const emptyVisualStyle: CSSProperties = {
-    width: "100%",
-    aspectRatio: "4 / 3",
-    borderRadius: 18,
-    border: "1px solid rgba(89,88,82,0.10)",
-    backgroundImage:
-      `linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), url(${EMPTY_ROOM_ASSET})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-  };
 
   function renderInstantComposer() {
     if (ownRoom) {
@@ -589,9 +483,9 @@ export default function RoomsPage() {
       <>
         <label className="cc-field">
           <span className="cc-field-label">房間名稱</span>
-          <input className="cc-input" value={instantTitle} onChange={(e) => setInstantTitle(e.target.value)} placeholder="例如：晚間共工 50 分鐘｜安靜同行" />
+          <input className="cc-input" value={instantTitle} onChange={(e) => setInstantTitle(e.target.value)} />
         </label>
-        <div className="cc-grid-2">
+        <div className="cc-grid-2 cc-mobile-stack-grid">
           <label className="cc-field">
             <span className="cc-field-label">場景</span>
             <select className="cc-select" value={activeScene === "all" ? instantCategory : activeScene} onChange={(e) => setInstantCategory(e.target.value as RoomCategory)} disabled={activeScene !== "all"}>
@@ -605,18 +499,10 @@ export default function RoomsPage() {
             </select>
           </label>
         </div>
-        <div className="cc-grid-3" style={{ gap: 12 }}>
+        <div className="cc-grid-3 cc-mobile-stack-grid" style={{ gap: 12 }}>
           <label className="cc-field">
             <span className="cc-field-label">房型</span>
-            <select
-              className="cc-select"
-              value={instantMode}
-              onChange={(e) => {
-                const nextMode = e.target.value as "pair" | "group";
-                setInstantMode(nextMode);
-                if (nextMode === "pair") setInstantSize(2);
-              }}
-            >
+            <select className="cc-select" value={instantMode} onChange={(e) => setInstantMode(e.target.value as "pair" | "group")}>
               <option value="group">小組同行</option>
               <option value="pair">雙人同行</option>
             </select>
@@ -634,17 +520,9 @@ export default function RoomsPage() {
             </select>
           </label>
         </div>
-        {instantMode === "group" ? (
-          <label className="cc-field">
-            <span className="cc-field-label">名額上限</span>
-            <select className="cc-select" value={instantSize} onChange={(e) => setInstantSize(Number(e.target.value))}>
-              {[4, 6].map((item) => <option key={item} value={item}>{item} 人</option>)}
-            </select>
-          </label>
-        ) : null}
         <label className="cc-field">
           <span className="cc-field-label">補充說明</span>
-          <textarea className="cc-textarea" value={instantNote} onChange={(e) => setInstantNote(e.target.value)} placeholder="例如：這場以安靜整理報表為主，中間只會簡短打招呼。" />
+          <textarea className="cc-textarea" value={instantNote} onChange={(e) => setInstantNote(e.target.value)} />
         </label>
         <button type="button" className="cc-btn-primary" onClick={createInstantRoom} disabled={busy || !instantTitle.trim()}>
           {busy ? "建立中…" : "建立同行空間"}
@@ -659,9 +537,9 @@ export default function RoomsPage() {
         <div className="cc-note">你目前已安排 {ownFutureScheduleCount} / 2 間未開始排程。</div>
         <label className="cc-field">
           <span className="cc-field-label">排程名稱</span>
-          <input className="cc-input" value={scheduleTitle} onChange={(e) => setScheduleTitle(e.target.value)} placeholder="例如：週二晚上整理房｜輕聊天" />
+          <input className="cc-input" value={scheduleTitle} onChange={(e) => setScheduleTitle(e.target.value)} />
         </label>
-        <div className="cc-grid-2">
+        <div className="cc-grid-2 cc-mobile-stack-grid">
           <label className="cc-field">
             <span className="cc-field-label">場景</span>
             <select className="cc-select" value={activeScene === "all" ? roomCategory : activeScene} onChange={(e) => setRoomCategory(e.target.value as RoomCategory)} disabled={activeScene !== "all"}>
@@ -675,7 +553,7 @@ export default function RoomsPage() {
             </select>
           </label>
         </div>
-        <div className="cc-grid-2">
+        <div className="cc-grid-2 cc-mobile-stack-grid">
           <label className="cc-field">
             <span className="cc-field-label">開始時間</span>
             <input className="cc-input" type="datetime-local" min={minDatetimeLocalValue()} value={startAtInput} onChange={(e) => setStartAtInput(e.target.value)} />
@@ -687,7 +565,7 @@ export default function RoomsPage() {
             </select>
           </label>
         </div>
-        <div className="cc-grid-2">
+        <div className="cc-grid-2 cc-mobile-stack-grid">
           <label className="cc-field">
             <span className="cc-field-label">時長</span>
             <select className="cc-select" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
@@ -703,7 +581,7 @@ export default function RoomsPage() {
         </div>
         <label className="cc-field">
           <span className="cc-field-label">補充說明</span>
-          <textarea className="cc-textarea" value={scheduleNote} onChange={(e) => setScheduleNote(e.target.value)} placeholder="例如：這場以安靜整理報表為主，中間只會簡短打招呼。" />
+          <textarea className="cc-textarea" value={scheduleNote} onChange={(e) => setScheduleNote(e.target.value)} />
         </label>
         <button type="button" className="cc-btn-primary" onClick={createSchedulePost} disabled={busy || ownFutureScheduleCount >= 2 || !scheduleTitle.trim()}>
           {busy ? "建立中…" : "建立排程"}
@@ -725,31 +603,25 @@ export default function RoomsPage() {
             查找
           </button>
         </div>
-        {inviteResult?.kind === "room" ? (
+        {inviteLookupKind === "room" && inviteLookup ? (
           <div className="cc-note cc-stack-sm">
-            <div className="cc-h3">{inviteResult.room.title}</div>
-            <div className="cc-muted">
-              {labelForRoomScene(normalizeRoomCategoryForUi(inviteResult.room.room_category))} · {labelForInteractionStyle((inviteResult.room.interaction_style ?? "silent") as InteractionStyle)}
-            </div>
-            <button type="button" className="cc-btn-primary" disabled={busy} onClick={() => joinInvitedRoom(inviteResult.room.invite_code ?? inviteCodeInput)}>
+            <div className="cc-h3">{(inviteLookup as Room).title}</div>
+            <button type="button" className="cc-btn-primary" disabled={busy} onClick={() => joinInvitedRoom((inviteLookup as Room).invite_code ?? inviteCodeInput)}>
               使用邀請碼加入
             </button>
           </div>
         ) : null}
-        {inviteResult?.kind === "schedule" ? (
+        {inviteLookupKind === "schedule" && inviteLookup ? (
           <div className="cc-note cc-stack-sm">
-            <div className="cc-h3">{inviteResult.post.title}</div>
-            <div className="cc-muted">{formatDateTimeRange(inviteResult.post.start_at, inviteResult.post.end_at)}</div>
-            <div className="cc-caption">
-              {labelForRoomScene(inviteResult.post.room_category)} · {labelForInteractionStyle(inviteResult.post.interaction_style)}
-            </div>
+            <div className="cc-h3">{(inviteLookup as ScheduledRoomPostRow).title}</div>
+            <div className="cc-muted">{formatDateTimeRange((inviteLookup as ScheduledRoomPostRow).start_at, (inviteLookup as ScheduledRoomPostRow).end_at)}</div>
           </div>
         ) : null}
       </div>
     );
   }
 
-  const mobileSheetContent: ReactNode =
+  const mobileSheetContent =
     mobileComposerMode === "instant"
       ? renderInstantComposer()
       : mobileComposerMode === "schedule"
@@ -799,19 +671,11 @@ export default function RoomsPage() {
           <div className="cc-control-group">
             <div className="cc-control-label">第 1 步：你現在要做哪件事？</div>
             <div className="cc-segment-grid">
-              <button
-                type="button"
-                className={`cc-segment-btn ${contentMode === "now" ? "is-active" : ""}`}
-                onClick={() => handleModeChange("now")}
-              >
+              <button type="button" className={`cc-segment-btn ${contentMode === "now" ? "is-active" : ""}`} onClick={() => handleModeChange("now")}>
                 <span className="cc-segment-btn__title">現在可進房</span>
                 <span className="cc-segment-btn__meta">{filteredRooms.length} 間可立即加入</span>
               </button>
-              <button
-                type="button"
-                className={`cc-segment-btn ${contentMode === "schedule" ? "is-active" : ""}`}
-                onClick={() => handleModeChange("schedule")}
-              >
+              <button type="button" className={`cc-segment-btn ${contentMode === "schedule" ? "is-active" : ""}`} onClick={() => handleModeChange("schedule")}>
                 <span className="cc-segment-btn__title">排程專區</span>
                 <span className="cc-segment-btn__meta">{filteredSchedulePosts.length} 個接下來的時段</span>
               </button>
@@ -826,18 +690,13 @@ export default function RoomsPage() {
                   key={scene.value}
                   type="button"
                   className={`cc-filter-chip ${activeScene === scene.value ? "is-active" : ""}`}
-                  style={activeScene === scene.value ? SCENE_TONES[scene.value].active : undefined}
                   onClick={() => handleSceneChange(scene.value)}
                 >
-                  {scene.label} <span className="cc-pill-soft">{sceneCountSource[scene.value]}</span>
+                  {scene.label}
                 </button>
               ))}
-              <button
-                type="button"
-                className={`cc-filter-chip ${activeScene === "all" ? "is-active" : ""}`}
-                onClick={() => handleSceneChange("all")}
-              >
-                全部 <span className="cc-pill-soft">{sceneCountSource.all}</span>
+              <button type="button" className={`cc-filter-chip ${activeScene === "all" ? "is-active" : ""}`} onClick={() => handleSceneChange("all")}>
+                全部
               </button>
             </div>
           </div>
@@ -863,19 +722,14 @@ export default function RoomsPage() {
                 handleSceneChange(card.value);
                 window.location.hash = "rooms-board";
               }}
-              style={{
-                textAlign: "left",
-                background: `linear-gradient(180deg, rgba(255,255,255,0.30), ${SCENE_TONES[card.value].subtle.background})`,
-              }}
+              style={{ textAlign: "left" }}
             >
               <SceneArt image={card.image} alt={card.alt} position={card.imagePosition} scale={card.imageScale} />
               <div className="cc-stack-sm">
                 <div className="cc-h3">{card.title}</div>
                 <div className="cc-muted" style={{ lineHeight: 1.7 }}>{card.body}</div>
                 <div className="cc-action-row" style={{ marginTop: 0 }}>
-                  {card.pills.map((pill) => (
-                    <span key={pill} className="cc-pill-soft">{pill}</span>
-                  ))}
+                  {card.pills.map((pill) => <span key={pill} className="cc-pill-soft">{pill}</span>)}
                 </div>
               </div>
               <span className="cc-btn-link">套用這個場景 →</span>
@@ -892,14 +746,9 @@ export default function RoomsPage() {
             <div>
               <p className="cc-card-kicker">{contentMode === "now" ? "現在可進房" : "排程板"}</p>
               <h2 className="cc-h2">
-                {contentMode === "now"
-                  ? "先看眼前有哪些房，覺得適合就直接進去。"
-                  : "先看接下來的安排，想要的時段就先掛上去。"}
+                {contentMode === "now" ? "先看眼前有哪些房，覺得適合就直接進去。" : "先看接下來的安排，想要的時段就先掛上去。"}
               </h2>
             </div>
-            <span className="cc-pill-soft">
-              {contentMode === "now" ? filteredRooms.length : filteredSchedulePosts.length}
-            </span>
           </div>
 
           {loading ? (
@@ -910,25 +759,19 @@ export default function RoomsPage() {
                 <div style={emptyVisualStyle} />
                 <div className="cc-stack-sm">
                   <div className="cc-h3">目前這個場景還沒有人開房。</div>
-                  <div className="cc-muted">
-                    你可以成為第一個開房的人。想現在就開始，就開一間；想先約好，就切到排程專區。
-                  </div>
+                  <div className="cc-muted">你可以成為第一個開房的人。想現在就開始，就開一間；想先約好，就切到排程專區。</div>
                 </div>
               </div>
             ) : (
               <ul className="cc-list cc-list--flush">
                 {filteredRooms.map((room) => (
                   <li key={room.id}>
-                    <Link
-                      className="cc-listlink"
-                      href={`/rooms/${room.id}`}
-                      style={{ borderLeft: `4px solid ${SCENE_TONES[room.ui_scene].line}` }}
-                    >
+                    <Link className="cc-listlink" href={`/rooms/${room.id}`} style={{ borderLeft: `4px solid ${SCENE_LINE[room.ui_scene]}` }}>
                       <div className="cc-stack-sm">
                         <div className="cc-row" style={{ flexWrap: "wrap" }}>
                           <span className="cc-h3">{room.title}</span>
                           <span className="cc-pill-soft">{labelForRoomScene(room.ui_scene)}</span>
-                          <span className="cc-pill-soft">{labelForInteractionStyle(room.interaction_style)}</span>
+                          <span className="cc-pill-soft">{labelForInteractionStyle((room.interaction_style ?? "silent") as InteractionStyle)}</span>
                           <span className="cc-pill-soft">{modeLabel(room.mode)}</span>
                           <span className="cc-pill-soft">{formatDurationLabel(room.duration_minutes)}</span>
                         </div>
@@ -948,9 +791,7 @@ export default function RoomsPage() {
               <div style={emptyVisualStyle} />
               <div className="cc-stack-sm">
                 <div className="cc-h3">目前還沒有這個場景的排程。</div>
-                <div className="cc-muted">
-                  如果你知道自己想在什麼時間開始，先掛出你的時間通常比等別人更快。
-                </div>
+                <div className="cc-muted">如果你知道自己想在什麼時間開始，先掛出你的時間通常比等別人更快。</div>
               </div>
             </div>
           ) : (
@@ -958,11 +799,7 @@ export default function RoomsPage() {
               {filteredSchedulePosts.map((post) => {
                 const host = hostProfiles[post.host_user_id];
                 return (
-                  <article
-                    key={post.id}
-                    className="cc-card cc-card-outline cc-stack-sm"
-                    style={{ borderLeft: `4px solid ${SCENE_TONES[post.ui_scene].line}` }}
-                  >
+                  <article key={post.id} className="cc-card cc-card-outline cc-stack-sm" style={{ borderLeft: `4px solid ${SCENE_LINE[post.ui_scene]}` }}>
                     <div className="cc-row" style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
                       <div className="cc-stack-sm" style={{ flex: 1, minWidth: 0 }}>
                         <div className="cc-row" style={{ flexWrap: "wrap" }}>
@@ -971,9 +808,7 @@ export default function RoomsPage() {
                           <span className="cc-pill-soft">{labelForInteractionStyle(post.interaction_style)}</span>
                         </div>
                         <div className="cc-muted">{formatDateTimeRange(post.start_at, post.end_at)}</div>
-                        <div className="cc-caption">
-                          房主：{host?.display_name ?? "安感島使用者"} · {labelForVisibility(post.visibility)} · {post.seat_limit} 人
-                        </div>
+                        <div className="cc-caption">房主：{host?.display_name ?? "安感島使用者"} · {labelForVisibility(post.visibility)} · {post.seat_limit} 人</div>
                         {post.note ? <div className="cc-note">{post.note}</div> : null}
                       </div>
                       {post.host_user_id === userId ? (
@@ -989,29 +824,16 @@ export default function RoomsPage() {
           )}
         </article>
 
-        <aside id="rooms-composer" className="cc-card cc-stack-md cc-desktop-only">
+        <aside className="cc-card cc-stack-md cc-desktop-only">
           <div>
             <p className="cc-card-kicker">建立與加入</p>
             <h2 className="cc-h2">想自己開，或別人給你邀請碼，都在這裡。</h2>
           </div>
-
-          <div className="cc-note cc-stack-sm">
-            <div>想立刻開始，就建立一間即時房。</div>
-            <div>想先約好，就建立排程。</div>
-            <div>別人給你邀請碼，就直接在下面輸入。</div>
-          </div>
-
           <div className="cc-action-row" style={{ marginTop: 0 }}>
-            <button type="button" className={contentMode === "now" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("now")}>
-              建立即時房
-            </button>
-            <button type="button" className={contentMode === "schedule" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("schedule")}>
-              建立排程
-            </button>
+            <button type="button" className={contentMode === "now" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("now")}>建立即時房</button>
+            <button type="button" className={contentMode === "schedule" ? "cc-btn-primary" : "cc-btn"} onClick={() => setContentMode("schedule")}>建立排程</button>
           </div>
-
           {contentMode === "now" ? renderInstantComposer() : renderScheduleComposer()}
-
           <hr className="cc-soft-divider" />
           {renderInviteLookup()}
         </aside>
@@ -1019,12 +841,7 @@ export default function RoomsPage() {
 
       {mobileComposerOpen ? (
         <div className="cc-mobile-sheet cc-mobile-only" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            className="cc-mobile-sheet__backdrop"
-            aria-label="關閉建立房間面板"
-            onClick={() => setMobileComposerOpen(false)}
-          />
+          <button type="button" className="cc-mobile-sheet__backdrop" aria-label="關閉建立房間面板" onClick={() => setMobileComposerOpen(false)} />
           <div className="cc-mobile-sheet__panel">
             <div className="cc-mobile-sheet__header">
               <div>
@@ -1039,24 +856,18 @@ export default function RoomsPage() {
                     : "輸入邀請碼，直接找到對方的房或排程。"}
                 </div>
               </div>
-              <button type="button" className="cc-btn" onClick={() => setMobileComposerOpen(false)}>
-                關閉
-              </button>
+              <button type="button" className="cc-btn" onClick={() => setMobileComposerOpen(false)}>關閉</button>
             </div>
 
             <div className="cc-action-row" style={{ marginTop: 0 }}>
-              <button type="button" className={mobileComposerMode === "instant" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("instant")}>
-                即時房
-              </button>
-              <button type="button" className={mobileComposerMode === "schedule" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("schedule")}>
-                排程
-              </button>
-              <button type="button" className={mobileComposerMode === "invite" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("invite")}>
-                邀請碼
-              </button>
+              <button type="button" className={mobileComposerMode === "instant" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("instant")}>即時房</button>
+              <button type="button" className={mobileComposerMode === "schedule" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("schedule")}>排程</button>
+              <button type="button" className={mobileComposerMode === "invite" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("invite")}>邀請碼</button>
             </div>
 
-            <div className="cc-stack-md">{mobileSheetContent}</div>
+            <div className="cc-stack-md">
+              {mobileComposerMode === "instant" ? renderInstantComposer() : mobileComposerMode === "schedule" ? renderScheduleComposer() : renderInviteLookup()}
+            </div>
           </div>
         </div>
       ) : null}
