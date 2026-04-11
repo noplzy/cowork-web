@@ -52,7 +52,7 @@ function getMobilePageTitle(pathname: string) {
 export function TopNav({ email, onSignOut }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const [sessionEmail, setSessionEmail] = useState(email ?? "");
+  const [sessionEmail, setSessionEmail] = useState("");
   const [resolved, setResolved] = useState(Boolean(email));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -109,7 +109,7 @@ export function TopNav({ email, onSignOut }: Props) {
     <>
       <header className="cc-navshell cc-desktop-only" aria-label="Desktop navigation">
         <div className="cc-navshell__glow" />
-        <div className="cc-nav">
+        <div className="cc-nav cc-nav--desktop">
           <div className="cc-nav__brandrail">
             <Link className="cc-navbrand" href="/">
               <span className="cc-brandmark">島</span>
