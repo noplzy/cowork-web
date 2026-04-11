@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "安感島｜安靜共工與陪伴型數位空間",
-  description: "安感島提供低壓力專注共工與清楚易懂的帳號登入流程。",
+  description: "安感島提供低壓力專注共工與陪伴型數位空間。",
 };
 
 export default function RootLayout({

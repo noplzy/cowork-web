@@ -10,7 +10,7 @@ const HERO_POSTER = "/site-assets/hero/hero-window.png";
 
 const primaryPaths = [
   {
-    title: "進入同行空間",
+    title: "現在就進房",
     body: "想立刻開始，就先進 Rooms 看現在有沒有適合你的房。",
     href: "/rooms?mode=now#rooms-board",
     cta: "進入同行空間",
@@ -115,7 +115,7 @@ export default function Home() {
               aria-label="安感島首頁主視覺"
               style={{
                 backgroundImage:
-                  `linear-gradient(180deg, rgba(255,255,255,0.04), rgba(17,19,24,0.12)), url(${HERO_POSTER})`,
+                  `linear-gradient(180deg, rgba(255,255,255,0.03), rgba(17,19,24,0.08)), url(${HERO_POSTER})`,
               }}
             />
             <div className="cc-home-hero-copy cc-stack-md">
@@ -124,7 +124,7 @@ export default function Home() {
               <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
                 今天不用一個人開始。
               </h1>
-              <p className="cc-lead" style={{ maxWidth: "36ch" }}>
+              <p className="cc-lead" style={{ maxWidth: "34ch" }}>
                 想立刻找人一起做事、一起待著，或想找更明確的陪伴夥伴，都可以從這裡開始。
               </p>
 
@@ -137,16 +137,11 @@ export default function Home() {
                 </Link>
               </div>
 
-              <div className="cc-page-meta">
+              <div className="cc-page-meta cc-desktop-only">
                 <span className="cc-pill-warning">免費每月 4 場</span>
                 <span className="cc-pill-soft">可即時進房</span>
                 <span className="cc-pill-soft">可排程</span>
                 <span className="cc-pill-soft">有公開規則與客服</span>
-              </div>
-
-              <div className="cc-note cc-stack-sm">
-                <div>不需要表演，不需要勉強。</div>
-                <div>有人一起，就夠了。</div>
               </div>
             </div>
           </div>
@@ -161,7 +156,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="cc-grid-3">
+        <div className="cc-grid-3 cc-mobile-stack-grid">
           {primaryPaths.map((card) => (
             <article
               key={card.title}
@@ -216,7 +211,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="cc-section cc-grid-2">
+      <section className="cc-section cc-grid-2 cc-mobile-stack-grid">
         <article className="cc-card cc-stack-md">
           <div>
             <p className="cc-card-kicker">為什麼有人會留下來</p>

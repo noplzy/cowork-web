@@ -29,10 +29,6 @@ const MOBILE_PRIMARY_ITEMS = [
 ] as const;
 
 const MOBILE_MENU_ITEMS = [
-  { href: "/", label: "首頁" },
-  { href: "/rooms", label: "同行空間" },
-  { href: "/buddies", label: "安感夥伴" },
-  { href: "/account", label: "我的島" },
   { href: "/pricing", label: "方案 / 價格" },
   { href: "/contact", label: "客服" },
   { href: "/refund-policy", label: "退款政策" },
@@ -119,13 +115,8 @@ export function TopNav({ email, onSignOut }: Props) {
             <nav className="cc-navlinks" aria-label="Primary">
               {DESKTOP_NAV_ITEMS.map((item) => {
                 const active = isActivePath(pathname, item.href);
-
                 return (
-                  <Link
-                    key={item.href}
-                    className={`cc-navlink${active ? " is-active" : ""}`}
-                    href={item.href}
-                  >
+                  <Link key={item.href} className={`cc-navlink${active ? " is-active" : ""}`} href={item.href}>
                     {item.label}
                   </Link>
                 );
@@ -161,13 +152,11 @@ export function TopNav({ email, onSignOut }: Props) {
       <header className="cc-mobile-topbar cc-mobile-only" aria-label="Mobile navigation">
         <Link className="cc-mobile-topbar__brand" href="/">
           <span className="cc-brandmark">島</span>
-          <span className="cc-mobile-topbar__titles">
+          <span className="cc-mobile-topbar__titlewrap">
             <span className="cc-mobile-topbar__title">安感島</span>
-            <span className="cc-mobile-topbar__subtitle">不用一個人撐著，也能開始</span>
+            <span className="cc-mobile-topbar__subtitle">{pageTitle}</span>
           </span>
         </Link>
-
-        <div className="cc-mobile-topbar__center">{pageTitle}</div>
 
         <button
           type="button"
@@ -191,11 +180,7 @@ export function TopNav({ email, onSignOut }: Props) {
           {MOBILE_MENU_ITEMS.map((item) => {
             const active = isActivePath(pathname, item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`cc-mobile-menu-link${active ? " is-active" : ""}`}
-              >
+              <Link key={item.href} href={item.href} className={`cc-mobile-menu-link${active ? " is-active" : ""}`}>
                 <span>{item.label}</span>
                 <span aria-hidden>→</span>
               </Link>
@@ -230,13 +215,8 @@ export function TopNav({ email, onSignOut }: Props) {
       <nav className="cc-mobile-bottomnav cc-mobile-only" aria-label="Mobile primary navigation">
         {MOBILE_PRIMARY_ITEMS.map((item) => {
           const active = isActivePath(pathname, item.href);
-
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`cc-mobile-bottomnav__item${active ? " is-active" : ""}`}
-            >
+            <Link key={item.href} href={item.href} className={`cc-mobile-bottomnav__item${active ? " is-active" : ""}`}>
               <span className="cc-mobile-bottomnav__icon" aria-hidden>{item.icon}</span>
               <span>{item.label}</span>
             </Link>

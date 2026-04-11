@@ -145,49 +145,10 @@ const BOOKING_STATUS_LABEL: Record<string, string> = {
   completed: "已完成",
 };
 
-const sceneIdeas = [
-  {
-    title: "專注陪伴",
-    body: "讀書、工作、寫履歷、整理文件。重點是有人一起，不是一直聊天。",
-    pills: ["安靜同行", "適合新手"],
-    tone: "var(--cc-scene-focus)",
-  },
-  {
-    title: "生活陪伴",
-    body: "整理房間、做家務、煮晚餐、陪自己過完一段生活時間。",
-    pills: ["輕聊天", "低壓力"],
-    tone: "var(--cc-scene-life)",
-  },
-  {
-    title: "情感支持",
-    body: "不是高強度諮商，而是在需要時，有人陪你撐過一段時間。",
-    pills: ["溫和陪伴", "可預約"],
-    tone: "var(--cc-scene-share)",
-  },
-];
-
 const emptyExamples = [
-  {
-    title: "陪你讀書 1 小時",
-    summary: "適合想先開始但不想一個人撐的人。",
-    category: "focus",
-    price: 280,
-    note: "示例卡片",
-  },
-  {
-    title: "晚餐前一起整理房間",
-    summary: "輕聊天、低壓力，適合日常生活陪伴。",
-    category: "life",
-    price: 320,
-    note: "示例卡片",
-  },
-  {
-    title: "失眠時的安靜陪伴",
-    summary: "不是高強度情緒諮商，而是有人一起待著。",
-    category: "support",
-    price: 350,
-    note: "示例卡片",
-  },
+  { title: "陪你讀書 1 小時", summary: "適合想先開始但不想一個人撐的人。", category: "focus", price: 280, note: "示例卡片" },
+  { title: "晚餐前一起整理房間", summary: "輕聊天、低壓力，適合日常生活陪伴。", category: "life", price: 320, note: "示例卡片" },
+  { title: "失眠時的安靜陪伴", summary: "不是高強度情緒諮商，而是有人一起待著。", category: "support", price: 350, note: "示例卡片" },
 ] as const;
 
 const defaultForm: ServicePayload = {
@@ -211,10 +172,7 @@ function authHeaders(token: string): HeadersInit {
 }
 
 function jsonHeaders(token: string): HeadersInit {
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
 export default function BuddiesPage() {
@@ -239,7 +197,6 @@ export default function BuddiesPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       const session = await getClientSessionSnapshot().catch(() => null);
       if (cancelled) return;
@@ -247,7 +204,6 @@ export default function BuddiesPage() {
       setAccessToken(session?.accessToken ?? "");
       setUserId(session?.user.id ?? "");
     })();
-
     return () => {
       cancelled = true;
     };
@@ -255,13 +211,11 @@ export default function BuddiesPage() {
 
   useEffect(() => {
     void reloadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, category, keyword, delivery, sort, verifiedOnly]);
 
   async function reloadAll() {
     setLoading(true);
     setMsg("");
-
     try {
       const serviceUrl = new URL("/api/buddies/services", window.location.origin);
       if (category !== "all") serviceUrl.searchParams.set("category", category);
@@ -270,9 +224,7 @@ export default function BuddiesPage() {
       if (sort !== "recommended") serviceUrl.searchParams.set("sort", sort);
       if (verifiedOnly) serviceUrl.searchParams.set("verified", "1");
 
-      const requests: Promise<Response>[] = [
-        fetch(serviceUrl.toString(), { headers: authHeaders(accessToken) }),
-      ];
+      const requests: Promise<Response>[] = [fetch(serviceUrl.toString(), { headers: authHeaders(accessToken) })];
 
       if (accessToken) {
         const mineUrl = new URL("/api/buddies/services", window.location.origin);
@@ -287,15 +239,15 @@ export default function BuddiesPage() {
       setServices((marketJson?.services ?? []) as BuddyService[]);
 
       if (responses[1]) {
-        const myServicesJson = await responses[1].json().catch(() => ({} as any));
-        if (responses[1].ok) setMyServices((myServicesJson?.services ?? []) as BuddyService[]);
+        const myJson = await responses[1].json().catch(() => ({} as any));
+        if (responses[1].ok) setMyServices((myJson?.services ?? []) as BuddyService[]);
       } else {
         setMyServices([]);
       }
 
       if (responses[2]) {
-        const bookingsJson = await responses[2].json().catch(() => ({} as any));
-        if (responses[2].ok) setBookings((bookingsJson?.bookings ?? []) as BuddyBooking[]);
+        const bookingJson = await responses[2].json().catch(() => ({} as any));
+        if (responses[2].ok) setBookings((bookingJson?.bookings ?? []) as BuddyBooking[]);
       } else {
         setBookings([]);
       }
@@ -338,17 +290,13 @@ export default function BuddiesPage() {
       setMsg("請先登入後再管理安感夥伴服務。");
       return;
     }
-
     setSaving(true);
     setMsg("");
     try {
       const response = await fetch("/api/buddies/services", {
         method: "POST",
         headers: jsonHeaders(accessToken),
-        body: JSON.stringify({
-          id: editingId || undefined,
-          ...form,
-        }),
+        body: JSON.stringify({ id: editingId || undefined, ...form }),
       });
       const json = await response.json().catch(() => ({} as any));
       if (!response.ok) throw new Error(json?.error || "儲存服務失敗。");
@@ -365,14 +313,8 @@ export default function BuddiesPage() {
   const marketCount = services.length;
   const myActiveCount = myServices.filter((item) => item.status === "active").length;
   const pendingCount = bookings.filter((item) => item.provider_user_id === userId && item.booking_status === "pending").length;
-  const incomingBookings = useMemo(
-    () => bookings.filter((item) => item.provider_user_id === userId),
-    [bookings, userId],
-  );
-  const outgoingBookings = useMemo(
-    () => bookings.filter((item) => item.buyer_user_id === userId),
-    [bookings, userId],
-  );
+  const incomingBookings = useMemo(() => bookings.filter((item) => item.provider_user_id === userId), [bookings, userId]);
+  const outgoingBookings = useMemo(() => bookings.filter((item) => item.buyer_user_id === userId), [bookings, userId]);
 
   const buddiesMediaStyle: CSSProperties = {
     width: "100%",
@@ -418,215 +360,161 @@ export default function BuddiesPage() {
           </div>
 
           <div className="cc-page-tabs cc-page-tabs--three">
-            <button type="button" className={`cc-page-tab ${tab === "market" ? "is-active" : ""}`} onClick={() => setTab("market")}>
-              找安感夥伴
-            </button>
-            <button type="button" className={`cc-page-tab ${tab === "services" ? "is-active" : ""}`} onClick={() => setTab("services")}>
-              我的服務
-            </button>
-            <button type="button" className={`cc-page-tab ${tab === "bookings" ? "is-active" : ""}`} onClick={() => setTab("bookings")}>
-              我的預約
-            </button>
+            <button type="button" className={`cc-page-tab ${tab === "market" ? " is-active" : ""}`} onClick={() => setTab("market")}>找安感夥伴</button>
+            <button type="button" className={`cc-page-tab ${tab === "services" ? " is-active" : ""}`} onClick={() => setTab("services")}>我的服務</button>
+            <button type="button" className={`cc-page-tab ${tab === "bookings" ? " is-active" : ""}`} onClick={() => setTab("bookings")}>我的預約</button>
           </div>
         </article>
       </section>
 
       {msg ? <div className="cc-alert cc-alert-error cc-section">{msg}</div> : null}
 
-      <section className="cc-section cc-grid-2 cc-buddies-layout" style={{ alignItems: "start" }}>
-        <article className="cc-card cc-stack-md cc-desktop-only">
-          <div>
-            <p className="cc-card-kicker">探索與篩選</p>
-            <h2 className="cc-h2">先把選項縮小，再挑適合自己的人。</h2>
-          </div>
-          <div className="cc-field">
-            <span className="cc-field-label">搜尋</span>
-            <input
-              className="cc-input"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="搜尋服務名稱、關鍵字，例如：陪跑、陪聊、電影搭子"
-            />
-          </div>
-          <div className="cc-action-row" style={{ marginTop: 0 }}>
-            {CATEGORY_OPTIONS.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className={category === item.value ? "cc-btn-primary" : "cc-btn"}
-                onClick={() => setCategory(item.value)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div className="cc-grid-2">
-            <label className="cc-field">
-              <span className="cc-field-label">提供方式</span>
-              <select className="cc-select" value={delivery} onChange={(e) => setDelivery(e.target.value as "all" | DeliveryMode)}>
-                <option value="all">全部</option>
-                <option value="remote">線上</option>
-                <option value="in_person">線下</option>
-                <option value="hybrid">混合</option>
-              </select>
-            </label>
-            <label className="cc-field">
-              <span className="cc-field-label">排序</span>
-              <select className="cc-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-                <option value="recommended">推薦</option>
-                <option value="price_asc">價格低到高</option>
-                <option value="price_desc">價格高到低</option>
-                <option value="rating">評價最高</option>
-                <option value="recent">最近更新</option>
-                <option value="popular">最多完成</option>
-              </select>
-            </label>
-          </div>
-          <label className="cc-row" style={{ alignItems: "center", gap: 10 }}>
-            <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} />
-            <span className="cc-field-label">只看已標示專業搭子候選</span>
-          </label>
-        </article>
-
-        <article className="cc-card cc-stack-md cc-desktop-only">
-          <div>
-            <p className="cc-card-kicker">信任與規則</p>
-            <h2 className="cc-h2">讓人敢按預約，比堆功能更重要。</h2>
-          </div>
-          <div className="cc-note cc-stack-sm">
-            <div>卡片先顯示分類、價格、提供方式與互動風格。</div>
-            <div>安全、退款與客服規則保留在固定入口，不在每張卡旁邊重複轟炸。</div>
-          </div>
-          <div className="cc-action-row">
-            <Link href="/contact" className="cc-btn">客服</Link>
-            <Link href="/refund-policy" className="cc-btn">退款政策</Link>
-          </div>
-        </article>
-      </section>
-
       {tab === "market" ? (
-        <section className="cc-section cc-stack-md">
-          <div className="cc-mobile-only cc-stack-sm">
-            <div className="cc-field">
-              <span className="cc-field-label">搜尋</span>
-              <input
-                className="cc-input"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="搜尋陪跑、陪聊、運動搭子…"
-              />
-            </div>
-            <button type="button" className="cc-btn" style={{ width: "100%" }} onClick={() => setMobileFiltersOpen(true)}>
-              篩選與排序
-            </button>
-          </div>
-
-          <div className="cc-page-header" style={{ marginBottom: 0 }}>
-            <div>
-              <p className="cc-card-kicker">找安感夥伴</p>
-              <h2 className="cc-h2">先看服務卡，再決定要不要深入。</h2>
-            </div>
-            <span className="cc-pill-soft">{marketCount} services</span>
-          </div>
-
-          {loading ? (
-            <div className="cc-card cc-empty-state">正在讀取安感夥伴服務…</div>
-          ) : services.length === 0 ? (
-            <div className="cc-buddies-empty">
-              <article className="cc-card cc-stack-md">
-                <div style={buddiesMediaStyle} aria-label="Buddies 服務入口示意圖" />
-                <div className="cc-stack-sm">
-                  <div className="cc-h3">目前還沒有正式上架中的服務。</div>
-                  <div className="cc-muted">
-                    這一區先保留暖空狀態，不拿假熱鬧資料硬撐活躍感。等你要開放更多服務時，再把它補齊。
-                  </div>
-                </div>
-              </article>
-
-              <div className="cc-stack-sm">
-                {emptyExamples.map((item) => (
-                  <article key={item.title} className="cc-card cc-card-soft cc-stack-sm">
-                    <div className="cc-card-row">
-                      <div>
-                        <div className="cc-h3">{item.title}</div>
-                        <div className="cc-caption">{CATEGORY_LABEL[item.category as BuddyCategory]}</div>
-                      </div>
-                      <span className="cc-pill-soft">{item.note}</span>
-                    </div>
-                    <div className="cc-muted" style={{ lineHeight: 1.75 }}>{item.summary}</div>
-                    <div className="cc-page-meta">
-                      <span className="cc-pill-success">NT${item.price} / 小時</span>
-                      <span className="cc-pill-soft">線上</span>
-                    </div>
-                    <button className="cc-btn" type="button" disabled>查看詳情（示例）</button>
-                  </article>
+        <>
+          <section className="cc-section cc-buddies-market-shell">
+            <aside className="cc-card cc-stack-md cc-desktop-only">
+              <div>
+                <p className="cc-card-kicker">探索與篩選</p>
+                <h2 className="cc-h2">先把選項縮小，再挑適合自己的人。</h2>
+              </div>
+              <div className="cc-field">
+                <span className="cc-field-label">搜尋</span>
+                <input className="cc-input" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜尋陪跑、陪聊、電影搭子…" />
+              </div>
+              <div className="cc-action-row" style={{ marginTop: 0 }}>
+                {CATEGORY_OPTIONS.map((item) => (
+                  <button key={item.value} type="button" className={category === item.value ? "cc-btn-primary" : "cc-btn"} onClick={() => setCategory(item.value)}>
+                    {item.label}
+                  </button>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="cc-grid-3 cc-buddies-market-grid" style={{ gap: 14 }}>
-              {services.map((service) => (
-                <article
-                  key={service.id}
-                  className="cc-card cc-stack-sm"
-                  style={{
-                    background: `linear-gradient(180deg, rgba(255,255,255,0.34), ${
-                      service.buddy_category === "focus"
-                        ? "var(--cc-scene-focus)"
-                        : service.buddy_category === "life"
-                        ? "var(--cc-scene-life)"
-                        : service.buddy_category === "share"
-                        ? "var(--cc-scene-share)"
-                        : "rgba(255,255,255,0.08)"
-                    })`,
-                  }}
-                >
-                  <div className="cc-card-row" style={{ alignItems: "flex-start" }}>
-                    <div>
-                      <div className="cc-h3">{service.title}</div>
-                      <div className="cc-caption">
-                        {service.provider_profile?.display_name || "安感夥伴"}
-                        {service.provider_profile?.handle ? ` · @${service.provider_profile.handle}` : ""}
-                      </div>
+              <div className="cc-grid-2 cc-mobile-stack-grid">
+                <label className="cc-field">
+                  <span className="cc-field-label">提供方式</span>
+                  <select className="cc-select" value={delivery} onChange={(e) => setDelivery(e.target.value as "all" | DeliveryMode)}>
+                    <option value="all">全部</option>
+                    <option value="remote">線上</option>
+                    <option value="in_person">線下</option>
+                    <option value="hybrid">混合</option>
+                  </select>
+                </label>
+                <label className="cc-field">
+                  <span className="cc-field-label">排序</span>
+                  <select className="cc-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+                    <option value="recommended">推薦</option>
+                    <option value="price_asc">價格低到高</option>
+                    <option value="price_desc">價格高到低</option>
+                    <option value="rating">評價最高</option>
+                    <option value="recent">最近更新</option>
+                    <option value="popular">最多完成</option>
+                  </select>
+                </label>
+              </div>
+              <label className="cc-row" style={{ alignItems: "center", gap: 10 }}>
+                <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} />
+                <span className="cc-field-label">只看已標示專業搭子候選</span>
+              </label>
+            </aside>
+
+            <div className="cc-stack-md">
+              <div className="cc-mobile-only cc-stack-sm">
+                <div className="cc-field">
+                  <span className="cc-field-label">搜尋</span>
+                  <input className="cc-input" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜尋陪跑、陪聊、運動搭子…" />
+                </div>
+                <button type="button" className="cc-btn" style={{ width: "100%" }} onClick={() => setMobileFiltersOpen(true)}>
+                  篩選與排序
+                </button>
+              </div>
+
+              <div className="cc-page-header" style={{ marginBottom: 0 }}>
+                <div>
+                  <p className="cc-card-kicker">找安感夥伴</p>
+                  <h2 className="cc-h2">先看服務卡，再決定要不要深入。</h2>
+                </div>
+                <span className="cc-pill-soft">{marketCount} services</span>
+              </div>
+
+              {loading ? (
+                <div className="cc-card cc-empty-state">正在讀取安感夥伴服務…</div>
+              ) : services.length === 0 ? (
+                <div className="cc-buddies-empty">
+                  <article className="cc-card cc-stack-md">
+                    <div style={buddiesMediaStyle} aria-label="Buddies 服務入口示意圖" />
+                    <div className="cc-stack-sm">
+                      <div className="cc-h3">目前還沒有正式上架中的服務。</div>
+                      <div className="cc-muted">這一區先保留暖空狀態，不拿假熱鬧資料硬撐活躍感。等你要開放更多服務時，再把它補齊。</div>
                     </div>
-                    {service.provider_profile?.is_professional_buddy ? <span className="cc-pill-accent">專業候選</span> : null}
+                  </article>
+
+                  <div className="cc-stack-sm">
+                    {emptyExamples.map((item) => (
+                      <article key={item.title} className="cc-card cc-card-soft cc-stack-sm">
+                        <div className="cc-card-row">
+                          <div>
+                            <div className="cc-h3">{item.title}</div>
+                            <div className="cc-caption">{CATEGORY_LABEL[item.category as BuddyCategory]}</div>
+                          </div>
+                          <span className="cc-pill-soft">{item.note}</span>
+                        </div>
+                        <div className="cc-muted" style={{ lineHeight: 1.75 }}>{item.summary}</div>
+                        <div className="cc-page-meta">
+                          <span className="cc-pill-success">NT${item.price} / 小時</span>
+                          <span className="cc-pill-soft">線上</span>
+                        </div>
+                        <button className="cc-btn" type="button" disabled>查看詳情（示例）</button>
+                      </article>
+                    ))}
                   </div>
-                  <div className="cc-page-meta">
-                    <span className="cc-pill-success">NT${service.price_per_hour_twd} / 小時</span>
-                    <span className="cc-pill-soft">{CATEGORY_LABEL[service.buddy_category]}</span>
-                    <span className="cc-pill-soft">{DELIVERY_LABEL[service.delivery_mode]}</span>
-                    <span className="cc-pill-soft">{INTERACTION_LABEL[service.interaction_style]}</span>
-                  </div>
-                  <div className="cc-muted" style={{ lineHeight: 1.75 }}>{service.summary}</div>
-                  <div className="cc-action-row" style={{ marginTop: 0, flexWrap: "wrap" }}>
-                    <span className="cc-pill-soft">{service.open_slots_count} 個可約時段</span>
-                    <span className="cc-pill-soft">{service.average_rating ? `${service.average_rating}★` : "尚無評價"}</span>
-                    <span className="cc-pill-soft">{VISIBILITY_LABEL[service.visibility]}</span>
-                  </div>
-                  <div className="cc-caption">
-                    {service.accepts_new_users ? "接受新手" : "較適合已熟悉彼此節奏的人"}
-                    {service.accepts_last_minute ? " · 接受臨時單" : ""}
-                  </div>
-                  <div className="cc-action-row">
-                    {service.provider_user_id === userId ? (
-                      <button className="cc-btn-primary" type="button" onClick={() => startEdit(service)}>
-                        編輯我的服務
-                      </button>
-                    ) : (
-                      <button className="cc-btn" type="button" disabled>
-                        預約詳情整理中
-                      </button>
-                    )}
-                  </div>
-                </article>
-              ))}
+                </div>
+              ) : (
+                <div className="cc-grid-3 cc-buddies-market-grid">
+                  {services.map((service) => (
+                    <article key={service.id} className="cc-card cc-stack-sm">
+                      <div className="cc-card-row" style={{ alignItems: "flex-start" }}>
+                        <div>
+                          <div className="cc-h3">{service.title}</div>
+                          <div className="cc-caption">
+                            {service.provider_profile?.display_name || "安感夥伴"}
+                            {service.provider_profile?.handle ? ` · @${service.provider_profile.handle}` : ""}
+                          </div>
+                        </div>
+                        {service.provider_profile?.is_professional_buddy ? <span className="cc-pill-accent">專業候選</span> : null}
+                      </div>
+                      <div className="cc-page-meta">
+                        <span className="cc-pill-success">NT${service.price_per_hour_twd} / 小時</span>
+                        <span className="cc-pill-soft">{CATEGORY_LABEL[service.buddy_category]}</span>
+                        <span className="cc-pill-soft">{DELIVERY_LABEL[service.delivery_mode]}</span>
+                        <span className="cc-pill-soft">{INTERACTION_LABEL[service.interaction_style]}</span>
+                      </div>
+                      <div className="cc-muted" style={{ lineHeight: 1.75 }}>{service.summary}</div>
+                      <div className="cc-action-row" style={{ marginTop: 0, flexWrap: "wrap" }}>
+                        <span className="cc-pill-soft">{service.open_slots_count} 個可約時段</span>
+                        <span className="cc-pill-soft">{service.average_rating ? `${service.average_rating}★` : "尚無評價"}</span>
+                        <span className="cc-pill-soft">{VISIBILITY_LABEL[service.visibility]}</span>
+                      </div>
+                      <div className="cc-caption">
+                        {service.accepts_new_users ? "接受新手" : "較適合已熟悉彼此節奏的人"}
+                        {service.accepts_last_minute ? " · 接受臨時單" : ""}
+                      </div>
+                      <div className="cc-action-row">
+                        {service.provider_user_id === userId ? (
+                          <button className="cc-btn-primary" type="button" onClick={() => startEdit(service)}>編輯我的服務</button>
+                        ) : (
+                          <button className="cc-btn" type="button" disabled>預約詳情整理中</button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </section>
+          </section>
+        </>
       ) : null}
 
       {tab === "services" ? (
-        <section className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
+        <section className="cc-section cc-grid-2 cc-mobile-stack-grid">
           <article className="cc-card cc-stack-md">
             <div className="cc-card-row">
               <div>
@@ -637,23 +525,21 @@ export default function BuddiesPage() {
             </div>
             <label className="cc-field">
               <span className="cc-field-label">服務標題</span>
-              <input className="cc-input" value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="例如：陪你讀書 1 小時" />
+              <input className="cc-input" value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
             </label>
             <label className="cc-field">
               <span className="cc-field-label">一句話摘要</span>
-              <input className="cc-input" value={form.summary} onChange={(e) => setForm((prev) => ({ ...prev, summary: e.target.value }))} placeholder="例如：適合想先開始但不想一個人撐的人。" />
+              <input className="cc-input" value={form.summary} onChange={(e) => setForm((prev) => ({ ...prev, summary: e.target.value }))} />
             </label>
             <label className="cc-field">
               <span className="cc-field-label">詳細說明</span>
-              <textarea className="cc-textarea" value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="用簡單文字說清楚你會怎麼互動、適合什麼人。" />
+              <textarea className="cc-textarea" value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} />
             </label>
-            <div className="cc-grid-3" style={{ gap: 12 }}>
+            <div className="cc-grid-3 cc-mobile-stack-grid" style={{ gap: 12 }}>
               <label className="cc-field">
                 <span className="cc-field-label">分類</span>
                 <select className="cc-select" value={form.buddy_category} onChange={(e) => setForm((prev) => ({ ...prev, buddy_category: e.target.value as BuddyCategory }))}>
-                  {CATEGORY_OPTIONS.filter((item) => item.value !== "all").map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
+                  {CATEGORY_OPTIONS.filter((item) => item.value !== "all").map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </label>
               <label className="cc-field">
@@ -674,7 +560,7 @@ export default function BuddiesPage() {
                 </select>
               </label>
             </div>
-            <div className="cc-grid-3" style={{ gap: 12 }}>
+            <div className="cc-grid-3 cc-mobile-stack-grid" style={{ gap: 12 }}>
               <label className="cc-field">
                 <span className="cc-field-label">價格 / 小時</span>
                 <input className="cc-input" type="number" min={100} max={20000} value={form.price_per_hour_twd} onChange={(e) => setForm((prev) => ({ ...prev, price_per_hour_twd: Number(e.target.value || 0) }))} />
@@ -699,11 +585,11 @@ export default function BuddiesPage() {
             </div>
             <label className="cc-field">
               <span className="cc-field-label">標籤</span>
-              <input className="cc-input" value={form.tag_list_input} onChange={(e) => setForm((prev) => ({ ...prev, tag_list_input: e.target.value }))} placeholder="例如：早起、學生、新手友善、低壓力" />
+              <input className="cc-input" value={form.tag_list_input} onChange={(e) => setForm((prev) => ({ ...prev, tag_list_input: e.target.value }))} />
             </label>
             <label className="cc-field">
               <span className="cc-field-label">可預約時段說明</span>
-              <input className="cc-input" value={form.availability_note} onChange={(e) => setForm((prev) => ({ ...prev, availability_note: e.target.value }))} placeholder="例如：平日 20:00 之後可約，週末可提早。" />
+              <input className="cc-input" value={form.availability_note} onChange={(e) => setForm((prev) => ({ ...prev, availability_note: e.target.value }))} />
             </label>
             <div className="cc-action-row">
               <label className="cc-row" style={{ alignItems: "center", gap: 8 }}>
@@ -719,11 +605,7 @@ export default function BuddiesPage() {
               <button className="cc-btn-primary" type="button" disabled={saving} onClick={saveService}>
                 {saving ? "儲存中…" : editingId ? "更新服務" : "上架我的服務"}
               </button>
-              {editingId ? (
-                <button className="cc-btn" type="button" onClick={resetForm}>
-                  取消編輯
-                </button>
-              ) : null}
+              {editingId ? <button className="cc-btn" type="button" onClick={resetForm}>取消編輯</button> : null}
             </div>
           </article>
 
@@ -757,9 +639,7 @@ export default function BuddiesPage() {
                       <span className="cc-pill-soft">{service.pending_bookings} 筆進行中</span>
                     </div>
                     <div className="cc-action-row">
-                      <button className="cc-btn" type="button" onClick={() => startEdit(service)}>
-                        編輯
-                      </button>
+                      <button className="cc-btn" type="button" onClick={() => startEdit(service)}>編輯</button>
                     </div>
                   </article>
                 ))}
@@ -770,7 +650,7 @@ export default function BuddiesPage() {
       ) : null}
 
       {tab === "bookings" ? (
-        <section className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
+        <section className="cc-section cc-grid-2 cc-mobile-stack-grid">
           <article className="cc-card cc-stack-md">
             <div>
               <p className="cc-card-kicker">收到的預約</p>
@@ -825,43 +705,26 @@ export default function BuddiesPage() {
         </section>
       ) : null}
 
-      <button
-        type="button"
-        className="cc-mobile-fab cc-mobile-only"
-        onClick={() => setTab("services")}
-        aria-label="上架我的服務"
-      >
+      <button type="button" className="cc-mobile-fab cc-mobile-only" onClick={() => setTab("services")} aria-label="上架我的服務">
         ＋ 上架
       </button>
 
       {mobileFiltersOpen ? (
         <div className="cc-mobile-sheet cc-mobile-only" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            className="cc-mobile-sheet__backdrop"
-            aria-label="關閉篩選面板"
-            onClick={() => setMobileFiltersOpen(false)}
-          />
+          <button type="button" className="cc-mobile-sheet__backdrop" aria-label="關閉篩選面板" onClick={() => setMobileFiltersOpen(false)} />
           <div className="cc-mobile-sheet__panel">
             <div className="cc-mobile-sheet__header">
               <div>
                 <div className="cc-card-kicker">Buddies 篩選</div>
                 <div className="cc-h3">先把選項縮小，再看適合自己的服務。</div>
               </div>
-              <button type="button" className="cc-btn" onClick={() => setMobileFiltersOpen(false)}>
-                關閉
-              </button>
+              <button type="button" className="cc-btn" onClick={() => setMobileFiltersOpen(false)}>關閉</button>
             </div>
 
             <div className="cc-stack-md">
               <div className="cc-action-row" style={{ marginTop: 0 }}>
                 {CATEGORY_OPTIONS.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={category === item.value ? "cc-btn-primary" : "cc-btn"}
-                    onClick={() => setCategory(item.value)}
-                  >
+                  <button key={item.value} type="button" className={category === item.value ? "cc-btn-primary" : "cc-btn"} onClick={() => setCategory(item.value)}>
                     {item.label}
                   </button>
                 ))}
