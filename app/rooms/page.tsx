@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { TopNav } from "@/components/TopNav";
@@ -278,6 +278,9 @@ export default function RoomsPage() {
   const [msg, setMsg] = useState("");
   const [activeScene, setActiveScene] = useState<SceneFilter>("all");
   const [contentMode, setContentMode] = useState<ContentMode>("now");
+  const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
+  const [mobileComposerMode, setMobileComposerMode] = useState<"instant" | "schedule" | "invite">("instant");
+
   const [instantTitle, setInstantTitle] = useState("晚間共工 50 分鐘｜安靜同行");
   const [instantCategory, setInstantCategory] = useState<RoomCategory>("focus");
   const [instantInteraction, setInstantInteraction] = useState<InteractionStyle>("silent");
@@ -297,54 +300,33 @@ export default function RoomsPage() {
   const [inviteCodeInput, setInviteCodeInput] = useState("");
   const [inviteResult, setInviteResult] = useState<InviteResult>(null);
 
+  function syncRoomsQuery(nextMode: ContentMode, nextScene: SceneFilter) {
+    const params = new URLSearchParams();
+    params.set("mode", nextMode);
+    if (nextScene !== "all") params.set("scene", nextScene);
+    router.replace(`/rooms?${params.toString()}#rooms-board`, { scroll: false });
+  }
+
+  function handleModeChange(nextMode: ContentMode) {
+    setContentMode(nextMode);
+    syncRoomsQuery(nextMode, activeScene);
+  }
+
+  function handleSceneChange(nextScene: SceneFilter) {
+    setActiveScene(nextScene);
+    const nextMode = contentMode;
+    syncRoomsQuery(nextMode, nextScene);
+  }
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let pendingTimer: number | null = null;
-
     const applyRouteState = () => {
-      const nextState = readRoomsRouteState();
-      setActiveScene((prev) => (prev === nextState.scene ? prev : nextState.scene));
-      setContentMode((prev) => (prev === nextState.mode ? prev : nextState.mode));
+      const next = readRoomsRouteState();
+      setActiveScene(next.scene);
+      setContentMode(next.mode);
     };
-
-    const scheduleApplyRouteState = () => {
-      if (pendingTimer !== null) {
-        window.clearTimeout(pendingTimer);
-      }
-      pendingTimer = window.setTimeout(() => {
-        pendingTimer = null;
-        applyRouteState();
-      }, 0);
-    };
-
-    const originalPushState = window.history.pushState.bind(window.history);
-    const originalReplaceState = window.history.replaceState.bind(window.history);
-
     applyRouteState();
-
-    window.history.pushState = function (...args) {
-      const result = originalPushState(...args);
-      scheduleApplyRouteState();
-      return result;
-    };
-
-    window.history.replaceState = function (...args) {
-      const result = originalReplaceState(...args);
-      scheduleApplyRouteState();
-      return result;
-    };
-
-    window.addEventListener("popstate", scheduleApplyRouteState);
-
-    return () => {
-      if (pendingTimer !== null) {
-        window.clearTimeout(pendingTimer);
-      }
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
-      window.removeEventListener("popstate", scheduleApplyRouteState);
-    };
+    window.addEventListener("popstate", applyRouteState);
+    return () => window.removeEventListener("popstate", applyRouteState);
   }, []);
 
   useEffect(() => {
@@ -483,6 +465,7 @@ export default function RoomsPage() {
     setBusy(false);
     if (result.error) return setMsg(result.error.message);
     setMsg("已建立排程。若是邀請制，系統會自動產生邀請碼。");
+    setMobileComposerOpen(false);
     await reloadAll(accessToken);
   }
 
@@ -527,6 +510,7 @@ export default function RoomsPage() {
     const nextRoomId = json?.room?.id as string | undefined;
     const inviteCode = json?.invite_code as string | null | undefined;
     setMsg(inviteCode ? `已建立同行空間。邀請碼：${inviteCode}` : "已建立同行空間。");
+    setMobileComposerOpen(false);
     await reloadAll(accessToken);
     if (nextRoomId) router.push(`/rooms/${nextRoomId}`);
   }
@@ -564,6 +548,7 @@ export default function RoomsPage() {
     const json = await resp.json().catch(() => ({} as any));
     setBusy(false);
     if (!resp.ok) return setMsg(json?.error || "加入邀請房失敗。");
+    setMobileComposerOpen(false);
     if (json?.roomId) router.push(`/rooms/${json.roomId}`);
   }
 
@@ -584,30 +569,240 @@ export default function RoomsPage() {
     backgroundPosition: "center",
   };
 
+  function renderInstantComposer() {
+    if (ownRoom) {
+      return (
+        <div className="cc-note cc-stack-sm">
+          <div className="cc-h3">你目前已有一間同行空間</div>
+          <div className="cc-muted">{ownRoom.title}</div>
+          <div className="cc-action-row">
+            <Link href={`/rooms/${ownRoom.id}`} className="cc-btn-primary">進入我的房間</Link>
+            {ownRoom.visibility === "invited" && ownRoom.invite_code ? (
+              <span className="cc-pill-accent">邀請碼：{ownRoom.invite_code}</span>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <label className="cc-field">
+          <span className="cc-field-label">房間名稱</span>
+          <input className="cc-input" value={instantTitle} onChange={(e) => setInstantTitle(e.target.value)} placeholder="例如：晚間共工 50 分鐘｜安靜同行" />
+        </label>
+        <div className="cc-grid-2">
+          <label className="cc-field">
+            <span className="cc-field-label">場景</span>
+            <select className="cc-select" value={activeScene === "all" ? instantCategory : activeScene} onChange={(e) => setInstantCategory(e.target.value as RoomCategory)} disabled={activeScene !== "all"}>
+              {ACTIVE_ROOM_SCENE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+          <label className="cc-field">
+            <span className="cc-field-label">互動形式</span>
+            <select className="cc-select" value={instantInteraction} onChange={(e) => setInstantInteraction(e.target.value as InteractionStyle)}>
+              {INTERACTION_STYLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="cc-grid-3" style={{ gap: 12 }}>
+          <label className="cc-field">
+            <span className="cc-field-label">房型</span>
+            <select
+              className="cc-select"
+              value={instantMode}
+              onChange={(e) => {
+                const nextMode = e.target.value as "pair" | "group";
+                setInstantMode(nextMode);
+                if (nextMode === "pair") setInstantSize(2);
+              }}
+            >
+              <option value="group">小組同行</option>
+              <option value="pair">雙人同行</option>
+            </select>
+          </label>
+          <label className="cc-field">
+            <span className="cc-field-label">時長</span>
+            <select className="cc-select" value={instantDuration} onChange={(e) => setInstantDuration(Number(e.target.value))}>
+              {INSTANT_ROOM_DURATION_OPTIONS.map((item) => <option key={item} value={item}>{formatDurationLabel(item)}（{costLabel(item)}）</option>)}
+            </select>
+          </label>
+          <label className="cc-field">
+            <span className="cc-field-label">可見性</span>
+            <select className="cc-select" value={instantVisibility} onChange={(e) => setInstantVisibility(e.target.value as ScheduleVisibility)}>
+              {SCHEDULE_VISIBILITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+        </div>
+        {instantMode === "group" ? (
+          <label className="cc-field">
+            <span className="cc-field-label">名額上限</span>
+            <select className="cc-select" value={instantSize} onChange={(e) => setInstantSize(Number(e.target.value))}>
+              {[4, 6].map((item) => <option key={item} value={item}>{item} 人</option>)}
+            </select>
+          </label>
+        ) : null}
+        <label className="cc-field">
+          <span className="cc-field-label">補充說明</span>
+          <textarea className="cc-textarea" value={instantNote} onChange={(e) => setInstantNote(e.target.value)} placeholder="例如：這場以安靜整理報表為主，中間只會簡短打招呼。" />
+        </label>
+        <button type="button" className="cc-btn-primary" onClick={createInstantRoom} disabled={busy || !instantTitle.trim()}>
+          {busy ? "建立中…" : "建立同行空間"}
+        </button>
+      </>
+    );
+  }
+
+  function renderScheduleComposer() {
+    return (
+      <>
+        <div className="cc-note">你目前已安排 {ownFutureScheduleCount} / 2 間未開始排程。</div>
+        <label className="cc-field">
+          <span className="cc-field-label">排程名稱</span>
+          <input className="cc-input" value={scheduleTitle} onChange={(e) => setScheduleTitle(e.target.value)} placeholder="例如：週二晚上整理房｜輕聊天" />
+        </label>
+        <div className="cc-grid-2">
+          <label className="cc-field">
+            <span className="cc-field-label">場景</span>
+            <select className="cc-select" value={activeScene === "all" ? roomCategory : activeScene} onChange={(e) => setRoomCategory(e.target.value as RoomCategory)} disabled={activeScene !== "all"}>
+              {ACTIVE_ROOM_SCENE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+          <label className="cc-field">
+            <span className="cc-field-label">互動形式</span>
+            <select className="cc-select" value={interactionStyle} onChange={(e) => setInteractionStyle(e.target.value as InteractionStyle)}>
+              {INTERACTION_STYLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="cc-grid-2">
+          <label className="cc-field">
+            <span className="cc-field-label">開始時間</span>
+            <input className="cc-input" type="datetime-local" min={minDatetimeLocalValue()} value={startAtInput} onChange={(e) => setStartAtInput(e.target.value)} />
+          </label>
+          <label className="cc-field">
+            <span className="cc-field-label">可見性</span>
+            <select className="cc-select" value={scheduleVisibility} onChange={(e) => setScheduleVisibility(e.target.value as ScheduleVisibility)}>
+              {SCHEDULE_VISIBILITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="cc-grid-2">
+          <label className="cc-field">
+            <span className="cc-field-label">時長</span>
+            <select className="cc-select" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
+              {SCHEDULE_DURATION_OPTIONS.map((item) => <option key={item} value={item}>{formatDurationLabel(item)}（{costLabel(item)}）</option>)}
+            </select>
+          </label>
+          <label className="cc-field">
+            <span className="cc-field-label">名額上限</span>
+            <select className="cc-select" value={seatLimit} onChange={(e) => setSeatLimit(Number(e.target.value))}>
+              {SCHEDULE_SEAT_LIMIT_OPTIONS.map((item) => <option key={item} value={item}>{item} 人</option>)}
+            </select>
+          </label>
+        </div>
+        <label className="cc-field">
+          <span className="cc-field-label">補充說明</span>
+          <textarea className="cc-textarea" value={scheduleNote} onChange={(e) => setScheduleNote(e.target.value)} placeholder="例如：這場以安靜整理報表為主，中間只會簡短打招呼。" />
+        </label>
+        <button type="button" className="cc-btn-primary" onClick={createSchedulePost} disabled={busy || ownFutureScheduleCount >= 2 || !scheduleTitle.trim()}>
+          {busy ? "建立中…" : "建立排程"}
+        </button>
+      </>
+    );
+  }
+
+  function renderInviteLookup() {
+    return (
+      <div className="cc-stack-sm">
+        <div>
+          <p className="cc-card-kicker">邀請碼入口</p>
+          <h2 className="cc-h2">對方給你邀請碼時，不用先懂很多規則。</h2>
+        </div>
+        <div className="cc-action-row" style={{ marginTop: 0, alignItems: "center" }}>
+          <input className="cc-input" style={{ flex: 1, minWidth: 0 }} value={inviteCodeInput} onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())} placeholder="例如：AB12CD34" />
+          <button type="button" className="cc-btn" onClick={resolveInviteCode} disabled={busy || !inviteCodeInput.trim()}>
+            查找
+          </button>
+        </div>
+        {inviteResult?.kind === "room" ? (
+          <div className="cc-note cc-stack-sm">
+            <div className="cc-h3">{inviteResult.room.title}</div>
+            <div className="cc-muted">
+              {labelForRoomScene(normalizeRoomCategoryForUi(inviteResult.room.room_category))} · {labelForInteractionStyle((inviteResult.room.interaction_style ?? "silent") as InteractionStyle)}
+            </div>
+            <button type="button" className="cc-btn-primary" disabled={busy} onClick={() => joinInvitedRoom(inviteResult.room.invite_code ?? inviteCodeInput)}>
+              使用邀請碼加入
+            </button>
+          </div>
+        ) : null}
+        {inviteResult?.kind === "schedule" ? (
+          <div className="cc-note cc-stack-sm">
+            <div className="cc-h3">{inviteResult.post.title}</div>
+            <div className="cc-muted">{formatDateTimeRange(inviteResult.post.start_at, inviteResult.post.end_at)}</div>
+            <div className="cc-caption">
+              {labelForRoomScene(inviteResult.post.room_category)} · {labelForInteractionStyle(inviteResult.post.interaction_style)}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  const mobileSheetContent: ReactNode =
+    mobileComposerMode === "instant"
+      ? renderInstantComposer()
+      : mobileComposerMode === "schedule"
+      ? renderScheduleComposer()
+      : renderInviteLookup();
+
   return (
     <main className="cc-container">
       <TopNav email={email} />
 
-      <section className="cc-hero">
-        <article className="cc-card cc-hero-main cc-stack-md">
+      <section className="cc-section">
+        <article className="cc-card cc-stack-md">
           <span className="cc-kicker">Rooms</span>
-          <p className="cc-eyebrow">
-            想立刻開始，或先把時間排好，都可以從這裡開始。
-          </p>
+          <p className="cc-eyebrow">想立刻開始，或先把時間排好，都可以從這裡開始。</p>
           <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
             先看現在能去哪裡，再決定要不要自己開房。
           </h1>
-          <p className="cc-lead" style={{ maxWidth: "40ch" }}>
-            想立刻找一段有人一起的時間，就看現在可進房。想先約好，就去排程專區。先選場景，再看房與排程。
+          <p className="cc-lead" style={{ maxWidth: "42ch" }}>
+            先選模式，再選場景。先看可加入的房，再決定是不是要自己開一間。工具留在後面，不先擠滿首屏。
           </p>
 
+          <div className="cc-mobile-only cc-stack-sm">
+            <button
+              type="button"
+              className="cc-btn-primary"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setMobileComposerMode(contentMode === "now" ? "instant" : "schedule");
+                setMobileComposerOpen(true);
+              }}
+            >
+              {contentMode === "now" ? "＋ 開新房間" : "＋ 建立排程"}
+            </button>
+            <button
+              type="button"
+              className="cc-btn"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setMobileComposerMode("invite");
+                setMobileComposerOpen(true);
+              }}
+            >
+              輸入邀請碼
+            </button>
+          </div>
+
           <div className="cc-control-group">
-            <div className="cc-control-label">第 1 步：現在要做哪件事</div>
+            <div className="cc-control-label">第 1 步：你現在要做哪件事？</div>
             <div className="cc-segment-grid">
               <button
                 type="button"
                 className={`cc-segment-btn ${contentMode === "now" ? "is-active" : ""}`}
-                onClick={() => setContentMode("now")}
+                onClick={() => handleModeChange("now")}
               >
                 <span className="cc-segment-btn__title">現在可進房</span>
                 <span className="cc-segment-btn__meta">{filteredRooms.length} 間可立即加入</span>
@@ -615,7 +810,7 @@ export default function RoomsPage() {
               <button
                 type="button"
                 className={`cc-segment-btn ${contentMode === "schedule" ? "is-active" : ""}`}
-                onClick={() => setContentMode("schedule")}
+                onClick={() => handleModeChange("schedule")}
               >
                 <span className="cc-segment-btn__title">排程專區</span>
                 <span className="cc-segment-btn__meta">{filteredSchedulePosts.length} 個接下來的時段</span>
@@ -624,15 +819,15 @@ export default function RoomsPage() {
           </div>
 
           <div className="cc-control-group">
-            <div className="cc-control-label">第 2 步：你想待在哪一種場景</div>
-            <div className="cc-filter-row">
+            <div className="cc-control-label">第 2 步：你想待在哪一種場景？</div>
+            <div className="cc-filter-row cc-filter-row-scroll">
               {ACTIVE_ROOM_SCENE_OPTIONS.map((scene) => (
                 <button
                   key={scene.value}
                   type="button"
                   className={`cc-filter-chip ${activeScene === scene.value ? "is-active" : ""}`}
                   style={activeScene === scene.value ? SCENE_TONES[scene.value].active : undefined}
-                  onClick={() => setActiveScene(scene.value)}
+                  onClick={() => handleSceneChange(scene.value)}
                 >
                   {scene.label} <span className="cc-pill-soft">{sceneCountSource[scene.value]}</span>
                 </button>
@@ -640,47 +835,13 @@ export default function RoomsPage() {
               <button
                 type="button"
                 className={`cc-filter-chip ${activeScene === "all" ? "is-active" : ""}`}
-                onClick={() => setActiveScene("all")}
+                onClick={() => handleSceneChange("all")}
               >
                 全部 <span className="cc-pill-soft">{sceneCountSource.all}</span>
               </button>
             </div>
           </div>
         </article>
-
-        <aside className="cc-hero-side">
-          <div className="cc-card cc-stack-md">
-            <div>
-              <p className="cc-card-kicker">怎麼挑比較快</p>
-              <h2 className="cc-h2">先用場景分家，再看房與排程，畫面會比較乾淨。</h2>
-            </div>
-            <div className="cc-note cc-stack-sm">
-              <div>專注任務：開始做事，不是一直聊天。</div>
-              <div>生活陪伴：陪自己過完一段普通日常。</div>
-              <div>主題分享：圍繞同一個主題，把一場對話聊完。</div>
-              <div>興趣同好：一起做喜歡的事，不一定要熱鬧。</div>
-            </div>
-          </div>
-
-          <div className="cc-card cc-stack-sm">
-            <p className="cc-card-kicker">你的目前狀態</p>
-            <h2 className="cc-h2">先知道自己現在能怎麼用。</h2>
-            <div className="cc-note cc-stack-sm">
-              <div>
-                目前方案：<strong>{status?.is_vip ? "VIP" : "FREE"}</strong>
-              </div>
-              <div>
-                本月剩餘：
-                <strong>
-                  {" "}
-                  {status?.is_vip
-                    ? "不限"
-                    : `${status?.credits_remaining ?? "?"} / ${status?.free_monthly_allowance ?? "?"}`}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </aside>
       </section>
 
       <section className="cc-section cc-stack-md">
@@ -689,33 +850,21 @@ export default function RoomsPage() {
             <p className="cc-card-kicker">Rooms 場景卡</p>
             <h2 className="cc-h2">先看四種場景，點下去就直接套用篩選。</h2>
           </div>
-          <Link href="/rooms?mode=now#rooms-board" className="cc-btn">
-            看全部房間
-          </Link>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gap: 14,
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          }}
-        >
+        <div className="cc-home-scene-grid">
           {sceneGalleryCards.map((card) => (
             <button
               key={card.value}
               type="button"
-              className="cc-card cc-card-link"
+              className="cc-card cc-card-link cc-home-scene-card"
               onClick={() => {
-                setActiveScene(card.value);
-                setContentMode("now");
+                handleModeChange("now");
+                handleSceneChange(card.value);
                 window.location.hash = "rooms-board";
               }}
               style={{
-                display: "grid",
-                gap: 14,
                 textAlign: "left",
-                minHeight: "100%",
                 background: `linear-gradient(180deg, rgba(255,255,255,0.30), ${SCENE_TONES[card.value].subtle.background})`,
               }}
             >
@@ -725,9 +874,7 @@ export default function RoomsPage() {
                 <div className="cc-muted" style={{ lineHeight: 1.7 }}>{card.body}</div>
                 <div className="cc-action-row" style={{ marginTop: 0 }}>
                   {card.pills.map((pill) => (
-                    <span key={pill} className="cc-pill-soft">
-                      {pill}
-                    </span>
+                    <span key={pill} className="cc-pill-soft">{pill}</span>
                   ))}
                 </div>
               </div>
@@ -739,7 +886,7 @@ export default function RoomsPage() {
 
       {msg ? <div className="cc-alert cc-alert-error cc-section">{msg}</div> : null}
 
-      <section id="rooms-board" className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
+      <section id="rooms-board" className="cc-section cc-rooms-board">
         <article className="cc-card cc-stack-md">
           <div className="cc-page-header" style={{ marginBottom: 0 }}>
             <div>
@@ -764,12 +911,12 @@ export default function RoomsPage() {
                 <div className="cc-stack-sm">
                   <div className="cc-h3">目前這個場景還沒有人開房。</div>
                   <div className="cc-muted">
-                    如果你現在就想開始，可以直接在右邊開一間。第一個開房的人，常常也是第一個開始的人。
+                    你可以成為第一個開房的人。想現在就開始，就開一間；想先約好，就切到排程專區。
                   </div>
                 </div>
               </div>
             ) : (
-              <ul className="cc-list">
+              <ul className="cc-list cc-list--flush">
                 {filteredRooms.map((room) => (
                   <li key={room.id}>
                     <Link
@@ -786,8 +933,7 @@ export default function RoomsPage() {
                           <span className="cc-pill-soft">{formatDurationLabel(room.duration_minutes)}</span>
                         </div>
                         <div className="cc-muted">
-                          {labelForVisibility(room.visibility)} · 最多 {room.max_size} 人 · 建立於{" "}
-                          {new Date(room.created_at).toLocaleDateString("zh-TW")}
+                          {labelForVisibility(room.visibility)} · 最多 {room.max_size} 人 · 建立於 {new Date(room.created_at).toLocaleDateString("zh-TW")}
                         </div>
                         {room.host_note ? <div className="cc-caption">{room.host_note}</div> : null}
                       </div>
@@ -817,10 +963,7 @@ export default function RoomsPage() {
                     className="cc-card cc-card-outline cc-stack-sm"
                     style={{ borderLeft: `4px solid ${SCENE_TONES[post.ui_scene].line}` }}
                   >
-                    <div
-                      className="cc-row"
-                      style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}
-                    >
+                    <div className="cc-row" style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
                       <div className="cc-stack-sm" style={{ flex: 1, minWidth: 0 }}>
                         <div className="cc-row" style={{ flexWrap: "wrap" }}>
                           <span className="cc-h3">{post.title}</span>
@@ -846,7 +989,7 @@ export default function RoomsPage() {
           )}
         </article>
 
-        <article className="cc-card cc-stack-md">
+        <aside id="rooms-composer" className="cc-card cc-stack-md cc-desktop-only">
           <div>
             <p className="cc-card-kicker">建立與加入</p>
             <h2 className="cc-h2">想自己開，或別人給你邀請碼，都在這裡。</h2>
@@ -867,177 +1010,56 @@ export default function RoomsPage() {
             </button>
           </div>
 
-          {contentMode === "now" ? (
-            ownRoom ? (
-              <div className="cc-note cc-stack-sm">
-                <div className="cc-h3">你目前已有一間同行空間</div>
-                <div className="cc-muted">{ownRoom.title}</div>
-                <div className="cc-action-row">
-                  <Link href={`/rooms/${ownRoom.id}`} className="cc-btn-primary">進入我的房間</Link>
-                  {ownRoom.visibility === "invited" && ownRoom.invite_code ? (
-                    <span className="cc-pill-accent">邀請碼：{ownRoom.invite_code}</span>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <>
-                <label className="cc-field">
-                  <span className="cc-field-label">房間名稱</span>
-                  <input className="cc-input" value={instantTitle} onChange={(e) => setInstantTitle(e.target.value)} placeholder="例如：晚間共工 50 分鐘｜安靜同行" />
-                </label>
-                <div className="cc-grid-2">
-                  <label className="cc-field">
-                    <span className="cc-field-label">場景</span>
-                    <select className="cc-select" value={activeScene === "all" ? instantCategory : activeScene} onChange={(e) => setInstantCategory(e.target.value as RoomCategory)} disabled={activeScene !== "all"}>
-                      {ACTIVE_ROOM_SCENE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
-                  </label>
-                  <label className="cc-field">
-                    <span className="cc-field-label">互動形式</span>
-                    <select className="cc-select" value={instantInteraction} onChange={(e) => setInstantInteraction(e.target.value as InteractionStyle)}>
-                      {INTERACTION_STYLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
-                  </label>
-                </div>
-                <div className="cc-grid-3" style={{ gap: 12 }}>
-                  <label className="cc-field">
-                    <span className="cc-field-label">房型</span>
-                    <select
-                      className="cc-select"
-                      value={instantMode}
-                      onChange={(e) => {
-                        const nextMode = e.target.value as "pair" | "group";
-                        setInstantMode(nextMode);
-                        if (nextMode === "pair") setInstantSize(2);
-                      }}
-                    >
-                      <option value="group">小組同行</option>
-                      <option value="pair">雙人同行</option>
-                    </select>
-                  </label>
-                  <label className="cc-field">
-                    <span className="cc-field-label">時長</span>
-                    <select className="cc-select" value={instantDuration} onChange={(e) => setInstantDuration(Number(e.target.value))}>
-                      {INSTANT_ROOM_DURATION_OPTIONS.map((item) => <option key={item} value={item}>{formatDurationLabel(item)}（{costLabel(item)}）</option>)}
-                    </select>
-                  </label>
-                  <label className="cc-field">
-                    <span className="cc-field-label">可見性</span>
-                    <select className="cc-select" value={instantVisibility} onChange={(e) => setInstantVisibility(e.target.value as ScheduleVisibility)}>
-                      {SCHEDULE_VISIBILITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
-                  </label>
-                </div>
-                {instantMode === "group" ? (
-                  <label className="cc-field">
-                    <span className="cc-field-label">名額上限</span>
-                    <select className="cc-select" value={instantSize} onChange={(e) => setInstantSize(Number(e.target.value))}>
-                      {[4, 6].map((item) => <option key={item} value={item}>{item} 人</option>)}
-                    </select>
-                  </label>
-                ) : null}
-                <label className="cc-field">
-                  <span className="cc-field-label">補充說明</span>
-                  <textarea className="cc-textarea" value={instantNote} onChange={(e) => setInstantNote(e.target.value)} placeholder="例如：這場以安靜整理報表為主，中間只會簡短打招呼。" />
-                </label>
-                <button type="button" className="cc-btn-primary" onClick={createInstantRoom} disabled={busy || !instantTitle.trim()}>
-                  {busy ? "建立中…" : "建立同行空間"}
-                </button>
-              </>
-            )
-          ) : (
-            <>
-              <div className="cc-note">你目前已安排 {ownFutureScheduleCount} / 2 間未開始排程。</div>
-              <label className="cc-field">
-                <span className="cc-field-label">排程名稱</span>
-                <input className="cc-input" value={scheduleTitle} onChange={(e) => setScheduleTitle(e.target.value)} placeholder="例如：週二晚上整理房｜輕聊天" />
-              </label>
-              <div className="cc-grid-2">
-                <label className="cc-field">
-                  <span className="cc-field-label">場景</span>
-                  <select className="cc-select" value={activeScene === "all" ? roomCategory : activeScene} onChange={(e) => setRoomCategory(e.target.value as RoomCategory)} disabled={activeScene !== "all"}>
-                    {ACTIVE_ROOM_SCENE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                  </select>
-                </label>
-                <label className="cc-field">
-                  <span className="cc-field-label">互動形式</span>
-                  <select className="cc-select" value={interactionStyle} onChange={(e) => setInteractionStyle(e.target.value as InteractionStyle)}>
-                    {INTERACTION_STYLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                  </select>
-                </label>
-              </div>
-              <div className="cc-grid-2">
-                <label className="cc-field">
-                  <span className="cc-field-label">開始時間</span>
-                  <input className="cc-input" type="datetime-local" min={minDatetimeLocalValue()} value={startAtInput} onChange={(e) => setStartAtInput(e.target.value)} />
-                </label>
-                <label className="cc-field">
-                  <span className="cc-field-label">可見性</span>
-                  <select className="cc-select" value={scheduleVisibility} onChange={(e) => setScheduleVisibility(e.target.value as ScheduleVisibility)}>
-                    {SCHEDULE_VISIBILITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                  </select>
-                </label>
-              </div>
-              <div className="cc-grid-2">
-                <label className="cc-field">
-                  <span className="cc-field-label">時長</span>
-                  <select className="cc-select" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
-                    {SCHEDULE_DURATION_OPTIONS.map((item) => <option key={item} value={item}>{formatDurationLabel(item)}（{costLabel(item)}）</option>)}
-                  </select>
-                </label>
-                <label className="cc-field">
-                  <span className="cc-field-label">名額上限</span>
-                  <select className="cc-select" value={seatLimit} onChange={(e) => setSeatLimit(Number(e.target.value))}>
-                    {SCHEDULE_SEAT_LIMIT_OPTIONS.map((item) => <option key={item} value={item}>{item} 人</option>)}
-                  </select>
-                </label>
-              </div>
-              <label className="cc-field">
-                <span className="cc-field-label">補充說明</span>
-                <textarea className="cc-textarea" value={scheduleNote} onChange={(e) => setScheduleNote(e.target.value)} placeholder="例如：這場以安靜整理報表為主，中間只會簡短打招呼。" />
-              </label>
-              <button type="button" className="cc-btn-primary" onClick={createSchedulePost} disabled={busy || ownFutureScheduleCount >= 2 || !scheduleTitle.trim()}>
-                {busy ? "建立中…" : "建立排程"}
-              </button>
-            </>
-          )}
+          {contentMode === "now" ? renderInstantComposer() : renderScheduleComposer()}
 
           <hr className="cc-soft-divider" />
+          {renderInviteLookup()}
+        </aside>
+      </section>
 
-          <div className="cc-stack-sm">
-            <div>
-              <p className="cc-card-kicker">邀請碼入口</p>
-              <h2 className="cc-h2">對方給你邀請碼時，不用先懂很多規則。</h2>
-            </div>
-            <div className="cc-action-row" style={{ marginTop: 0, alignItems: "center" }}>
-              <input className="cc-input" style={{ flex: 1, minWidth: 0 }} value={inviteCodeInput} onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())} placeholder="例如：AB12CD34" />
-              <button type="button" className="cc-btn" onClick={resolveInviteCode} disabled={busy || !inviteCodeInput.trim()}>
-                查找
+      {mobileComposerOpen ? (
+        <div className="cc-mobile-sheet cc-mobile-only" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="cc-mobile-sheet__backdrop"
+            aria-label="關閉建立房間面板"
+            onClick={() => setMobileComposerOpen(false)}
+          />
+          <div className="cc-mobile-sheet__panel">
+            <div className="cc-mobile-sheet__header">
+              <div>
+                <div className="cc-card-kicker">
+                  {mobileComposerMode === "instant" ? "建立同行空間" : mobileComposerMode === "schedule" ? "建立排程" : "邀請碼入口"}
+                </div>
+                <div className="cc-h3">
+                  {mobileComposerMode === "instant"
+                    ? "先決定這間房怎麼開始。"
+                    : mobileComposerMode === "schedule"
+                    ? "先把時間掛出來，等適合的人加入。"
+                    : "輸入邀請碼，直接找到對方的房或排程。"}
+                </div>
+              </div>
+              <button type="button" className="cc-btn" onClick={() => setMobileComposerOpen(false)}>
+                關閉
               </button>
             </div>
-            {inviteResult?.kind === "room" ? (
-              <div className="cc-note cc-stack-sm">
-                <div className="cc-h3">{inviteResult.room.title}</div>
-                <div className="cc-muted">
-                  {labelForRoomScene(normalizeRoomCategoryForUi(inviteResult.room.room_category))} · {labelForInteractionStyle((inviteResult.room.interaction_style ?? "silent") as InteractionStyle)}
-                </div>
-                <button type="button" className="cc-btn-primary" disabled={busy} onClick={() => joinInvitedRoom(inviteResult.room.invite_code ?? inviteCodeInput)}>
-                  使用邀請碼加入
-                </button>
-              </div>
-            ) : null}
-            {inviteResult?.kind === "schedule" ? (
-              <div className="cc-note cc-stack-sm">
-                <div className="cc-h3">{inviteResult.post.title}</div>
-                <div className="cc-muted">{formatDateTimeRange(inviteResult.post.start_at, inviteResult.post.end_at)}</div>
-                <div className="cc-caption">
-                  {labelForRoomScene(inviteResult.post.room_category)} · {labelForInteractionStyle(inviteResult.post.interaction_style)}
-                </div>
-              </div>
-            ) : null}
+
+            <div className="cc-action-row" style={{ marginTop: 0 }}>
+              <button type="button" className={mobileComposerMode === "instant" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("instant")}>
+                即時房
+              </button>
+              <button type="button" className={mobileComposerMode === "schedule" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("schedule")}>
+                排程
+              </button>
+              <button type="button" className={mobileComposerMode === "invite" ? "cc-btn-primary" : "cc-btn"} onClick={() => setMobileComposerMode("invite")}>
+                邀請碼
+              </button>
+            </div>
+
+            <div className="cc-stack-md">{mobileSheetContent}</div>
           </div>
-        </article>
-      </section>
+        </div>
+      ) : null}
 
       <SiteFooter />
     </main>
