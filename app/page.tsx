@@ -108,36 +108,36 @@ export default function Home() {
       <TopNav />
 
       <section className="cc-section">
-        <article className="cc-card cc-home-hero-card">
-          <div className="cc-home-hero-layout">
-            <div
-              className="cc-home-hero-visual"
-              aria-label="安感島首頁主視覺"
-              style={{
-                backgroundImage:
-                  `linear-gradient(180deg, rgba(255,255,255,0.03), rgba(17,19,24,0.08)), url(${HERO_POSTER})`,
-              }}
-            />
-            <div className="cc-home-hero-copy cc-stack-md">
+        <article
+          className="cc-card cc-home-hero-card cc-home-hero-card--image"
+          style={{
+            backgroundImage: `
+              linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.02) 45%, rgba(22,25,30,0.06) 57%, rgba(22,25,30,0.18) 68%, rgba(22,25,30,0.34) 82%, rgba(22,25,30,0.46) 100%),
+              url(${HERO_POSTER})
+            `,
+          }}
+        >
+          <div className="cc-home-hero-stage">
+            <div className="cc-home-hero-copy cc-home-hero-copy--floating cc-stack-md">
               <span className="cc-kicker">Calm&Co / 安感島</span>
-              <p className="cc-eyebrow">給獨自撐著的你，一個安靜靠岸的地方。</p>
-              <h1 className="cc-h1" style={{ maxWidth: "8ch" }}>
+              <p className="cc-home-hero-eyebrow">給獨自撐著的你，一個安靜靠岸的地方。</p>
+              <h1 className="cc-h1 cc-home-hero-title" style={{ maxWidth: "8ch" }}>
                 今天不用一個人開始。
               </h1>
-              <p className="cc-lead" style={{ maxWidth: "34ch" }}>
+              <p className="cc-home-hero-lead" style={{ maxWidth: "34ch" }}>
                 想立刻找人一起做事、一起待著，或想找更明確的陪伴夥伴，都可以從這裡開始。
               </p>
 
               <div className="cc-home-hero-actions">
-                <Link href="/rooms?mode=now#rooms-board" className="cc-btn-primary">
+                <Link href="/rooms?mode=now#rooms-board" className="cc-btn-primary cc-home-hero-btn-primary">
                   {isLoggedIn ? "進入同行空間" : "開始使用"}
                 </Link>
-                <Link href="/buddies" className="cc-btn">
+                <Link href="/buddies" className="cc-btn cc-home-hero-btn-secondary">
                   找安感夥伴
                 </Link>
               </div>
 
-              <div className="cc-page-meta cc-desktop-only">
+              <div className="cc-page-meta cc-home-hero-meta cc-desktop-only">
                 <span className="cc-pill-warning">免費每月 4 場</span>
                 <span className="cc-pill-soft">可即時進房</span>
                 <span className="cc-pill-soft">可排程</span>
@@ -152,7 +152,7 @@ export default function Home() {
         <div className="cc-page-header" style={{ marginBottom: 0 }}>
           <div>
             <p className="cc-card-kicker">先選一條路</p>
-            <h2 className="cc-h2">首頁只做一件事：讓你知道下一步按哪裡。</h2>
+            <h2 className="cc-h2">首頁先告訴你現在可以去哪裡，不先把整座島塞給你。</h2>
           </div>
         </div>
 
@@ -160,14 +160,16 @@ export default function Home() {
           {primaryPaths.map((card) => (
             <article
               key={card.title}
-              className="cc-card cc-card-soft cc-stack-sm"
+              className="cc-card cc-card-soft cc-stack-sm cc-fixed-card"
               style={{ background: `linear-gradient(180deg, rgba(255,255,255,0.30), ${card.tone})` }}
             >
-              <div className="cc-h3">{card.title}</div>
-              <div className="cc-muted" style={{ lineHeight: 1.72 }}>
-                {card.body}
+              <div className="cc-fixed-card__content cc-stack-sm">
+                <div className="cc-h3 cc-line-2">{card.title}</div>
+                <div className="cc-muted cc-line-3" style={{ lineHeight: 1.72 }}>
+                  {card.body}
+                </div>
               </div>
-              <Link href={card.href} className="cc-btn-link">
+              <Link href={card.href} className="cc-btn-link cc-fixed-card__cta">
                 {card.cta} →
               </Link>
             </article>
@@ -188,18 +190,22 @@ export default function Home() {
 
         <div className="cc-home-scene-grid">
           {sceneCards.map((card) => (
-            <Link key={card.key} href={card.href} className="cc-card cc-card-link cc-home-scene-card">
+            <Link key={card.key} href={card.href} className="cc-card cc-card-link cc-home-scene-card cc-fixed-card">
               <div style={sceneMediaStyle(card.image, SCENE_MEDIA_POSITION[card.key])} aria-label={card.alt} />
-              <div className="cc-stack-sm">
-                <div className="cc-h3">{card.title}</div>
-                <div className="cc-muted" style={{ lineHeight: 1.72 }}>{card.body}</div>
+              <div className="cc-fixed-card__content cc-stack-sm">
+                <div className="cc-h3 cc-line-2">{card.title}</div>
+                <div className="cc-muted cc-line-3" style={{ lineHeight: 1.72 }}>
+                  {card.body}
+                </div>
                 <div className="cc-action-row" style={{ marginTop: 0 }}>
                   {card.pills.map((pill) => (
-                    <span key={pill} className="cc-pill-soft">{pill}</span>
+                    <span key={pill} className="cc-pill-soft">
+                      {pill}
+                    </span>
                   ))}
                 </div>
               </div>
-              <span className="cc-btn-link">看這種房 →</span>
+              <span className="cc-btn-link cc-fixed-card__cta">看這種房 →</span>
             </Link>
           ))}
         </div>
@@ -230,13 +236,17 @@ export default function Home() {
             <h2 className="cc-h2">規則都看得到，但不會先壓在你臉上。</h2>
           </div>
           <div className="cc-action-row">
-            <Link href="/pricing" className="cc-btn">方案 / 價格</Link>
-            <Link href="/contact" className="cc-btn">客服</Link>
-            <Link href="/refund-policy" className="cc-btn">退款政策</Link>
+            <Link href="/pricing" className="cc-btn">
+              方案 / 價格
+            </Link>
+            <Link href="/contact" className="cc-btn">
+              客服
+            </Link>
+            <Link href="/refund-policy" className="cc-btn">
+              退款政策
+            </Link>
           </div>
-          <div className="cc-caption">
-            想先了解方案、客服、退款或隱私規則，都有公開頁面可以查。
-          </div>
+          <div className="cc-caption">想先了解方案、客服、退款或隱私規則，都有公開頁面可以查。</div>
         </article>
       </section>
 
