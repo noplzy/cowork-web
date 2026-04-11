@@ -18,7 +18,6 @@ const DESKTOP_NAV_ITEMS = [
   { href: "/buddies", label: "安感夥伴" },
   { href: "/pricing", label: "方案 / 價格" },
   { href: "/contact", label: "客服" },
-  { href: "/refund-policy", label: "退款政策" },
 ] as const;
 
 const MOBILE_PRIMARY_ITEMS = [
@@ -53,7 +52,7 @@ function getMobilePageTitle(pathname: string) {
 export function TopNav({ email, onSignOut }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const [sessionEmail, setSessionEmail] = useState("");
+  const [sessionEmail, setSessionEmail] = useState(email ?? "");
   const [resolved, setResolved] = useState(Boolean(email));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -82,6 +81,14 @@ export function TopNav({ email, onSignOut }: Props) {
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
   const currentEmail = useMemo(() => email || sessionEmail, [email, sessionEmail]);
   const isLoggedIn = Boolean(currentEmail);
   const pageTitle = useMemo(() => getMobilePageTitle(pathname), [pathname]);
@@ -103,7 +110,7 @@ export function TopNav({ email, onSignOut }: Props) {
       <header className="cc-navshell cc-desktop-only" aria-label="Desktop navigation">
         <div className="cc-navshell__glow" />
         <div className="cc-nav">
-          <div className="cc-row cc-nav__left" style={{ flexWrap: "wrap", alignItems: "center" }}>
+          <div className="cc-nav__brandrail">
             <Link className="cc-navbrand" href="/">
               <span className="cc-brandmark">島</span>
               <span className="cc-navbrandtext">
@@ -111,23 +118,25 @@ export function TopNav({ email, onSignOut }: Props) {
                 <span className="cc-brandsubtitle">不用一個人撐著，也能開始</span>
               </span>
             </Link>
-
-            <nav className="cc-navlinks" aria-label="Primary">
-              {DESKTOP_NAV_ITEMS.map((item) => {
-                const active = isActivePath(pathname, item.href);
-                return (
-                  <Link key={item.href} className={`cc-navlink${active ? " is-active" : ""}`} href={item.href}>
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
           </div>
 
-          <div className="cc-navmeta">
+          <nav className="cc-navlinks" aria-label="Primary">
+            {DESKTOP_NAV_ITEMS.map((item) => {
+              const active = isActivePath(pathname, item.href);
+              return (
+                <Link key={item.href} className={`cc-navlink${active ? " is-active" : ""}`} href={item.href}>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="cc-navmeta cc-navmeta--desktop">
             {!resolved ? null : isLoggedIn ? (
               <>
-                <span className="cc-navemail">{currentEmail}</span>
+                <span className="cc-navemail" title={currentEmail}>
+                  {currentEmail}
+                </span>
                 <Link className="cc-btn" href="/account">
                   我的島
                 </Link>
@@ -170,12 +179,12 @@ export function TopNav({ email, onSignOut }: Props) {
       </header>
 
       <div
-        className={`cc-mobile-menu-backdrop cc-mobile-only${mobileMenuOpen ? " is-open" : ""}`}
+        className={`cc-mobile-menu-backdrop${mobileMenuOpen ? " is-open" : ""}`}
         onClick={() => setMobileMenuOpen(false)}
         aria-hidden={!mobileMenuOpen}
       />
 
-      <div className={`cc-mobile-menu-panel cc-mobile-only${mobileMenuOpen ? " is-open" : ""}`}>
+      <div className={`cc-mobile-menu-panel${mobileMenuOpen ? " is-open" : ""}`}>
         <div className="cc-mobile-menu-panel__group">
           {MOBILE_MENU_ITEMS.map((item) => {
             const active = isActivePath(pathname, item.href);
@@ -217,7 +226,9 @@ export function TopNav({ email, onSignOut }: Props) {
           const active = isActivePath(pathname, item.href);
           return (
             <Link key={item.href} href={item.href} className={`cc-mobile-bottomnav__item${active ? " is-active" : ""}`}>
-              <span className="cc-mobile-bottomnav__icon" aria-hidden>{item.icon}</span>
+              <span className="cc-mobile-bottomnav__icon" aria-hidden>
+                {item.icon}
+              </span>
               <span>{item.label}</span>
             </Link>
           );
