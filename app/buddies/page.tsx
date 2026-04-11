@@ -235,6 +235,7 @@ export default function BuddiesPage() {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<ServicePayload>(defaultForm);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -384,120 +385,56 @@ export default function BuddiesPage() {
     boxShadow: "var(--cc-shadow-sm)",
   };
 
-  const buddiesCompactMediaStyle: CSSProperties = {
-    ...buddiesMediaStyle,
-    aspectRatio: "5 / 4",
-    backgroundPosition: "44% 46%",
-  };
-
   return (
     <main className="cc-container">
       <TopNav email={email} />
 
-      <section className="cc-hero">
-        <article
-          className="cc-card cc-hero-main cc-stack-md"
-          style={{
-            justifyContent: "space-between",
-            minHeight: 0,
-            gap: 22,
-          }}
-        >
-          <div className="cc-stack-md">
-            <span className="cc-kicker">Buddies</span>
-            <p className="cc-eyebrow">找安感夥伴，或把你的陪伴服務整理成能被理解的入口。</p>
-            <h1
-              className="cc-h1"
-              style={{
-                maxWidth: "11ch",
-                fontSize: "clamp(3rem, 6vw, 5.2rem)",
-                lineHeight: 0.98,
-                letterSpacing: "-0.04em",
-              }}
-            >
-              想找人陪你，或想開始提供陪伴，都可以從這裡開始。
-            </h1>
-            <p className="cc-lead" style={{ maxWidth: "34ch" }}>
-              先逛市場，再決定要不要上架；先看自己的服務與預約，再慢慢補細節。Buddies 應該像入口，不是厚重說明頁。
-            </p>
+      <section className="cc-section">
+        <article className="cc-card cc-stack-md">
+          <span className="cc-kicker">Buddies</span>
+          <p className="cc-eyebrow">找安感夥伴，或把你的陪伴服務整理成能被理解的入口。</p>
+          <div className="cc-buddies-hero">
+            <div className="cc-stack-md">
+              <h1 className="cc-h1" style={{ maxWidth: "10ch" }}>
+                想找人陪你，或想開始提供陪伴，都可以從這裡開始。
+              </h1>
+              <p className="cc-lead" style={{ maxWidth: "34ch" }}>
+                先逛市場，再決定要不要上架；先看自己的服務與預約，再慢慢補細節。Buddies 應該像入口，而不是厚重說明頁。
+              </p>
+              <div className="cc-page-meta">
+                <span className="cc-pill-soft">市場 {marketCount}</span>
+                <span className="cc-pill-soft">上架中 {myActiveCount}</span>
+                <span className="cc-pill-soft">待回覆 {pendingCount}</span>
+              </div>
+            </div>
+
+            <div className="cc-card cc-card-soft cc-stack-md">
+              <div style={buddiesMediaStyle} aria-label="Buddies 入口視覺圖" />
+              <div className="cc-note cc-stack-sm">
+                <div>先給你市場入口，不先灌你一整頁說明。</div>
+                <div>等你真的要深入，再去看服務詳情、預約規則與客服頁面。</div>
+              </div>
+            </div>
           </div>
 
-          <div className="cc-action-row" style={{ flexWrap: "wrap" }}>
-            <button type="button" className={tab === "market" ? "cc-btn-primary" : "cc-btn"} onClick={() => setTab("market")}>
+          <div className="cc-page-tabs cc-page-tabs--three">
+            <button type="button" className={`cc-page-tab ${tab === "market" ? "is-active" : ""}`} onClick={() => setTab("market")}>
               找安感夥伴
             </button>
-            <button type="button" className={tab === "services" ? "cc-btn-primary" : "cc-btn"} onClick={() => setTab("services")}>
+            <button type="button" className={`cc-page-tab ${tab === "services" ? "is-active" : ""}`} onClick={() => setTab("services")}>
               我的服務
             </button>
-            <button type="button" className={tab === "bookings" ? "cc-btn-primary" : "cc-btn"} onClick={() => setTab("bookings")}>
+            <button type="button" className={`cc-page-tab ${tab === "bookings" ? "is-active" : ""}`} onClick={() => setTab("bookings")}>
               我的預約
             </button>
           </div>
-
-          <div className="cc-grid-3" style={{ gap: 12 }}>
-            <div className="cc-panel">
-              <div className="cc-caption">市場服務數</div>
-              <div className="cc-h2" style={{ marginTop: 8 }}>{marketCount}</div>
-            </div>
-            <div className="cc-panel">
-              <div className="cc-caption">你上架中的服務</div>
-              <div className="cc-h2" style={{ marginTop: 8 }}>{myActiveCount}</div>
-            </div>
-            <div className="cc-panel">
-              <div className="cc-caption">待回覆預約</div>
-              <div className="cc-h2" style={{ marginTop: 8 }}>{pendingCount}</div>
-            </div>
-          </div>
-
-          <div className="cc-note cc-stack-sm" style={{ maxWidth: 560 }}>
-            <div>你可以先找人、先上架自己的服務，或回來看自己目前的預約狀態。</div>
-            <div>安全、退款、客服規則保留，但不搶第一屏閱讀焦點。</div>
-          </div>
         </article>
-
-        <aside className="cc-hero-side">
-          <div className="cc-card cc-stack-md">
-            <div>
-              <p className="cc-card-kicker">先看這裡能提供什麼</p>
-              <h2 className="cc-h2">先給你市場入口，而不是先灌一整頁說明。</h2>
-            </div>
-            <div style={buddiesCompactMediaStyle} aria-label="Buddies 入口視覺圖" />
-            <div className="cc-note cc-stack-sm">
-              <div>找陪跑、陪伴、可預約服務，先從入口卡開始就好。</div>
-              <div>等你真的要深入，再去看服務詳情、預約規則與客服頁面。</div>
-            </div>
-          </div>
-
-          <div className="cc-card cc-stack-md">
-            <div>
-              <p className="cc-card-kicker">這裡目前有哪些方向</p>
-              <h2 className="cc-h2">不是只有一種搭子，而是不同場景的陪伴方式。</h2>
-            </div>
-            <div style={{ display: "grid", gap: 12 }}>
-              {sceneIdeas.map((item) => (
-                <article
-                  key={item.title}
-                  className="cc-card cc-card-soft cc-stack-sm"
-                  style={{ padding: 16, background: `linear-gradient(180deg, rgba(255,255,255,0.28), ${item.tone})` }}
-                >
-                  <div className="cc-h3">{item.title}</div>
-                  <div className="cc-muted" style={{ lineHeight: 1.7 }}>{item.body}</div>
-                  <div className="cc-action-row" style={{ marginTop: 0 }}>
-                    {item.pills.map((pill) => (
-                      <span key={pill} className="cc-pill-soft">{pill}</span>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </aside>
       </section>
 
       {msg ? <div className="cc-alert cc-alert-error cc-section">{msg}</div> : null}
 
-      <section className="cc-section cc-grid-2" style={{ alignItems: "start" }}>
-        <article className="cc-card cc-stack-md">
+      <section className="cc-section cc-grid-2 cc-buddies-layout" style={{ alignItems: "start" }}>
+        <article className="cc-card cc-stack-md cc-desktop-only">
           <div>
             <p className="cc-card-kicker">探索與篩選</p>
             <h2 className="cc-h2">先把選項縮小，再挑適合自己的人。</h2>
@@ -551,15 +488,14 @@ export default function BuddiesPage() {
           </label>
         </article>
 
-        <article className="cc-card cc-stack-md">
+        <article className="cc-card cc-stack-md cc-desktop-only">
           <div>
             <p className="cc-card-kicker">信任與規則</p>
             <h2 className="cc-h2">讓人敢按預約，比堆功能更重要。</h2>
           </div>
           <div className="cc-note cc-stack-sm">
-            <div>卡片會直接顯示分類、價格、提供方式與互動風格。</div>
-            <div>是否接受新手、是否接受臨時單，也會直接標出來。</div>
-            <div>客服、退款與公開規則都有固定入口，不用自己猜。</div>
+            <div>卡片先顯示分類、價格、提供方式與互動風格。</div>
+            <div>安全、退款與客服規則保留在固定入口，不在每張卡旁邊重複轟炸。</div>
           </div>
           <div className="cc-action-row">
             <Link href="/contact" className="cc-btn">客服</Link>
@@ -570,6 +506,21 @@ export default function BuddiesPage() {
 
       {tab === "market" ? (
         <section className="cc-section cc-stack-md">
+          <div className="cc-mobile-only cc-stack-sm">
+            <div className="cc-field">
+              <span className="cc-field-label">搜尋</span>
+              <input
+                className="cc-input"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="搜尋陪跑、陪聊、運動搭子…"
+              />
+            </div>
+            <button type="button" className="cc-btn" style={{ width: "100%" }} onClick={() => setMobileFiltersOpen(true)}>
+              篩選與排序
+            </button>
+          </div>
+
           <div className="cc-page-header" style={{ marginBottom: 0 }}>
             <div>
               <p className="cc-card-kicker">找安感夥伴</p>
@@ -581,14 +532,7 @@ export default function BuddiesPage() {
           {loading ? (
             <div className="cc-card cc-empty-state">正在讀取安感夥伴服務…</div>
           ) : services.length === 0 ? (
-            <div
-              style={{
-                display: "grid",
-                gap: 16,
-                gridTemplateColumns: "minmax(300px, 0.92fr) minmax(320px, 1.08fr)",
-                alignItems: "start",
-              }}
-            >
+            <div className="cc-buddies-empty">
               <article className="cc-card cc-stack-md">
                 <div style={buddiesMediaStyle} aria-label="Buddies 服務入口示意圖" />
                 <div className="cc-stack-sm">
@@ -614,15 +558,13 @@ export default function BuddiesPage() {
                       <span className="cc-pill-success">NT${item.price} / 小時</span>
                       <span className="cc-pill-soft">線上</span>
                     </div>
-                    <button className="cc-btn" type="button" disabled>
-                      查看詳情（示例）
-                    </button>
+                    <button className="cc-btn" type="button" disabled>查看詳情（示例）</button>
                   </article>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="cc-grid-3" style={{ gap: 14 }}>
+            <div className="cc-grid-3 cc-buddies-market-grid" style={{ gap: 14 }}>
               {services.map((service) => (
                 <article
                   key={service.id}
@@ -658,7 +600,6 @@ export default function BuddiesPage() {
                   <div className="cc-muted" style={{ lineHeight: 1.75 }}>{service.summary}</div>
                   <div className="cc-action-row" style={{ marginTop: 0, flexWrap: "wrap" }}>
                     <span className="cc-pill-soft">{service.open_slots_count} 個可約時段</span>
-                    <span className="cc-pill-soft">{service.completed_bookings} 次完成</span>
                     <span className="cc-pill-soft">{service.average_rating ? `${service.average_rating}★` : "尚無評價"}</span>
                     <span className="cc-pill-soft">{VISIBILITY_LABEL[service.visibility]}</span>
                   </div>
@@ -882,6 +823,83 @@ export default function BuddiesPage() {
             )}
           </article>
         </section>
+      ) : null}
+
+      <button
+        type="button"
+        className="cc-mobile-fab cc-mobile-only"
+        onClick={() => setTab("services")}
+        aria-label="上架我的服務"
+      >
+        ＋ 上架
+      </button>
+
+      {mobileFiltersOpen ? (
+        <div className="cc-mobile-sheet cc-mobile-only" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="cc-mobile-sheet__backdrop"
+            aria-label="關閉篩選面板"
+            onClick={() => setMobileFiltersOpen(false)}
+          />
+          <div className="cc-mobile-sheet__panel">
+            <div className="cc-mobile-sheet__header">
+              <div>
+                <div className="cc-card-kicker">Buddies 篩選</div>
+                <div className="cc-h3">先把選項縮小，再看適合自己的服務。</div>
+              </div>
+              <button type="button" className="cc-btn" onClick={() => setMobileFiltersOpen(false)}>
+                關閉
+              </button>
+            </div>
+
+            <div className="cc-stack-md">
+              <div className="cc-action-row" style={{ marginTop: 0 }}>
+                {CATEGORY_OPTIONS.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={category === item.value ? "cc-btn-primary" : "cc-btn"}
+                    onClick={() => setCategory(item.value)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="cc-field">
+                <span className="cc-field-label">提供方式</span>
+                <select className="cc-select" value={delivery} onChange={(e) => setDelivery(e.target.value as "all" | DeliveryMode)}>
+                  <option value="all">全部</option>
+                  <option value="remote">線上</option>
+                  <option value="in_person">線下</option>
+                  <option value="hybrid">混合</option>
+                </select>
+              </label>
+
+              <label className="cc-field">
+                <span className="cc-field-label">排序</span>
+                <select className="cc-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+                  <option value="recommended">推薦</option>
+                  <option value="price_asc">價格低到高</option>
+                  <option value="price_desc">價格高到低</option>
+                  <option value="rating">評價最高</option>
+                  <option value="recent">最近更新</option>
+                  <option value="popular">最多完成</option>
+                </select>
+              </label>
+
+              <label className="cc-row" style={{ alignItems: "center", gap: 10 }}>
+                <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} />
+                <span className="cc-field-label">只看已標示專業搭子候選</span>
+              </label>
+
+              <button type="button" className="cc-btn-primary" onClick={() => setMobileFiltersOpen(false)}>
+                套用篩選
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <SiteFooter />
