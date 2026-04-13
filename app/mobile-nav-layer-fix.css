@@ -1,9 +1,13 @@
-/* mobile_nav_layer_fix_v2
-   Scope:
-   1) keep mobile top bar pinned at the top
-   2) ensure top bar / menu / bottom nav always sit above page content
-   3) avoid touching Hero or page layout beyond the required safe spacing
+/* mobile_nav_rootfix_v3
+   Core fix:
+   1) undo body scroll-container behavior on mobile Safari
+   2) keep mobile top bar / menu / bottom nav pinned above page content
+   3) preserve existing Hero / card / page layout as much as possible
 */
+
+html {
+  overflow-x: hidden;
+}
 
 @media (max-width: 767px) {
   html,
@@ -11,15 +15,37 @@
     scroll-padding-top: calc(92px + env(safe-area-inset-top, 0px));
   }
 
+  body.cc-shell {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
+
   body {
     padding-top: calc(84px + env(safe-area-inset-top, 0px));
+  }
+
+  .cc-container {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    padding-top: 0;
+  }
+
+  main,
+  section,
+  article {
+    position: relative;
   }
 
   .cc-mobile-topbar,
   .cc-mobile-menu-backdrop,
   .cc-mobile-menu-panel,
-  .cc-mobile-bottomnav {
-    isolation: isolate;
+  .cc-mobile-bottomnav,
+  .cc-mobile-fab {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
   }
 
   .cc-mobile-topbar {
@@ -27,27 +53,23 @@
     top: calc(10px + env(safe-area-inset-top, 0px));
     left: 10px;
     right: 10px;
-    z-index: 2140 !important;
+    z-index: 2147483000 !important;
   }
 
   .cc-mobile-menu-backdrop {
-    z-index: 2145 !important;
+    z-index: 2147483001 !important;
   }
 
   .cc-mobile-menu-panel {
     top: calc(78px + env(safe-area-inset-top, 0px));
-    z-index: 2146 !important;
+    z-index: 2147483002 !important;
   }
 
   .cc-mobile-bottomnav {
-    z-index: 2141 !important;
+    z-index: 2147483000 !important;
   }
 
   .cc-mobile-fab {
-    z-index: 2142 !important;
-  }
-
-  .cc-container {
-    padding-top: 0;
+    z-index: 2147483001 !important;
   }
 }
