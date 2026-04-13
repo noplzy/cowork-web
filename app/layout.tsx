@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./mobile-desktop-overrides.css";
 import { AuthSessionGuard } from "@/components/AuthSessionGuard";
+import { PublicAppChrome } from "@/components/PublicAppChrome";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +29,7 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased cc-shell`}>
         <AuthSessionGuard />
-        {children}
+        <PublicAppChrome>{children}</PublicAppChrome>
       </body>
     </html>
   );
