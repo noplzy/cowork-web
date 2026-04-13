@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
+import { BUSINESS_PROFILE } from "@/lib/businessProfile";
 
 export default function ServiceDeliveryPage() {
   return (
@@ -66,7 +67,16 @@ export default function ServiceDeliveryPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">5. 正式上線保留方案</h2>
+          <h2 className="cc-h3">5. 商業登記資訊</h2>
+          <div className="cc-note cc-stack-sm">
+            <div>商業名稱：{BUSINESS_PROFILE.legalBusinessName}</div>
+            <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
+            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+          </div>
+        </article>
+
+        <article className="cc-card cc-card-soft cc-stack-sm">
+          <h2 className="cc-h3">6. 正式上線保留方案</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             月訂閱與年方案會保留到正式上線再開放。等自動扣款、取消流程、查單與客服流程都穩定後，
             才會另外公告新的交付與續約規則。

@@ -12,6 +12,7 @@ import {
   clearAccountStatusCache,
 } from "@/lib/accountStatusClient";
 import { ACTIVE_BILLING_PLAN, FUTURE_BILLING_PLANS } from "@/lib/billingPlans";
+import { BUSINESS_PROFILE } from "@/lib/businessProfile";
 
 type CheckoutResp = {
   action: string;
@@ -145,7 +146,8 @@ export default function PricingPage() {
                   目前方案：<strong>{status.is_vip ? "VIP" : "FREE"}</strong>
                 </div>
                 <div>
-                  本月剩餘：<strong>{status.is_vip ? "不限" : `${status.credits_remaining ?? "?"} / ${status.free_monthly_allowance}`}</strong>
+                  本月剩餘：
+                  <strong>{status.is_vip ? "不限" : `${status.credits_remaining ?? "?"} / ${status.free_monthly_allowance}`}</strong>
                 </div>
                 {status.vip_until ? <div>VIP 到期：{new Date(status.vip_until).toLocaleString()}</div> : null}
               </div>
@@ -167,7 +169,10 @@ export default function PricingPage() {
       {msg ? <div className="cc-alert cc-alert-error cc-section">{msg}</div> : null}
 
       <section className="cc-section cc-grid-2">
-        <article className="cc-card cc-stack-md" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.34), var(--cc-scene-focus))" }}>
+        <article
+          className="cc-card cc-stack-md"
+          style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.34), var(--cc-scene-focus))" }}
+        >
           <div className="cc-card-row">
             <div>
               <p className="cc-card-kicker">Free</p>
@@ -187,7 +192,10 @@ export default function PricingPage() {
           </div>
         </article>
 
-        <article className="cc-card cc-stack-md" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.34), var(--cc-scene-life))" }}>
+        <article
+          className="cc-card cc-stack-md"
+          style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.34), var(--cc-scene-life))" }}
+        >
           <div className="cc-card-row">
             <div>
               <p className="cc-card-kicker">VIP</p>
@@ -212,6 +220,25 @@ export default function PricingPage() {
                 {buying ? "正在前往付款…" : "使用信用卡升級 VIP"}
               </button>
             )}
+          </div>
+        </article>
+      </section>
+
+      <section className="cc-section">
+        <article className="cc-card cc-stack-md">
+          <div className="cc-card-row">
+            <div>
+              <p className="cc-card-kicker">商業登記資訊</p>
+              <h2 className="cc-h2">付款頁面先把營運主體講清楚，對查單與審核都比較穩。</h2>
+            </div>
+            <span className="cc-pill-soft">一次性付款 / 不自動續扣</span>
+          </div>
+          <div className="cc-note cc-stack-sm">
+            <div>商業名稱：{BUSINESS_PROFILE.legalBusinessName}</div>
+            <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
+            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+            <div>客服 Email：{BUSINESS_PROFILE.supportEmail}</div>
+            <div>客服電話：{BUSINESS_PROFILE.supportPhone}</div>
           </div>
         </article>
       </section>

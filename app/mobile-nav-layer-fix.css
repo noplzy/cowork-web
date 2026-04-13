@@ -1,55 +1,53 @@
-/* mobile_nav_layer_fix_v1
-   Goal:
-   1) keep current live visual layout
-   2) fix mobile top bar / menu / bottom nav z-index
-   3) make mobile top bar pinned on screen
-   4) avoid touching hero / card / desktop layout
+/* mobile_nav_layer_fix_v2
+   Scope:
+   1) keep mobile top bar pinned at the top
+   2) ensure top bar / menu / bottom nav always sit above page content
+   3) avoid touching Hero or page layout beyond the required safe spacing
 */
 
 @media (max-width: 767px) {
+  html,
+  body {
+    scroll-padding-top: calc(92px + env(safe-area-inset-top, 0px));
+  }
+
+  body {
+    padding-top: calc(84px + env(safe-area-inset-top, 0px));
+  }
+
+  .cc-mobile-topbar,
+  .cc-mobile-menu-backdrop,
+  .cc-mobile-menu-panel,
+  .cc-mobile-bottomnav {
+    isolation: isolate;
+  }
+
   .cc-mobile-topbar {
     position: fixed !important;
+    top: calc(10px + env(safe-area-inset-top, 0px));
     left: 10px;
     right: 10px;
-    top: calc(10px + env(safe-area-inset-top, 0px));
-    z-index: 120 !important;
-    width: auto;
-    display: grid !important;
+    z-index: 2140 !important;
   }
 
   .cc-mobile-menu-backdrop {
-    z-index: 130 !important;
+    z-index: 2145 !important;
   }
 
   .cc-mobile-menu-panel {
-    top: calc(76px + env(safe-area-inset-top, 0px));
-    z-index: 131 !important;
+    top: calc(78px + env(safe-area-inset-top, 0px));
+    z-index: 2146 !important;
   }
 
   .cc-mobile-bottomnav {
-    z-index: 119 !important;
-    left: 10px;
-    right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    display: grid !important;
+    z-index: 2141 !important;
   }
 
   .cc-mobile-fab {
-    z-index: 118 !important;
+    z-index: 2142 !important;
   }
 
-  .cc-mobile-sheet {
-    z-index: 110 !important;
-  }
-
-  /* When TopNav is mounted before page content in the shared shell,
-     reserve visual space for the pinned top bar without changing desktop. */
-  .cc-container > .cc-mobile-bottomnav ~ * {
-    margin-top: calc(82px + env(safe-area-inset-top, 0px));
-  }
-
-  /* Keep the page clear of the fixed bottom nav */
-  body {
-    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  .cc-container {
+    padding-top: 0;
   }
 }
