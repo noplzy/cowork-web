@@ -8,6 +8,7 @@ const footerLinks = [
   { href: "/contact", label: "客服" },
   { href: "/privacy", label: "隱私權政策" },
   { href: "/terms", label: "服務條款" },
+  { href: "/verification-policy", label: "驗證與安全政策" },
 ];
 
 export function SiteFooter() {

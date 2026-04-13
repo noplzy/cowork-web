@@ -44,11 +44,11 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
       <section className="cc-section cc-grid-2">
         <article className="cc-card cc-stack-md">
           <span className="cc-kicker">Contact</span>
-          <p className="cc-eyebrow">客服、付款異常、人工退款審核，現在統一走公開表單。</p>
+          <p className="cc-eyebrow">客服、付款異常、人工退款審核、驗證申訴，現在統一走公開表單。</p>
           <h1 className="cc-h2">客服入口先求穩，不再依賴 mailto。</h1>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.85 }}>
             這一版先不做站內私訊客服。
-            你可以直接透過公開 Google Form 送出客服、付款異常或人工退款審核資料，
+            你可以直接透過公開 Google Form 送出客服、付款異常、驗證申訴或人工退款審核資料，
             我們再用你填寫的聯絡 Email 回覆。
           </p>
 
@@ -65,8 +65,8 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
             <Link href="/refund-policy" className="cc-btn">
               退款 / 取消政策
             </Link>
-            <Link href="/service-delivery" className="cc-btn">
-              服務交付
+            <Link href="/verification-policy" className="cc-btn">
+              驗證與安全政策
             </Link>
           </div>
 
@@ -108,6 +108,7 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
             <li>重複扣款</li>
             <li>人工退款審核申請</li>
             <li>登入 / 帳號問題</li>
+            <li>驗證失敗 / 驗證申訴 / OTP 問題</li>
             <li>封鎖申訴</li>
             <li>房內使用者檢舉</li>
             <li>其他問題</li>
@@ -138,7 +139,7 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
           <ul className="cc-bullets">
             <li>目前沒有自動續扣，所以不用申請取消下期續費。</li>
             <li>目前也沒有年方案，所以不用處理年約解約。</li>
-            <li>先把付款、查單、權益入帳、人工退款審核這條路線跑穩更重要。</li>
+            <li>若未來正式導入 OTP、簡訊或身分驗證，本頁會同步更新相關申訴入口。</li>
           </ul>
         </article>
       </section>
