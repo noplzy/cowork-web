@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BUSINESS_PROFILE } from "@/lib/businessProfile";
 
 const footerLinks = [
   { href: "/rooms", label: "同行空間" },
@@ -46,7 +47,10 @@ export function SiteFooter() {
                 letterSpacing: "0.02em",
               }}
             >
-              安感島 <span style={{ color: "rgba(255,245,238,0.58)", fontWeight: 600 }}>by Calm&Co</span>
+              {BUSINESS_PROFILE.brandName}{" "}
+              <span style={{ color: "rgba(255,245,238,0.58)", fontWeight: 600 }}>
+                {BUSINESS_PROFILE.brandSubtitle}
+              </span>
             </div>
             <p
               style={{
@@ -59,20 +63,32 @@ export function SiteFooter() {
               給想找人一起開始、一起撐過一段時間、一起把事情做完的人。先把同行空間做穩，再把安感夥伴、
               信任機制與服務體驗慢慢補齊。
             </p>
+            <div
+              style={{
+                marginTop: 12,
+                color: "rgba(255,245,238,0.62)",
+                lineHeight: 1.7,
+                fontSize: "0.9rem",
+              }}
+            >
+              <div>{BUSINESS_PROFILE.legalBusinessName}</div>
+              <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
+              <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+            </div>
           </div>
 
           <div
             style={{
-              minWidth: 240,
+              minWidth: 260,
               color: "rgba(255,245,238,0.78)",
               lineHeight: 1.9,
               fontSize: "0.95rem",
             }}
           >
             <div style={{ fontWeight: 700, color: "rgba(255,245,238,0.92)" }}>客服資訊</div>
-            <div>Email：noccs75@gmail.com</div>
-            <div>電話：0968730221</div>
-            <div>客服時段：每日 10:00–00:00</div>
+            <div>Email：{BUSINESS_PROFILE.supportEmail}</div>
+            <div>電話：{BUSINESS_PROFILE.supportPhone}</div>
+            <div>客服時段：{BUSINESS_PROFILE.supportHours}</div>
           </div>
         </div>
 

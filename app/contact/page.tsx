@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SUPPORT_FORM_URL, hasSupportFormUrl } from "@/lib/supportForm";
+import { BUSINESS_PROFILE } from "@/lib/businessProfile";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -120,12 +121,15 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
 
       <section className="cc-section cc-grid-2">
         <article className="cc-card cc-stack-sm">
-          <p className="cc-card-kicker">客服資訊</p>
+          <p className="cc-card-kicker">客服與營運主體資訊</p>
           <div className="cc-note cc-stack-sm">
-            <div>Email：noccs75@gmail.com</div>
-            <div>電話：0968730221</div>
-            <div>客服時段：每日 10:00~00:00</div>
-            <div>地址：高雄市前鎮區廣東三街89號</div>
+            <div>品牌：{BUSINESS_PROFILE.brandName}</div>
+            <div>商業名稱：{BUSINESS_PROFILE.legalBusinessName}</div>
+            <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
+            <div>Email：{BUSINESS_PROFILE.supportEmail}</div>
+            <div>電話：{BUSINESS_PROFILE.supportPhone}</div>
+            <div>客服時段：{BUSINESS_PROFILE.supportHours}</div>
+            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
           </div>
         </article>
 

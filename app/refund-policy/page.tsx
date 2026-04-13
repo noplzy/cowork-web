@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
+import { BUSINESS_PROFILE } from "@/lib/businessProfile";
 
 export default function RefundPolicyPage() {
   return (
@@ -81,7 +82,18 @@ export default function RefundPolicyPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">7. 正式上線後的方案另行公告</h2>
+          <h2 className="cc-h3">7. 營運主體與聯絡方式</h2>
+          <div className="cc-note cc-stack-sm">
+            <div>商業名稱：{BUSINESS_PROFILE.legalBusinessName}</div>
+            <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
+            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+            <div>客服 Email：{BUSINESS_PROFILE.supportEmail}</div>
+            <div>客服電話：{BUSINESS_PROFILE.supportPhone}</div>
+          </div>
+        </article>
+
+        <article className="cc-card cc-card-soft cc-stack-sm">
+          <h2 className="cc-h3">8. 正式上線後的方案另行公告</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             未來若開放月訂閱、自動續扣或年方案，退款、取消、終止與續約規則會另外公開。
             不同方案可能有不同的適用條件，不能直接套用本頁的試營運規則。
