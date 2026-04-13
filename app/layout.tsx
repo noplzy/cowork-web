@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./mobile-desktop-overrides.css";
+import "./mobile-nav-layer-fix.css";
 import { AuthSessionGuard } from "@/components/AuthSessionGuard";
 import { PublicAppChrome } from "@/components/PublicAppChrome";
 
