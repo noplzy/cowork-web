@@ -178,13 +178,70 @@ function readRoomsRouteState(): { scene: SceneFilter; mode: ContentMode } {
   return { scene, mode };
 }
 
-async function loadRooms() {
+type RoomsBoardSnapshot = {
+  rooms: Room[];
+  schedulePosts: ScheduledRoomPostRow[];
+  hostProfiles: Record<string, PublicProfileRow>;
+  generatedAt: string;
+  cacheState: "cached" | "fresh";
+  buildTag: string;
+};
+
+async function loadPublicRoomsBoardSnapshot(options?: { fresh?: boolean }) {
+  const url = new URL("/api/public/rooms-board", window.location.origin);
+  if (options?.fresh) {
+    url.searchParams.set("fresh", "1");
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    cache: options?.fresh ? "no-store" : "default",
+    headers: options?.fresh ? { "Cache-Control": "no-cache" } : undefined,
+  });
+
+  const json = (await response.json().catch(() => null)) as
+    | RoomsBoardSnapshot
+    | { error?: string }
+    | null;
+
+  if (!response.ok || !json || !("rooms" in json)) {
+    throw new Error(
+      !response.ok && json && "error" in json && json.error
+        ? json.error
+        : "讀取同行空間快取失敗。"
+    );
+  }
+
+  return json;
+}
+
+async function loadOwnRoom(currentUserId: string) {
+  if (!currentUserId) return null;
   const result = await supabase
     .from("rooms")
-    .select("id,title,duration_minutes,mode,max_size,created_at,created_by,room_category,interaction_style,visibility,host_note,invite_code")
-    .order("created_at", { ascending: false });
+    .select(
+      "id,title,duration_minutes,mode,max_size,created_at,created_by,room_category,interaction_style,visibility,host_note,invite_code"
+    )
+    .eq("created_by", currentUserId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   if (result.error) throw result.error;
-  return (result.data ?? []) as Room[];
+  return (result.data ?? null) as Room | null;
+}
+
+async function loadOwnFutureScheduleCount(currentUserId: string) {
+  if (!currentUserId) return 0;
+
+  const result = await supabase
+    .from("scheduled_room_posts")
+    .select("id", { count: "exact", head: true })
+    .eq("host_user_id", currentUserId)
+    .gt("start_at", new Date().toISOString());
+
+  if (result.error) throw result.error;
+  return result.count ?? 0;
 }
 
 export default function RoomsPage() {
@@ -196,6 +253,11 @@ export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [schedulePosts, setSchedulePosts] = useState<ScheduledRoomPostRow[]>([]);
   const [hostProfiles, setHostProfiles] = useState<Record<string, PublicProfileRow>>({});
+  const [ownRoom, setOwnRoom] = useState<Room | null>(null);
+  const [ownFutureScheduleCount, setOwnFutureScheduleCount] = useState(0);
+  const [boardGeneratedAt, setBoardGeneratedAt] = useState("");
+  const [boardCacheState, setBoardCacheState] = useState<"cached" | "fresh" | null>(null);
+  const [boardBuildTag, setBoardBuildTag] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -261,39 +323,33 @@ export default function RoomsPage() {
     }
   }, [activeScene]);
 
-  async function loadScheduleBoard() {
-    const postsResult = await supabase
-      .from("scheduled_room_posts")
-      .select("*")
-      .gt("start_at", new Date().toISOString())
-      .order("start_at", { ascending: true })
-      .limit(20);
-    if (postsResult.error) throw postsResult.error;
-    const postRows = (postsResult.data ?? []) as ScheduledRoomPostRow[];
-    setSchedulePosts(postRows);
-
-    const hostIds = Array.from(new Set(postRows.map((item) => item.host_user_id)));
-    if (hostIds.length === 0) {
-      setHostProfiles({});
-      return;
-    }
-    const profilesResult = await supabase.from("profiles").select("*").in("user_id", hostIds);
-    if (profilesResult.error) throw profilesResult.error;
-    const profileMap = Object.fromEntries(((profilesResult.data ?? []) as PublicProfileRow[]).map((item) => [item.user_id, item]));
-    setHostProfiles(profileMap);
-  }
-
-  async function reloadAll(currentAccessToken?: string) {
+  async function reloadAll(params?: {
+    currentAccessToken?: string;
+    currentUserId?: string;
+    fresh?: boolean;
+  }) {
     setLoading(true);
     setMsg("");
+
     try {
-      const [statusResult, roomRows] = await Promise.all([
-        currentAccessToken ? fetchAccountStatus(currentAccessToken).catch(() => null) : Promise.resolve(null),
-        loadRooms(),
+      const [statusResult, boardSnapshot, nextOwnRoom, nextOwnScheduleCount] = await Promise.all([
+        params?.currentAccessToken
+          ? fetchAccountStatus(params.currentAccessToken).catch(() => null)
+          : Promise.resolve(null),
+        loadPublicRoomsBoardSnapshot({ fresh: params?.fresh }),
+        params?.currentUserId ? loadOwnRoom(params.currentUserId) : Promise.resolve(null),
+        params?.currentUserId ? loadOwnFutureScheduleCount(params.currentUserId) : Promise.resolve(0),
       ]);
+
       if (statusResult) setStatus(statusResult);
-      setRooms(roomRows);
-      await loadScheduleBoard();
+      setRooms(boardSnapshot.rooms);
+      setSchedulePosts(boardSnapshot.schedulePosts);
+      setHostProfiles(boardSnapshot.hostProfiles);
+      setBoardGeneratedAt(boardSnapshot.generatedAt);
+      setBoardCacheState(boardSnapshot.cacheState);
+      setBoardBuildTag(boardSnapshot.buildTag);
+      setOwnRoom(nextOwnRoom);
+      setOwnFutureScheduleCount(nextOwnScheduleCount);
     } catch (error: any) {
       setMsg(error?.message || "讀取同行空間失敗。");
     } finally {
@@ -313,7 +369,10 @@ export default function RoomsPage() {
       setEmail(session.email);
       setUserId(session.user.id);
       setAccessToken(session.accessToken ?? "");
-      await reloadAll(session.accessToken ?? "");
+      await reloadAll({
+        currentAccessToken: session.accessToken ?? "",
+        currentUserId: session.user.id,
+      });
     })();
     return () => {
       cancelled = true;
@@ -342,12 +401,6 @@ export default function RoomsPage() {
   );
 
   const sceneGalleryCards = ACTIVE_ROOM_SCENE_OPTIONS.map((item) => ({ ...item, ...SCENE_COPY[item.value] }));
-  const ownRoom = useMemo(() => normalizedRooms.find((room) => room.created_by === userId) ?? null, [normalizedRooms, userId]);
-  const ownFutureScheduleCount = useMemo(
-    () => normalizedSchedulePosts.filter((post) => post.host_user_id === userId).length,
-    [normalizedSchedulePosts, userId],
-  );
-
   const emptyVisualStyle: CSSProperties = {
     width: "100%",
     aspectRatio: "4 / 3",
@@ -383,7 +436,11 @@ export default function RoomsPage() {
     if (!resp.ok) return setMsg(json?.error || "建立同行空間失敗。");
     setMsg(json?.invite_code ? `已建立同行空間。邀請碼：${json.invite_code}` : "已建立同行空間。");
     setMobileComposerOpen(false);
-    await reloadAll(accessToken);
+    await reloadAll({
+      currentAccessToken: accessToken,
+      currentUserId: userId,
+      fresh: true,
+    });
     if (json?.room?.id) router.push(`/rooms/${json.room.id}`);
   }
 
@@ -406,7 +463,11 @@ export default function RoomsPage() {
     if (result.error) return setMsg(result.error.message);
     setMsg("已建立排程。若是邀請制，系統會自動產生邀請碼。");
     setMobileComposerOpen(false);
-    await reloadAll(accessToken);
+    await reloadAll({
+      currentAccessToken: accessToken,
+      currentUserId: userId,
+      fresh: true,
+    });
   }
 
   async function deleteSchedulePost(postId: string) {
@@ -416,7 +477,11 @@ export default function RoomsPage() {
     setBusy(false);
     if (result.error) return setMsg(result.error.message);
     setMsg("已刪除排程。");
-    await reloadAll(accessToken);
+    await reloadAll({
+      currentAccessToken: accessToken,
+      currentUserId: userId,
+      fresh: true,
+    });
   }
 
   async function resolveInviteCode() {
@@ -460,6 +525,11 @@ export default function RoomsPage() {
     setBusy(false);
     if (!resp.ok) return setMsg(json?.error || "加入邀請房失敗。");
     setMobileComposerOpen(false);
+    await reloadAll({
+      currentAccessToken: accessToken,
+      currentUserId: userId,
+      fresh: true,
+    });
     if (json?.roomId) router.push(`/rooms/${json.roomId}`);
   }
 
@@ -748,6 +818,11 @@ export default function RoomsPage() {
               <h2 className="cc-h2">
                 {contentMode === "now" ? "先看眼前有哪些房，覺得適合就直接進去。" : "先看接下來的安排，想要的時段就先掛上去。"}
               </h2>
+              {boardGeneratedAt ? (
+                <div className="cc-caption" style={{ marginTop: 8 }}>
+                  看板快照：{new Date(boardGeneratedAt).toLocaleString("zh-TW")} · {boardCacheState === "cached" ? "CDN / ISR 快取" : "即時刷新"} · {boardBuildTag}
+                </div>
+              ) : null}
             </div>
           </div>
 

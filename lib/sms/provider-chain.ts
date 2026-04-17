@@ -1,3 +1,7 @@
+import { every8dSmsProvider } from "@/lib/sms/providers/every8d";
+import { birdSmsProvider } from "@/lib/sms/providers/bird";
+import { textlocalSmsProvider } from "@/lib/sms/providers/textlocal";
+import { vonageSmsProvider } from "@/lib/sms/providers/vonage";
 import {
   SendAuthSmsInput,
   SendAuthSmsResult,
@@ -5,9 +9,6 @@ import {
   SmsProviderError,
   SmsProviderName,
 } from "@/lib/sms/provider-types";
-import { birdSmsProvider } from "@/lib/sms/providers/bird";
-import { textlocalSmsProvider } from "@/lib/sms/providers/textlocal";
-import { vonageSmsProvider } from "@/lib/sms/providers/vonage";
 
 type ProviderChainConfig = {
   primary: SmsProviderName | null;
@@ -17,6 +18,7 @@ type ProviderChainConfig = {
 };
 
 const providerMap: Record<SmsProviderName, SmsProviderAdapter> = {
+  every8d: every8dSmsProvider,
   vonage: vonageSmsProvider,
   bird: birdSmsProvider,
   textlocal: textlocalSmsProvider,
@@ -25,7 +27,12 @@ const providerMap: Record<SmsProviderName, SmsProviderAdapter> = {
 function parseProviderName(value: string | undefined): SmsProviderName | null {
   if (!value) return null;
   const normalized = value.trim().toLowerCase();
-  if (normalized === "vonage" || normalized === "bird" || normalized === "textlocal") {
+  if (
+    normalized === "every8d" ||
+    normalized === "vonage" ||
+    normalized === "bird" ||
+    normalized === "textlocal"
+  ) {
     return normalized;
   }
   return null;
@@ -33,7 +40,7 @@ function parseProviderName(value: string | undefined): SmsProviderName | null {
 
 function getProviderChainConfig(): ProviderChainConfig {
   return {
-    primary: parseProviderName(process.env.AUTH_SMS_PRIMARY_PROVIDER) ?? "vonage",
+    primary: parseProviderName(process.env.AUTH_SMS_PRIMARY_PROVIDER) ?? "every8d",
     fallback: parseProviderName(process.env.AUTH_SMS_FALLBACK_PROVIDER),
     allowNoop: process.env.AUTH_SMS_ALLOW_NOOP === "true",
     timeoutMs: Number(process.env.AUTH_SMS_PROVIDER_TIMEOUT_MS ?? 10_000),
