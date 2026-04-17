@@ -1,10 +1,9 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
 import { TopNav } from "@/components/TopNav";
 import { SiteFooter } from "@/components/SiteFooter";
-import { getClientSessionSnapshot } from "@/lib/clientAuth";
+import type { CSSProperties } from "react";
+
+export const revalidate = 300;
 
 const HERO_POSTER = "/site-assets/hero/hero-window.png";
 
@@ -90,19 +89,6 @@ const sceneMediaStyle = (image: string, position: string): CSSProperties => ({
 });
 
 export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const session = await getClientSessionSnapshot().catch(() => null);
-      if (!cancelled) setIsLoggedIn(Boolean(session));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return (
     <main className="cc-container">
       <TopNav />
@@ -130,7 +116,7 @@ export default function Home() {
 
               <div className="cc-home-hero-actions">
                 <Link href="/rooms?mode=now#rooms-board" className="cc-btn-primary cc-home-hero-btn-primary">
-                  {isLoggedIn ? "進入同行空間" : "開始使用"}
+                  進入同行空間
                 </Link>
                 <Link href="/buddies" className="cc-btn cc-home-hero-btn-secondary">
                   找安感夥伴

@@ -1,4 +1,4 @@
-export type SmsProviderName = "vonage" | "bird" | "textlocal";
+export type SmsProviderName = "every8d" | "vonage" | "bird" | "textlocal";
 
 export type SmsFlow =
   | "phone_change"
