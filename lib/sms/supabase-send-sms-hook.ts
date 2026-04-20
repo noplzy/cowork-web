@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { renderAuthSmsMessage } from "@/lib/sms/message-template";
-import { sendAuthSmsThroughProviderChain } from "@/lib/sms/provider-chain";
 import {
   SendAuthSmsInput,
   SendAuthSmsResult,
@@ -64,11 +63,14 @@ function constantTimeBase64Equal(left: string, right: string): boolean {
 
 export function verifySupabaseHookSignature(rawBody: string, headers: Headers): void {
   const skipCheck = process.env.SUPABASE_AUTH_HOOK_SKIP_SIGNATURE_CHECK === "true";
+  if (skipCheck) {
+    console.warn("[sms-hook] signature verification skipped by env flag");
+    return;
+  }
+
   const secrets = getHookSecretsFromEnv();
 
   if (!secrets.length) {
-    if (skipCheck) return;
-
     throw new SmsProviderError({
       provider: null,
       code: "HOOK_SECRET_NOT_CONFIGURED",
@@ -87,6 +89,11 @@ export function verifySupabaseHookSignature(rawBody: string, headers: Headers): 
       code: "INVALID_HOOK_SIGNATURE_HEADERS",
       message: "Missing webhook signature headers.",
       retryable: false,
+      details: {
+        hasWebhookId: Boolean(webhookId),
+        hasWebhookTimestamp: Boolean(webhookTimestamp),
+        hasWebhookSignature: Boolean(webhookSignature),
+      },
     });
   }
 
@@ -108,6 +115,10 @@ export function verifySupabaseHookSignature(rawBody: string, headers: Headers): 
       code: "HOOK_TIMESTAMP_EXPIRED",
       message: "Webhook timestamp is outside the accepted window.",
       retryable: false,
+      details: {
+        maxAgeSeconds,
+        webhookTimestamp,
+      },
     });
   }
 
@@ -219,7 +230,7 @@ export async function logAuthSmsAttempt(params: {
         input_metadata: params.input.metadata ?? null,
       },
     });
-  } catch {
-    // Intentionally swallow logging failures so auth is not blocked by an observability-only table.
+  } catch (error) {
+    console.error("[sms-hook] failed to write auth_sms_attempts log", error);
   }
 }
