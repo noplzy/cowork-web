@@ -19,11 +19,17 @@ type TokenCache = {
 
 let tokenCache: TokenCache | null = null;
 
+/**
+ * EVERY8D API 2.1 notes
+ * - Enterprise users should use https://new.e8d.tw as the API 2.1 base URL.
+ * - The old https://api.e8d.tw endpoint was migrated.
+ * - If new.e8d.tw returns 403, EVERY8D's announcement says the caller IP may need allowlisting.
+ */
 function getConfig() {
   return {
     uid: process.env.EVERY8D_UID?.trim() || "",
     pwd: process.env.EVERY8D_PWD?.trim() || "",
-    apiBase: process.env.EVERY8D_API_BASE?.trim() || "https://api.e8d.tw",
+    apiBase: process.env.EVERY8D_API_BASE?.trim() || "https://new.e8d.tw",
     subject:
       process.env.EVERY8D_SMS_SUBJECT?.trim() ||
       process.env.AUTH_SMS_BRAND_NAME?.trim() ||
@@ -75,7 +81,11 @@ async function getConnectionToken(timeoutMs: number): Promise<string> {
       provider: "every8d",
       code: "EVERY8D_TOKEN_HTTP_ERROR",
       message: `EVERY8D token HTTP ${response.status}`,
-      details: json,
+      details: {
+        responseStatus: response.status,
+        responseBody: json,
+        apiBase: config.apiBase,
+      },
     });
   }
 
@@ -84,7 +94,10 @@ async function getConnectionToken(timeoutMs: number): Promise<string> {
       provider: "every8d",
       code: `EVERY8D_TOKEN_${json?.Status || "FAILED"}`,
       message: json?.Msg || "EVERY8D token request failed.",
-      details: json,
+      details: {
+        responseBody: json,
+        apiBase: config.apiBase,
+      },
     });
   }
 
@@ -160,7 +173,11 @@ export const every8dSmsProvider: SmsProviderAdapter = {
         provider: "every8d",
         code: "EVERY8D_SEND_HTTP_ERROR",
         message: `EVERY8D send HTTP ${response.status}`,
-        details: raw,
+        details: {
+          responseStatus: response.status,
+          responseBody: raw,
+          apiBase: config.apiBase,
+        },
       });
     }
 
@@ -169,7 +186,10 @@ export const every8dSmsProvider: SmsProviderAdapter = {
         provider: "every8d",
         code: `EVERY8D_SEND_${parsed.errorCode || "FAILED"}`,
         message: parsed.errorMessage || "EVERY8D failed to enqueue the SMS message.",
-        details: raw,
+        details: {
+          responseBody: raw,
+          apiBase: config.apiBase,
+        },
       });
     }
 
