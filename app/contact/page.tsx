@@ -130,7 +130,7 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
             <div>Email：{BUSINESS_PROFILE.supportEmail}</div>
             <div>電話：{BUSINESS_PROFILE.supportPhone}</div>
             <div>客服時段：{BUSINESS_PROFILE.supportHours}</div>
-            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+            <div>{BUSINESS_PROFILE.publicAddressNote}</div>
           </div>
         </article>
 

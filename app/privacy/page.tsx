@@ -24,7 +24,7 @@ export default function PrivacyPage() {
             <div>品牌名稱：{BUSINESS_PROFILE.brandName}</div>
             <div>商業名稱：{BUSINESS_PROFILE.legalBusinessName}</div>
             <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
-            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+            <div>{BUSINESS_PROFILE.publicAddressNote}</div>
             <div>Email：{BUSINESS_PROFILE.supportEmail}</div>
             <div>電話：{BUSINESS_PROFILE.supportPhone}</div>
           </div>

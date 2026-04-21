@@ -21,7 +21,7 @@ export default function TermsPage() {
             <div>品牌名稱：{BUSINESS_PROFILE.brandName}</div>
             <div>商業名稱：{BUSINESS_PROFILE.legalBusinessName}</div>
             <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
-            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+            <div>{BUSINESS_PROFILE.publicAddressNote}</div>
             <div>Email：{BUSINESS_PROFILE.supportEmail}</div>
             <div>電話：{BUSINESS_PROFILE.supportPhone}</div>
           </div>
@@ -56,7 +56,7 @@ export default function TermsPage() {
           <h2 className="cc-h3">5. 驗證、風險控管與限制使用</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             為了保護帳號安全、付款安全、房內秩序與平台治理，安感島得在特定情況下要求你完成手機驗證、
-            OTP 驗證、聯絡方式確認、付款資訊確認，或其他合理的身分 / 資格驗證程序。若你拒絕完成必要驗證、
+            OTP 驗證、聯絡方式確認，或其他合理的身分 / 資格驗證程序。若你拒絕完成必要驗證、
             提供明顯不實資料、冒用他人身分或驗證結果顯示存在重大風險，我們得限制部分功能、延後開通、
             拒絕特定交易，或暫停服務。
           </p>
