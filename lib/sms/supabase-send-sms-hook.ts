@@ -9,9 +9,16 @@ import {
 } from "@/lib/sms/provider-types";
 
 export type SupabaseSendSmsHookEvent = {
+  metadata?: {
+    uuid?: string;
+    time?: string;
+    name?: string;
+    ip_address?: string;
+  };
   user?: {
     id?: string;
-    phone?: string;
+    phone?: string | null;
+    new_phone?: string | null;
     confirmation_sent_at?: string | null;
     phone_change_sent_at?: string | null;
     phone_confirmed_at?: string | null;
@@ -22,6 +29,7 @@ export type SupabaseSendSmsHookEvent = {
   };
   sms?: {
     otp?: string;
+    phone?: string | null;
   };
 };
 
@@ -59,6 +67,15 @@ function constantTimeBase64Equal(left: string, right: string): boolean {
 
   if (leftBuffer.length !== rightBuffer.length) return false;
   return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function resolveTargetPhone(event: SupabaseSendSmsHookEvent): string {
+  return (
+    event.user?.phone?.trim() ||
+    event.user?.new_phone?.trim() ||
+    event.sms?.phone?.trim() ||
+    ""
+  );
 }
 
 export function verifySupabaseHookSignature(rawBody: string, headers: Headers): void {
@@ -153,16 +170,31 @@ export function verifySupabaseHookSignature(rawBody: string, headers: Headers): 
 
 export function parseSupabaseSendSmsHookEvent(rawBody: string): SupabaseSendSmsHookEvent {
   const parsed = JSON.parse(rawBody) as SupabaseSendSmsHookEvent;
-  const phone = parsed.user?.phone?.trim();
+  const phone = resolveTargetPhone(parsed);
   const otp = parsed.sms?.otp?.trim();
 
   if (!phone || !otp) {
     throw new SmsProviderError({
       provider: null,
       code: "INVALID_HOOK_PAYLOAD",
-      message: "Supabase send SMS hook payload is missing user.phone or sms.otp.",
+      message:
+        "Supabase send SMS hook payload is missing a usable phone target or sms.otp.",
       retryable: false,
-      details: parsed,
+      details: {
+        metadata: parsed.metadata ?? null,
+        user: {
+          id: parsed.user?.id ?? null,
+          phone: parsed.user?.phone ?? null,
+          new_phone: parsed.user?.new_phone ?? null,
+          confirmation_sent_at: parsed.user?.confirmation_sent_at ?? null,
+          phone_change_sent_at: parsed.user?.phone_change_sent_at ?? null,
+          phone_confirmed_at: parsed.user?.phone_confirmed_at ?? null,
+        },
+        sms: {
+          phone: parsed.sms?.phone ?? null,
+          otp: parsed.sms?.otp ? "[redacted]" : null,
+        },
+      },
     });
   }
 
@@ -170,7 +202,7 @@ export function parseSupabaseSendSmsHookEvent(rawBody: string): SupabaseSendSmsH
 }
 
 export function inferSmsFlow(event: SupabaseSendSmsHookEvent): SmsFlow {
-  if (event.user?.phone_change_sent_at) return "phone_change";
+  if (event.user?.phone_change_sent_at || event.user?.new_phone) return "phone_change";
 
   const provider = event.user?.app_metadata?.provider ?? "";
   const providers = event.user?.app_metadata?.providers ?? [];
@@ -185,7 +217,7 @@ export function inferSmsFlow(event: SupabaseSendSmsHookEvent): SmsFlow {
 }
 
 export function buildSmsInput(event: SupabaseSendSmsHookEvent): SendAuthSmsInput {
-  const phone = event.user?.phone?.trim() || "";
+  const phone = resolveTargetPhone(event);
   const otp = event.sms?.otp?.trim() || "";
   const flow = inferSmsFlow(event);
 
@@ -203,6 +235,9 @@ export function buildSmsInput(event: SupabaseSendSmsHookEvent): SendAuthSmsInput
       confirmation_sent_at: event.user?.confirmation_sent_at ?? null,
       phone_change_sent_at: event.user?.phone_change_sent_at ?? null,
       phone_confirmed_at: event.user?.phone_confirmed_at ?? null,
+      new_phone: event.user?.new_phone ?? null,
+      sms_phone: event.sms?.phone ?? null,
+      hook_event_name: event.metadata?.name ?? null,
     },
   };
 }
