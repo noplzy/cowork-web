@@ -71,7 +71,7 @@ export default function ServiceDeliveryPage() {
           <div className="cc-note cc-stack-sm">
             <div>商業名稱：{BUSINESS_PROFILE.legalBusinessName}</div>
             <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
-            <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+            <div>{BUSINESS_PROFILE.publicAddressNote}</div>
           </div>
         </article>
 

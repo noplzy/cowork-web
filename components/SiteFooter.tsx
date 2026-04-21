@@ -74,7 +74,7 @@ export function SiteFooter() {
             >
               <div>{BUSINESS_PROFILE.legalBusinessName}</div>
               <div>統一編號：{BUSINESS_PROFILE.unifiedBusinessNo}</div>
-              <div>地址：{BUSINESS_PROFILE.businessAddress}</div>
+              <div>{BUSINESS_PROFILE.publicAddressNote}</div>
             </div>
           </div>
 
