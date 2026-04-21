@@ -138,7 +138,7 @@ export default function Home() {
         <div className="cc-page-header" style={{ marginBottom: 0 }}>
           <div>
             <p className="cc-card-kicker">先選一條路</p>
-            <h2 className="cc-h2">首頁先告訴你現在可以去哪裡，不先把整座島塞給你。</h2>
+            <h2 className="cc-h2">從這裡開始，找到現在最適合你的入口。</h2>
           </div>
         </div>
 
@@ -167,7 +167,7 @@ export default function Home() {
         <div className="cc-page-header" style={{ marginBottom: 0 }}>
           <div>
             <p className="cc-card-kicker">同行場景</p>
-            <h2 className="cc-h2">先看懂你要進哪一種房，而不是先讀一堆規則。</h2>
+            <h2 className="cc-h2">先看不同場景，再選適合你的房間。</h2>
           </div>
           <Link href="/rooms?mode=now#rooms-board" className="cc-btn cc-desktop-only">
             進入 Rooms
@@ -219,7 +219,7 @@ export default function Home() {
         <article className="cc-card cc-stack-md">
           <div>
             <p className="cc-card-kicker">公開資訊</p>
-            <h2 className="cc-h2">規則都看得到，但不會先壓在你臉上。</h2>
+            <h2 className="cc-h2">方案、客服與退款資訊都能清楚查到。</h2>
           </div>
           <div className="cc-action-row">
             <Link href="/pricing" className="cc-btn">
