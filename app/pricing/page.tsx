@@ -209,7 +209,7 @@ export default function PricingPage() {
             <li>目前不自動續扣</li>
             <li>客服與退款走公開規則</li>
           </ul>
-          <div className="cc-caption">這一版先把付款成功、權益入帳、客服可追查這條主線做好。</div>
+          <div className="cc-caption">付款後會依實際結果開通權益，相關規則可在公開頁查詢。</div>
           <div className="cc-action-row">
             {isVip ? (
               <Link href="/account" className="cc-btn-primary">
@@ -229,7 +229,7 @@ export default function PricingPage() {
           <div className="cc-card-row">
             <div>
               <p className="cc-card-kicker">商業登記資訊</p>
-              <h2 className="cc-h2">付款頁面先把營運主體講清楚，對查單與審核都比較穩。</h2>
+              <h2 className="cc-h2">付款與客服資訊</h2>
             </div>
             <span className="cc-pill-soft">一次性付款 / 不自動續扣</span>
           </div>
@@ -247,7 +247,7 @@ export default function PricingPage() {
         <article className="cc-card cc-stack-md">
           <div>
             <p className="cc-card-kicker">接下來可能會有</p>
-            <h2 className="cc-h2">先保留，不把還沒穩定的按鈕提早打開。</h2>
+            <h2 className="cc-h2">以下方案尚未開放。</h2>
           </div>
           <div className="cc-grid-2">
             {FUTURE_BILLING_PLANS.map((plan) => (

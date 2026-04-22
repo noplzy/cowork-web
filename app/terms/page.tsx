@@ -36,10 +36,10 @@ export default function TermsPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">3. 試營運計價模式</h2>
+          <h2 className="cc-h3">3. 目前計價模式</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            目前採試營運模式，只開放 VIP 月方案的一次性付款版本。付款成功後，系統會開通 30 天 VIP 權益。
-            這一版不做自動續扣，也不提供前台自行取消續訂功能，因為目前根本沒有續訂在跑。
+            目前只開放 VIP 月方案的一次性付款版本。付款成功後，系統會開通 30 天 VIP 權益。
+            目前不做自動續扣，也沒有前台自行取消續訂功能。
           </p>
         </article>
 
@@ -48,7 +48,7 @@ export default function TermsPage() {
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             付款成功後，系統會先接收付款通知並進行後端驗證，確認完成後才把 VIP 權益入帳。
             若你已付款但權益未在合理時間內生效，請透過客服表單提供帳號 Email、付款時間、
-            金額與訂單編號，我們會先人工查單與處理。
+            金額與訂單編號，我們會協助查單與處理。
           </p>
         </article>
 
@@ -73,7 +73,7 @@ export default function TermsPage() {
         <article className="cc-card cc-card-soft cc-stack-sm">
           <h2 className="cc-h3">6. 退款與人工審核</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            目前退款不採前台即時自助處理，而是依照公開退款政策進行人工審核。是否退款，會以是否重複扣款、
+            目前退款依照公開退款政策進行人工審核。是否退款，會以是否重複扣款、
             權益是否未生效、是否為首次訂購且尚未實際使用主要 VIP 權益等條件綜合判定。
           </p>
           <div className="cc-action-row">
@@ -109,11 +109,9 @@ export default function TermsPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">9. 正式上線保留方案</h2>
+          <h2 className="cc-h3">9. 後續方案若有更新，將另行公告</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            月訂閱與年方案會保留到正式上線階段再開放。等自動扣款、查單、取消與客服流程穩定後，
-            我們才會公開新的方案條件、價格與適用規則。在正式上線前，網站若出現保留中的方案卡片，
-            只代表未來規劃，不代表已可購買。
+            月訂閱與年方案若未來開放，會在公開頁面另外說明價格、適用規則與相關流程。
           </p>
         </article>
       </section>

@@ -18,7 +18,7 @@ export default function ServiceDeliveryPage() {
         <article className="cc-card cc-card-soft cc-stack-sm">
           <h2 className="cc-h3">1. 目前提供的付費服務</h2>
           <ul className="cc-bullets">
-            <li>試營運期間目前只開放 VIP 月方案</li>
+            <li>目前只開放 VIP 月方案</li>
             <li>付款成功後可取得 30 天 VIP 權益</li>
             <li>目前不做自動續扣，也不提供年方案購買</li>
           </ul>
@@ -76,10 +76,9 @@ export default function ServiceDeliveryPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">6. 正式上線保留方案</h2>
+          <h2 className="cc-h3">6. 後續方案若有更新，將另行公告</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            月訂閱與年方案會保留到正式上線再開放。等自動扣款、取消流程、查單與客服流程都穩定後，
-            才會另外公告新的交付與續約規則。
+            月訂閱與年方案會保留到正式上線再開放。新的交付與續約規則，會在公開頁面另外公告。
           </p>
         </article>
       </section>

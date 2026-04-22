@@ -44,12 +44,11 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
       <section className="cc-section cc-grid-2">
         <article className="cc-card cc-stack-md">
           <span className="cc-kicker">Contact</span>
-          <p className="cc-eyebrow">客服、付款異常、人工退款審核、驗證申訴，現在統一走公開表單。</p>
-          <h1 className="cc-h2">客服入口先求穩，不再依賴 mailto。</h1>
+          <p className="cc-eyebrow">客服、付款異常、退款申請、驗證申訴，都可以從這裡聯絡我們。</p>
+          <h1 className="cc-h2">需要協助時，請直接填寫客服表單。</h1>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.85 }}>
-            這一版先不做站內私訊客服。
-            你可以直接透過公開 Google Form 送出客服、付款異常、驗證申訴或人工退款審核資料，
-            我們再用你填寫的聯絡 Email 回覆。
+            你可以透過公開表單提交客服、付款異常、驗證申訴或退款申請資料，
+            我們會再用你填寫的聯絡 Email 回覆。
           </p>
 
           <div className="cc-action-row">
@@ -82,7 +81,7 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
             <div className="cc-card cc-card-soft cc-stack-sm" style={{ marginTop: 14 }}>
               <div className="cc-h3">檢舉資訊（可直接複製貼到客服表單）</div>
               <div className="cc-caption" style={{ lineHeight: 1.7 }}>
-                這一輪先不做假自動帶入，避免填錯欄位造成誤判。你只要把下方內容貼到表單即可。
+                你可以把下方內容直接貼到表單中，方便我們更快確認情況。
               </div>
               <textarea
                 className="cc-textarea"
@@ -100,13 +99,13 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
         <article className="cc-card cc-stack-md">
           <div>
             <p className="cc-card-kicker">適合填表的情況</p>
-            <h2 className="cc-h2">先把問題分流，處理起來才不會亂。</h2>
+            <h2 className="cc-h2">以下問題都可以直接填表聯絡。</h2>
           </div>
 
           <ul className="cc-bullets">
             <li>付款成功但權益未生效</li>
             <li>重複扣款</li>
-            <li>人工退款審核申請</li>
+            <li>退款申請</li>
             <li>登入 / 帳號問題</li>
             <li>驗證失敗 / 驗證申訴 / OTP 問題</li>
             <li>封鎖申訴</li>
@@ -115,7 +114,7 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
           </ul>
 
           <div className="cc-note">
-            建議表單必填：聯絡 Email、姓名 / 顯示名稱、安感島帳號 Email、問題類型、問題描述、付款時間、金額、MerchantTradeNo。
+            建議一併提供：聯絡 Email、姓名 / 顯示名稱、安感島帳號 Email、問題類型、問題描述、付款時間、金額、MerchantTradeNo。
           </div>
         </article>
       </section>
@@ -135,11 +134,11 @@ export default function ContactPage({ searchParams }: { searchParams: SearchPara
         </article>
 
         <article className="cc-card cc-stack-sm">
-          <p className="cc-card-kicker">這一版不用處理的事</p>
+          <p className="cc-card-kicker">說明</p>
           <ul className="cc-bullets">
-            <li>目前沒有自動續扣，所以不用申請取消下期續費。</li>
-            <li>目前也沒有年方案，所以不用處理年約解約。</li>
-            <li>若未來正式導入 OTP、簡訊或身分驗證，本頁會同步更新相關申訴入口。</li>
+            <li>目前沒有自動續扣，所以不需要申請取消下期續費。</li>
+            <li>目前沒有年方案，相關規則未開放。</li>
+            <li>若未來導入 OTP 或身分驗證，本頁會同步更新相關申訴入口。</li>
           </ul>
         </article>
       </section>

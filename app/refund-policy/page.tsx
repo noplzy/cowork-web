@@ -12,14 +12,14 @@ export default function RefundPolicyPage() {
         <div className="cc-stack-sm">
           <span className="cc-kicker">Refund & Cancellation Policy</span>
           <p className="cc-eyebrow">退款 / 取消政策</p>
-          <h1 className="cc-h2">這一版走人工退款審核，不做前台秒退。</h1>
+          <h1 className="cc-h2">退款申請與處理方式</h1>
         </div>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">1. 目前適用範圍</h2>
+          <h2 className="cc-h3">1. 適用範圍</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             本頁目前適用於試營運期間的 VIP 月方案一次性付款版本。
-            這一版不做自動續扣，因此目前不存在「取消下期續訂」這件事。
+            目前不提供自動續扣，因此也沒有取消下期續訂的問題。
           </p>
         </article>
 
@@ -66,7 +66,7 @@ export default function RefundPolicyPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">5. 什麼叫「已明顯使用主要 VIP 權益」</h2>
+          <h2 className="cc-h3">5. 主要 VIP 權益已明顯使用的情況</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             例如已使用 VIP 權益進入房間、持續使用無限續場能力、或其他足以判定主要付費功能已被實際消耗的情況。
             這類情況原則上不屬於可退款範圍。
@@ -74,10 +74,10 @@ export default function RefundPolicyPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">6. 審核通過後會怎麼處理</h2>
+          <h2 className="cc-h3">6. 審核通過後的處理方式</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             若退款審核通過，我們會以實際付款與查單結果為準進行退款處理，並可能同步調整或撤回本次訂單對應的 VIP 權益。
-            若審核不通過，客服也會告知主要判定原因。
+            若審核未通過，客服也會告知主要判定原因。
           </p>
         </article>
 
@@ -93,10 +93,10 @@ export default function RefundPolicyPage() {
         </article>
 
         <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">8. 正式上線後的方案另行公告</h2>
+          <h2 className="cc-h3">8. 後續方案若有更新，將另行公告</h2>
           <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
             未來若開放月訂閱、自動續扣或年方案，退款、取消、終止與續約規則會另外公開。
-            不同方案可能有不同的適用條件，不能直接套用本頁的試營運規則。
+            不同方案可能有不同的適用條件，請以當時公開頁面為準。
           </p>
         </article>
       </section>
