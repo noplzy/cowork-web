@@ -341,7 +341,7 @@ export default function BuddiesPage() {
                 想找人陪你，或想開始提供陪伴，都可以從這裡開始。
               </h1>
               <p className="cc-lead" style={{ maxWidth: "34ch" }}>
-                先逛市場，再決定要不要上架；先看自己的服務與預約，再慢慢補細節。Buddies 應該像入口，而不是厚重說明頁。
+                先逛市場，再決定要不要上架；也可以回頭整理自己的服務與預約。
               </p>
               <div className="cc-page-meta">
                 <span className="cc-pill-soft">市場 {marketCount}</span>
@@ -353,8 +353,8 @@ export default function BuddiesPage() {
             <div className="cc-card cc-card-soft cc-stack-md">
               <div style={buddiesMediaStyle} aria-label="Buddies 入口視覺圖" />
               <div className="cc-note cc-stack-sm">
-                <div>先給你市場入口，不先灌你一整頁說明。</div>
-                <div>等你真的要深入，再去看服務詳情、預約規則與客服頁面。</div>
+                <div>先看看目前有哪些服務，再決定要不要深入了解。</div>
+                <div>想上架自己的服務，也可以從這裡開始整理。</div>
               </div>
             </div>
           </div>
@@ -443,7 +443,7 @@ export default function BuddiesPage() {
                     <div style={buddiesMediaStyle} aria-label="Buddies 服務入口示意圖" />
                     <div className="cc-stack-sm">
                       <div className="cc-h3">目前還沒有正式上架中的服務。</div>
-                      <div className="cc-muted">這一區先保留暖空狀態，不拿假熱鬧資料硬撐活躍感。等你要開放更多服務時，再把它補齊。</div>
+                      <div className="cc-muted">之後這裡會顯示可預約的陪伴服務。現在你也可以先參考下方示例卡片。</div>
                     </div>
                   </article>
 

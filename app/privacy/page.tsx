@@ -52,58 +52,6 @@ export default function PrivacyPage() {
             <li>在特定情況下進行身分或資格驗證，以保護使用者與平台安全</li>
           </ul>
         </article>
-
-        <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">4. 驗證與 OTP 說明</h2>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            若未來啟用手機驗證、一次性密碼（OTP）或其他安全驗證機制，你在輸入手機號碼並請求驗證碼時，
-            即表示你同意安感島或其合作服務供應商為了登入驗證、帳號安全、付款風險控管、濫用防制或客服確認之目的，
-            向你發送簡訊、語音或其他形式的驗證訊息。若你的電信業者會收取簡訊或數據費用，該費用由你自行負擔。
-          </p>
-        </article>
-
-        <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">5. 第三方服務供應商與資料揭露</h2>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            為了提供帳號、資料儲存、即時影音、付款、客服、通知、OTP 驗證、AI 功能或未來的身分驗證服務，
-            我們可能委託第三方服務供應商處理資料，但僅限於其提供服務所必要的範圍。這些供應商可能包含：
-          </p>
-          <ul className="cc-bullets">
-            <li>帳號 / 資料儲存 / 後端基礎設施供應商</li>
-            <li>即時影音或通訊服務供應商</li>
-            <li>付款與查單服務供應商</li>
-            <li>客服表單或通知服務供應商</li>
-            <li>若未來導入：OTP / 簡訊驗證服務供應商</li>
-            <li>若未來導入：AI 功能或推薦服務供應商</li>
-            <li>若未來導入：身分驗證 / KYC 服務供應商</li>
-          </ul>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            若未來正式導入新的第三方供應商，且其會處理你的個人資料，我們會同步更新本頁與相關說明。
-          </p>
-        </article>
-
-        <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">6. 我們是否販售你的個人資料</h2>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            安感島不以販售你的個人資料為目的。我們揭露資料的範圍，以提供服務、處理交易、驗證安全、履行法令義務與處理客服需求為限。
-          </p>
-        </article>
-
-        <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">7. 保存期間</h2>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            我們會依服務提供、交易查核、客服處理、風險控管與法令遵循的必要範圍保存資料。
-            不同類型的資料可能有不同保存期間；若未來導入身分驗證資料，我們也會依其敏感程度與法令要求另行訂定保存與刪除規則。
-          </p>
-        </article>
-
-        <article className="cc-card cc-card-soft cc-stack-sm">
-          <h2 className="cc-h3">8. 你的權利與聯絡方式</h2>
-          <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-            若你希望查詢、修改或刪除與你相關的資料，或對於驗證、資料使用或第三方揭露有疑問，
-            可透過客服頁與客服表單聯絡我們。我們會依實際情況、法令義務與服務安全需要進行處理。
-          </p>
-        </article>
       </section>
 
       <SiteFooter />

@@ -665,7 +665,7 @@ export default function RoomsPage() {
       <div className="cc-stack-sm">
         <div>
           <p className="cc-card-kicker">邀請碼入口</p>
-          <h2 className="cc-h2">對方給你邀請碼時，不用先懂很多規則。</h2>
+          <h2 className="cc-h2">有邀請碼時，直接輸入就能找到對方的房間或排程。</h2>
         </div>
         <div className="cc-action-row" style={{ marginTop: 0, alignItems: "center" }}>
           <input className="cc-input" style={{ flex: 1, minWidth: 0 }} value={inviteCodeInput} onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())} placeholder="例如：AB12CD34" />
@@ -710,7 +710,7 @@ export default function RoomsPage() {
             先看現在能去哪裡，再決定要不要自己開房。
           </h1>
           <p className="cc-lead" style={{ maxWidth: "42ch" }}>
-            先選模式，再選場景。先看可加入的房，再決定是不是要自己開一間。工具留在後面，不先擠滿首屏。
+            先選模式，再選場景。看看目前有哪些房間與排程，再決定要不要自己開一間。
           </p>
 
           <div className="cc-mobile-only cc-stack-sm">
