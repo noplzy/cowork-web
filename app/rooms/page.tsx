@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchAccountStatus, type AccountStatusResp } from "@/lib/accountStatusClient";
@@ -38,7 +38,7 @@ const sceneCover: Record<ActiveRoomScene, string> = { focus: "/site-assets/image
 function minDatetimeLocalValue(){ return toDatetimeLocalValue(new Date(Date.now()+60*60*1000).toISOString()); }
 function costLabel(minutes:number){ return `${Math.ceil(minutes/25)} 場`; }
 
-export default function RoomsPage(){
+function RoomsPageContent(){
   const router=useRouter(); const params=useSearchParams();
   const [email,setEmail]=useState(""); const [userId,setUserId]=useState(""); const [accessToken,setAccessToken]=useState(""); const [status,setStatus]=useState<AccountStatusResp|null>(null);
   const [rooms,setRooms]=useState<Room[]>([]); const [schedulePosts,setSchedulePosts]=useState<ScheduledRoomPostRow[]>([]); const [profiles,setProfiles]=useState<Record<string,PublicProfileRow>>({});
@@ -102,4 +102,26 @@ export default function RoomsPage(){
     </div><Image20MobileDock />
   </Image20SidebarShell>;
 }
+export default function RoomsPage(){
+  return (
+    <Suspense fallback={<RoomsPageFallback />}>
+      <RoomsPageContent />
+    </Suspense>
+  );
+}
+
+function RoomsPageFallback(){
+  return (
+    <Image20SidebarShell title="探索房間">
+      <div className="i20-page" data-image20-dom-page="rooms-browsing-v7-fallback">
+        <section className="i20-panel dark" style={{minHeight:270}}>
+          <span className="i20-kicker">Rooms Browsing</span>
+          <h2 className="i20-serif" style={{fontSize:44,margin:"12px 0"}}>正在整理同行空間…</h2>
+          <p>請稍候，系統正在載入房間列表與排程。</p>
+        </section>
+      </div>
+    </Image20SidebarShell>
+  );
+}
+
 function EmptyRoom(){return <div className="i20-card"><img src="/site-assets/image20/rooms/empty-rooms-gentle-first-room.png" alt="" style={{width:"100%",borderRadius:18,marginBottom:12}}/><h3>目前沒有符合條件的房間。</h3><p>你可以切換場景、改看排程，或直接建立一間新的房間。</p></div>}
