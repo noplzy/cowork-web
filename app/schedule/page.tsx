@@ -1,22 +1,3 @@
-import Link from "next/link";
-import { TopNav } from "@/components/TopNav";
-
-export default function SchedulePage() {
-  return (
-    <main className="cc-container">
-      <TopNav />
-
-      <section className="cc-section cc-card cc-stack-md">
-        <span className="cc-kicker">Schedule moved</span>
-        <p className="cc-eyebrow">排程功能已整合進同行空間，不再作為主導航獨立入口</p>
-        <h1 className="cc-h2">請從同行空間查看即時加入、排程開房與我的安排。</h1>
-        <p className="cc-muted" style={{ margin: 0, lineHeight: 1.8 }}>
-          這個頁面只保留為舊連結的過渡入口，避免之前的連結直接失效。
-        </p>
-        <div className="cc-action-row">
-          <Link href="/rooms" className="cc-btn-primary">前往同行空間</Link>
-        </div>
-      </section>
-    </main>
-  );
-}
+import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome";
+import { Image20Hero } from "@/components/image20/Image20Shared";
+export default function Page(){return <main className="i20-root" data-image20-dom-page="schedule-v6"><Image20TopNav/><Image20Hero small eyebrow="Schedule" title="把同行留在可預期的時間裡。" lead="Schedule 不只是表格，而是讓人一眼理解下一場、誰建立的、自己會不會錯過。" actions={[{href:'/rooms',label:'前往 Rooms'},{href:'/contact',label:'問客服',peach:true}]}/><section className="i20-section"><div className="i20-grid three"><article className="i20-card"><span className="i20-kicker">01</span><h3>即將開始</h3><p>近期排程與可加入狀態。</p></article><article className="i20-card"><span className="i20-kicker">02</span><h3>我建立的排程</h3><p>保留給既有 scheduled_room_posts 資料流。</p></article><article className="i20-card"><span className="i20-kicker">03</span><h3>我預約的活動</h3><p>區分主辦與參與身份。</p></article></div></section><Image20Footer/></main>}
