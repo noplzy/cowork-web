@@ -1,0 +1,93 @@
+.effectGrid {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.effectCard {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 250, 242, 0.76);
+}
+
+.effectHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.effectHead > div {
+  display: grid;
+  gap: 5px;
+}
+
+.effectHead b {
+  font-size: 18px;
+  letter-spacing: 0.03em;
+}
+
+.effectHead span {
+  color: #7b7067;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.sliderLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #5f554d;
+  font-weight: 800;
+}
+
+.sliderLabel strong {
+  color: #0d5367;
+  font-size: 18px;
+}
+
+.slider {
+  width: 100%;
+  accent-color: #0d5367;
+}
+
+.qualityRow {
+  display: grid;
+  gap: 8px;
+}
+
+.qualityRow label {
+  display: grid;
+  gap: 8px;
+  color: #5f554d;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.notice,
+.status {
+  margin-top: 14px;
+  padding: 13px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  background: rgba(255, 250, 242, 0.82);
+  color: #5f554d;
+  line-height: 1.7;
+}
+
+.notice {
+  background: rgba(13, 83, 103, 0.08);
+  border-color: rgba(13, 83, 103, 0.18);
+  color: #284956;
+}
+
+.error {
+  background: rgba(190, 103, 103, 0.12);
+  border-color: rgba(190, 103, 103, 0.24);
+  color: #8b3f3f;
+}
