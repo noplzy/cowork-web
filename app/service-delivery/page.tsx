@@ -1,2 +1,68 @@
 import { Image20LegalPage } from "@/components/image20/Image20Legal";
-export default function ServiceDeliveryPage(){return <Image20LegalPage eyebrow="Service Delivery" title="服務交付說明" lead="數位服務要怎麼開始、怎麼進行、怎麼算完成，先說清楚。" sections={[{title:'即時型服務',body:['Rooms 屬於偏即時型服務，使用者可依房間狀態立即進入或預約排程。']},{title:'排程與預約',body:['排程型活動或人工安排服務，會在預約確認後進行。']},{title:'交付完成判定',body:['對即時房間而言，進房與使用過程即為交付的一部分。']},{title:'異常與補救',body:['若因系統、第三方服務、付款或連線問題導致交付中斷，可聯絡客服處理。']}]}/>}
+
+export default function ServiceDeliveryPage() {
+  return (
+    <Image20LegalPage
+      eyebrow="Service Delivery"
+      title="服務交付說明"
+      lead="數位服務要怎麼開始、怎麼進行、怎麼算完成，先說清楚，才有成熟的商業感。"
+      highlights={[
+        { label: "01", title: "即時同行空間", body: "可依房間狀態立即進入或依公開規則加入。" },
+        { label: "02", title: "排程服務", body: "先確認時間、房型與可見性，再進入對應流程。" },
+        { label: "03", title: "交付判定", body: "對即時房間而言，進房與可使用狀態就是交付的一部分。" },
+        { label: "04", title: "異常補救", body: "付款、連線或第三方服務異常，會回到客服處理。" },
+      ]}
+      sections={[
+        {
+          title: "即時型服務",
+          body: [
+            "Rooms 屬於偏即時型服務，使用者可依房間狀態立即進入。",
+            "房間是否能加入，仍受方案、權限、邀請碼與公開規則影響。",
+          ],
+        },
+        {
+          title: "排程與預約",
+          body: [
+            "排程型活動會依預約時間、房間條件與可見性顯示。",
+            "若後續開放更多人工服務，會在相應頁面說明流程與履約方式。",
+          ],
+        },
+        {
+          title: "入場與使用",
+          body: [
+            "進房後，視訊、音訊與其他互動功能會依實際裝置與瀏覽器能力運作。",
+            "若某功能僅支援桌機或有額外條件，會在介面中明確提示。",
+          ],
+        },
+        {
+          title: "交付完成判定",
+          body: [
+            "對即時房間而言，成功進入房間並可使用主要服務，已構成交付的一部分。",
+            "若是另有指定成果或人工安排，則以該服務頁正式說明為準。",
+          ],
+        },
+        {
+          title: "異常與補救",
+          body: [
+            "若因系統、第三方服務、付款或連線問題導致交付中斷，可聯絡客服處理。",
+            "客服會依實際紀錄判定補救、延期或其他處理方式。",
+          ],
+        },
+        {
+          title: "使用者需要準備什麼",
+          body: [
+            "穩定網路、可用裝置與基本帳號狀態，是進入服務的必要前提。",
+            "若涉及身份驗證或付款資訊，會由對應頁面單獨說明。",
+          ],
+        },
+      ]}
+      asideTitle="交付說清楚，才能避免誤解。"
+      asideBody="本頁專門回答服務開始、服務中斷與完成判定。若問題涉及退款，請搭配退款政策一起確認。"
+      asideLinks={[
+        { href: "/contact", label: "聯絡客服" },
+        { href: "/refund-policy", label: "查看退款政策" },
+        { href: "/rooms", label: "前往同行空間" },
+      ]}
+    />
+  );
+}
