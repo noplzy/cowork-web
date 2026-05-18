@@ -1,184 +1,134 @@
-"use client";
-
-import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome";
-import { Image20Hero } from "@/components/image20/Image20Shared";
 import styles from "@/components/image20/Image20Auxiliary.module.css";
 
-type ContactDraft = {
-  name: string;
-  email: string;
-  topic: string;
-  message: string;
-};
+const CONTACT_FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSePIg1i9YDIxPWeWnaxTjJ2a-NTrAGp1qhwINFN63KZYtMkYw/viewform?usp=dialog";
+const SUPPORT_EMAIL = "unmixed@getcalmandco.com";
 
-const initialDraft: ContactDraft = {
-  name: "",
-  email: "",
-  topic: "同行空間 / 使用問題",
-  message: "",
-};
+const supportCards = [
+  {
+    eyebrow: "Form",
+    title: "客服表單",
+    body: "房間、付款、帳號與合作問題，都可以透過表單留下完整資訊。",
+    href: CONTACT_FORM_URL,
+    external: true,
+    cta: "前往填寫",
+  },
+  {
+    eyebrow: "Email",
+    title: "官方信箱",
+    body: SUPPORT_EMAIL,
+    href: `mailto:${SUPPORT_EMAIL}`,
+    external: false,
+    cta: "寄信給我們",
+  },
+  {
+    eyebrow: "Policy",
+    title: "退款與交付",
+    body: "需要先確認退款、服務交付與處理範圍，可先查看公開說明。",
+    href: "/refund-policy",
+    external: false,
+    cta: "查看政策",
+  },
+  {
+    eyebrow: "Safety",
+    title: "安全與支援",
+    body: "遇到房內異常、騷擾或安全疑慮，請優先留下完整事件資訊。",
+    href: `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("安感島安全與支援協助")}`,
+    external: false,
+    cta: "立即聯絡",
+  },
+] as const;
 
 export default function ContactPage() {
-  const [draft, setDraft] = useState<ContactDraft>(initialDraft);
-
-  const mailtoHref = useMemo(() => {
-    const subject = `安感島客服｜${draft.topic.trim() || "一般詢問"}`;
-    const body = [
-      `姓名：${draft.name.trim() || "未填"}`,
-      `Email：${draft.email.trim() || "未填"}`,
-      `主題：${draft.topic.trim() || "一般詢問"}`,
-      "",
-      draft.message.trim() || "請在這裡補充問題內容。",
-    ].join("\n");
-
-    return `mailto:support@getcalmandco.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  }, [draft]);
-
-  const canOpenDraft = Boolean(draft.email.trim() && draft.message.trim());
-
-  function update<K extends keyof ContactDraft>(key: K, value: ContactDraft[K]) {
-    setDraft((current) => ({ ...current, [key]: value }));
-  }
-
   return (
-    <main className="i20-root" data-image20-dom-page="contact-v9-extra9">
-      <Image20TopNav dark />
-      <Image20Hero
-        small
-        eyebrow="Contact"
-        title="有需要時，我們都在這裡。"
-        lead="客服不是網站角落的一個信箱，而是讓使用者知道：遇到房間、方案、付款或帳號問題時，有清楚的入口可以找到人。"
-        actions={[
-          { href: "/rooms", label: "前往同行空間" },
-          { href: "/pricing", label: "查看方案 / 價格", peach: true },
-        ]}
-      />
+    <main className="i20-root" data-image20-dom-page="contact-v10-template-aligned">
+      <section className={styles.contactHero}>
+        <div className={styles.contactHeroBackdrop} aria-hidden="true" />
+        <Image20TopNav dark />
 
-      <section className={styles.contentBand}>
-        <div className={styles.editorialSplit}>
-          <article className={`i20-panel dark ${styles.sideStack}`}>
-            <div>
-              <span className="i20-kicker">Support</span>
-              <h2 className="i20-serif">先找到對的支援入口。</h2>
-              <p>公開服務、付款、帳號與房內互動，都應該有對應的回答方式。</p>
-            </div>
-
-            <div className={styles.supportList}>
-              <a className={styles.supportItem} href="mailto:support@getcalmandco.com">
-                <b>客服信箱</b>
-                <span>support@getcalmandco.com</span>
-              </a>
-              <div className={styles.supportItem}>
-                <b>客服時段</b>
-                <span>平日 10:00–18:00，非即時事件會依序回覆。</span>
-              </div>
-              <div className={styles.supportItem}>
-                <b>營運資訊</b>
-                <span>安感島資訊服務工作室｜統一編號 61136243</span>
-              </div>
-            </div>
-
-            <div className="i20-softbar" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.14)" }}>
-              <span>需要先看規則？</span>
-              <Link href="/terms" className="i20-btn ghost">
-                平台規則
-              </Link>
-            </div>
-          </article>
-
-          <article className={`i20-panel ${styles.formStack}`}>
-            <div>
-              <span className="i20-kicker">Message</span>
-              <h2 className="i20-serif">整理問題，直接寄給客服。</h2>
-              <p className="i20-muted">
-                先把必要資訊整理好，客服會更快理解你遇到的狀況。
-              </p>
-            </div>
-
-            <div className="i20-form-grid">
-              <div className="i20-field">
-                <label>你的稱呼</label>
-                <input
-                  className="i20-input"
-                  value={draft.name}
-                  onChange={(event) => update("name", event.target.value)}
-                  placeholder="例如：Wade"
-                />
-              </div>
-              <div className="i20-field">
-                <label>可回覆 Email</label>
-                <input
-                  className="i20-input"
-                  value={draft.email}
-                  onChange={(event) => update("email", event.target.value)}
-                  placeholder="name@example.com"
-                  inputMode="email"
-                />
-              </div>
-            </div>
-
-            <div className="i20-field">
-              <label>詢問主題</label>
-              <select
-                className="i20-select"
-                value={draft.topic}
-                onChange={(event) => update("topic", event.target.value)}
-              >
-                <option>同行空間 / 使用問題</option>
-                <option>方案 / 付款問題</option>
-                <option>身份驗證 / 帳號問題</option>
-                <option>退款 / 服務交付</option>
-                <option>其他詢問</option>
-              </select>
-            </div>
-
-            <div className="i20-field">
-              <label>問題內容</label>
-              <textarea
-                className="i20-textarea"
-                value={draft.message}
-                onChange={(event) => update("message", event.target.value)}
-                placeholder="請描述遇到的情況、發生時間，以及你希望客服協助確認的重點。"
-              />
-            </div>
-
-            <a
-              className={`i20-btn peach${canOpenDraft ? "" : " is-disabled"}`}
-              href={canOpenDraft ? mailtoHref : undefined}
-              aria-disabled={!canOpenDraft}
-              onClick={(event) => {
-                if (!canOpenDraft) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              開啟客服信件草稿
-            </a>
-
-            <p className={styles.mailHint}>
-              點擊後會開啟你的郵件程式，並帶入已整理好的客服信件內容。
+        <div className={styles.contactHeroGrid}>
+          <article className={styles.contactIntro}>
+            <span className="i20-kicker">Contact</span>
+            <h1 className="i20-serif">有需要時，我們都在這裡。</h1>
+            <p>
+              不論是房間使用、方案付款、帳號安全，或服務上的疑問，
+              安感島會把支援入口放在清楚的位置，讓你不用猜要找誰。
             </p>
-          </article>
-        </div>
 
-        <div className={styles.quickGrid}>
-          <article className="i20-card">
-            <span className="i20-kicker">Rooms</span>
-            <h3>房間使用</h3>
-            <p>進房、排程、入場憑證與視訊效果相關問題。</p>
+            <div className={styles.contactResponseCard}>
+              <b>回覆節奏</b>
+              <span>一般詢問會依序回覆；付款、房間或帳號異常請附上時間與關鍵資訊。</span>
+            </div>
           </article>
-          <article className="i20-card">
-            <span className="i20-kicker">Billing</span>
-            <h3>方案與退款</h3>
-            <p>付款、方案差異、退款政策與交付說明。</p>
-          </article>
-          <article className="i20-card">
-            <span className="i20-kicker">Account</span>
-            <h3>帳號與安全</h3>
-            <p>登入、身份驗證、資料更新與安全疑慮。</p>
-          </article>
+
+          <section className={styles.contactSupportColumn} aria-label="客服入口">
+            <div className={styles.contactColumnTitle}>聯繫安感島團隊</div>
+
+            {supportCards.map((card) => {
+              const content = (
+                <>
+                  <div>
+                    <span>{card.eyebrow}</span>
+                    <strong>{card.title}</strong>
+                    <p>{card.body}</p>
+                  </div>
+                  <b>{card.cta} →</b>
+                </>
+              );
+
+              return card.external ? (
+                <a
+                  className={styles.contactSupportCard}
+                  href={card.href}
+                  key={card.title}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {content}
+                </a>
+              ) : (
+                <Link className={styles.contactSupportCard} href={card.href} key={card.title}>
+                  {content}
+                </Link>
+              );
+            })}
+          </section>
+
+          <aside className={styles.contactActionPanel}>
+            <span className="i20-kicker">Help Desk</span>
+            <h2 className="i20-serif">需要協助，直接選擇最順手的方式。</h2>
+            <p>
+              已經準備好問題內容時，使用客服表單最完整；需要補充檔案或長訊息時，
+              可直接寄信至官方客服信箱。
+            </p>
+
+            <div className={styles.contactActionButtons}>
+              <a
+                className="i20-btn peach"
+                href={CONTACT_FORM_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                填寫客服表單
+              </a>
+              <a className="i20-btn ghost" href={`mailto:${SUPPORT_EMAIL}`}>
+                寄信給客服
+              </a>
+            </div>
+
+            <div className={styles.contactActionMeta}>
+              <div>
+                <span>官方 Email</span>
+                <b>{SUPPORT_EMAIL}</b>
+              </div>
+              <div>
+                <span>營運單位</span>
+                <b>安感島資訊服務工作室</b>
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
 

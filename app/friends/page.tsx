@@ -1,98 +1,140 @@
 import Link from "next/link";
-import { Image20SidebarShell } from "@/components/image20/Image20Chrome";
+import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome";
 import styles from "@/components/image20/Image20Auxiliary.module.css";
 
-const friendEntryPoints = [
+const editorialItems = [
   {
-    eyebrow: "Reconnect",
-    title: "熟悉的人，留在舒服的距離",
-    body: "好友頁以低壓力重逢為主，不把社交做成即時壓力。",
+    title: "更安心的邀請",
+    body: "熟悉的人加入房間時，互動脈絡會比陌生配對更容易理解。",
   },
   {
-    eyebrow: "Invite",
-    title: "邀請與回覆要可讀",
-    body: "收到、送出與已處理的互動，之後都會在同一頁整理。",
+    title: "更穩定的分享",
+    body: "好友關係能降低邀請成本，也能替私人房與日常重逢留下入口。",
   },
   {
-    eyebrow: "Safety",
-    title: "不舒服時能先保護自己",
-    body: "封鎖、回報與邊界設定會被放在比熱鬧更前面。",
+    title: "更清楚的邊界",
+    body: "待處理邀請、封鎖與回報會分開呈現，避免社交壓力混在一起。",
   },
 ] as const;
 
 export default function FriendsPage() {
   return (
-    <Image20SidebarShell
-      title="好友"
-      lead="把熟悉的人留在舒服的距離：能重逢、能再約，也能保留邊界。"
-    >
-      <div className="i20-page" data-image20-dom-page="friends-v9-extra9">
-        <div className={styles.summaryGrid}>
-          {friendEntryPoints.map((item) => (
-            <article className="i20-card" key={item.title}>
-              <span className="i20-kicker">{item.eyebrow}</span>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-            </article>
-          ))}
-        </div>
+    <main className="i20-root" data-image20-dom-page="friends-v10-template-aligned">
+      <section className={styles.friendsHero}>
+        <div className={styles.friendsHeroBackdrop} aria-hidden="true" />
+        <Image20TopNav dark />
 
-        <div className={styles.friendBoard}>
-          <section className="i20-panel">
-            <div className="i20-section-head">
+        <div className={styles.friendsHeroInner}>
+          <div>
+            <span className="i20-kicker">Friends</span>
+            <h1 className="i20-serif">在安感島，不必總是自己開始。</h1>
+            <p>
+              好友讓邀請更安心，房間裡的陪伴更自在；你可以慢慢建立熟悉的人際圈，
+              也能保留舒服的距離。
+            </p>
+          </div>
+
+          <aside className={styles.friendsHeroNotice}>
+            <span>安感小提醒</span>
+            <b>好友功能會優先保留邀請、回覆與安全邊界。</b>
+            <p>比起熱鬧，這裡更在意你是否能安心地再度相遇。</p>
+          </aside>
+        </div>
+      </section>
+
+      <section className={styles.friendsBody}>
+        <aside className={styles.friendsEditorial}>
+          <span className="i20-kicker">Why Friends</span>
+          <h2 className="i20-serif">好友如何影響你的房間體驗</h2>
+
+          <div className={styles.friendsEditorialList}>
+            {editorialItems.map((item) => (
+              <article key={item.title}>
+                <b>{item.title}</b>
+                <p>{item.body}</p>
+              </article>
+            ))}
+          </div>
+        </aside>
+
+        <section className={styles.friendsPrimaryColumn}>
+          <article className={styles.friendsPanel}>
+            <div className={styles.friendsPanelHead}>
               <div>
-                <span className="i20-kicker">My Friends</span>
-                <h3>好友名單</h3>
+                <span className="i20-kicker">Trusted Friends</span>
+                <h3>信任好友</h3>
               </div>
-              <Link href="/rooms" className="i20-btn light">
-                從同行空間開始
-              </Link>
+              <button className={styles.pendingButton} type="button" disabled>
+                名單管理待開放
+              </button>
             </div>
 
-            <div className={styles.friendRows}>
-              <div className={styles.emptyPanel}>
-                <b>目前沒有要展示的好友名單。</b>
+            <div className={styles.friendsEmptyList}>
+              <div className={styles.friendsEmptyState}>
+                <b>目前還沒有好友名單。</b>
                 <p>
-                  新增好友後，最近互動、可再次同行的人與邀請狀態都會集中整理在這裡。
+                  當你與熟悉的人建立連結後，最近互動、可再次邀請與在場狀態都會整理在這裡。
                 </p>
               </div>
 
-              <div className={styles.friendRow}>
+              <div className={styles.friendsInviteRow}>
                 <div className={styles.friendAvatar}>+</div>
                 <div>
-                  <strong>邀請入口</strong>
-                  <small>可從公開檔案或共同房間開始，慢慢建立熟悉且舒服的互動。</small>
+                  <strong>從安心的入口開始</strong>
+                  <span>你可以先從同行空間或安感夥伴頁面探索合適的互動方式。</span>
                 </div>
-                <Link href="/buddies" className="i20-btn">
-                  探索安感夥伴
+                <Link href="/rooms" className="i20-btn">
+                  探索房間
                 </Link>
               </div>
             </div>
-          </section>
+          </article>
+        </section>
 
-          <aside className={styles.sideStack}>
-            <section className="i20-panel">
-              <span className="i20-kicker">Requests</span>
-              <h3>收到的邀請</h3>
-              <div className={styles.emptyPanel} style={{ marginTop: 14 }}>
-                <b>目前沒有待確認邀請。</b>
-                <p>收到邀請時，接受與略過會集中顯示在這裡。</p>
+        <aside className={styles.friendsSideColumn}>
+          <article className={styles.friendsPanel}>
+            <div className={styles.friendsPanelHead}>
+              <div>
+                <span className="i20-kicker">Requests</span>
+                <h3>待處理邀請</h3>
               </div>
-            </section>
+              <button className={styles.pendingButton} type="button" disabled>
+                查看全部
+              </button>
+            </div>
 
-            <section className="i20-panel dark">
-              <span className="i20-kicker">Safety</span>
-              <h3>安全名單</h3>
-              <p>
-                不舒服的互動應該可以快速被隔離。封鎖與回報會以獨立區塊整理，不混在日常互動裡。
-              </p>
-              <Link href="/contact" className="i20-btn peach">
-                聯絡客服
-              </Link>
-            </section>
-          </aside>
-        </div>
-      </div>
-    </Image20SidebarShell>
+            <div className={styles.friendsCompactState}>
+              <b>目前沒有待確認邀請。</b>
+              <p>收到邀請時，接受、略過與後續管理都會集中在這裡。</p>
+            </div>
+          </article>
+
+          <article className={styles.friendsPanel}>
+            <span className="i20-kicker">Invite</span>
+            <h3>邀請好友</h3>
+            <p>邀請連結與邀請帳號入口會在此區域呈現。</p>
+            <div className={styles.friendsInvitePreview}>
+              <span>邀請功能準備中</span>
+              <button type="button" disabled>
+                建立邀請連結
+              </button>
+            </div>
+          </article>
+
+          <article className={`${styles.friendsPanel} ${styles.friendsDarkPanel}`}>
+            <span className="i20-kicker">Safety</span>
+            <h3>封鎖與回報</h3>
+            <p>
+              不舒服的互動會優先被隔離。之後封鎖名單與回報紀錄會集中顯示在這裡。
+            </p>
+            <Link href="/contact" className="i20-btn peach">
+              聯絡客服
+            </Link>
+          </article>
+        </aside>
+      </section>
+
+      <Image20Footer />
+    </main>
   );
 }

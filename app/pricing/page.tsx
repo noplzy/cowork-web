@@ -1,4 +1,129 @@
+import Link from "next/link";
 import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome";
-import { Image20Hero } from "@/components/image20/Image20Shared";
-const plans=[['Free','NT$0','每月 4 場免費體驗','新朋友先理解安感島的節奏。'],['安心同行','NT$299','好友房 / 邀請制','適合固定使用 Rooms 的入門會員。'],['常駐同行','NT$599','更多同行與主持額度','主推方案，適合高頻使用者。'],['主持島民','NT$1,299','Host Credit / 活動房','給房主、活動與帶朋友使用。']] as const;
-export default function PricingPage(){return <main className="i20-root" data-image20-dom-page="pricing-v6"><Image20TopNav/><Image20Hero small eyebrow="Pricing" title="先知道規則，再決定要不要留下。" lead="價格頁以透明、可理解、可回頭查為核心；目前正式付款仍以 repo 現行 billing plan 為準，下一版方案先做產品視覺與文案預留。" actions={[{href:'/rooms',label:'先去看房間'},{href:'/contact',label:'問客服',peach:true}]}/><section className="i20-section"><div className="i20-grid four">{plans.map((p,i)=><article className={`i20-card ${i===2?'blue':''}`} key={p[0]}><span className="i20-kicker">Plan</span><h3>{p[0]}</h3><p style={{fontSize:34,color:'var(--i20-ink)',fontWeight:900}}>{p[1]}</p><b>{p[2]}</b><p>{p[3]}</p><ul><li>Rooms 使用權益</li><li>公開規則與客服支援</li><li>{i>=2?'AI 主持額度預留':'AI 功能 UI 預留'}</li></ul><a className="i20-btn" href={i===0?'/rooms':'/contact'}>{i===0?'開始體驗':'了解方案'}</a></article>)}</div></section><section className="i20-section"><div className="i20-panel dark"><span className="i20-kicker">Host Credit</span><h2>AI 主持不賣無限陪聊，而是用 Host Credit 控制成本。</h2><div className="i20-grid four" style={{marginTop:18}}>{['25 分鐘 = 1 credit','50 分鐘 = 2 credits','75 分鐘 = 3 credits','90 分鐘活動 = 4 credits'].map(x=><div className="i20-card" key={x}><b>{x}</b><p>正式啟用需 server gate 與 usage log。</p></div>)}</div></div></section><Image20Footer/></main>}
+import styles from "@/components/image20/Image20Auxiliary.module.css";
+
+const freeBenefits = [
+  "每月 4 場免費同行額度",
+  "25 分鐘房間消耗 1 credit",
+  "50 分鐘房間消耗 2 credits",
+  "可先熟悉同行空間與基本流程",
+] as const;
+
+const vipBenefits = [
+  "房間續場不受免費額度限制",
+  "適合固定使用 Rooms 的高頻使用者",
+  "可搭配更完整的方案與客服協助",
+  "實際權益以正式帳號狀態與公告為準",
+] as const;
+
+const roomRules = [
+  {
+    title: "25 分鐘同行",
+    body: "消耗 1 credit，適合想先開始、低負擔完成一段節奏的人。",
+  },
+  {
+    title: "50 分鐘同行",
+    body: "消耗 2 credits，適合較完整的專注、陪伴或分享時段。",
+  },
+  {
+    title: "VIP 權益",
+    body: "VIP 不以免費場次作為主要限制，讓高頻使用者更穩定地續房。",
+  },
+] as const;
+
+export default function PricingPage() {
+  return (
+    <main className="i20-root" data-image20-dom-page="pricing-v11-template-aligned">
+      <section className={styles.pricingHero}>
+        <div className={styles.pricingHeroBackdrop} aria-hidden="true" />
+        <Image20TopNav dark />
+
+        <div className={styles.pricingHeroCopy}>
+          <span className="i20-kicker">Pricing</span>
+          <h1 className="i20-serif">先知道規則，再選擇適合自己的同行方式。</h1>
+          <p>
+            安感島目前的核心是 Rooms：免費方案以每月額度體驗為主，
+            VIP 則適合需要更穩定使用節奏的人。
+          </p>
+          <div className={styles.pricingHeroActions}>
+            <Link href="/rooms" className="i20-btn">
+              先去看房間
+            </Link>
+            <Link href="/contact" className="i20-btn peach">
+              詢問方案
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.pricingBody}>
+        <div className={styles.pricingComparison}>
+          <article className={styles.pricingPlanCard}>
+            <span className="i20-kicker">Free</span>
+            <h2 className="i20-serif">免費體驗</h2>
+            <p>適合先理解安感島節奏、偶爾進房與試用主要服務的人。</p>
+            <ul>
+              {freeBenefits.map((benefit) => (
+                <li key={benefit}>{benefit}</li>
+              ))}
+            </ul>
+            <Link href="/rooms" className="i20-btn light">
+              開始體驗
+            </Link>
+          </article>
+
+          <div className={styles.pricingBadge}>
+            <b>選擇</b>
+            <span>符合自己的節奏</span>
+          </div>
+
+          <article className={`${styles.pricingPlanCard} ${styles.pricingVipCard}`}>
+            <span className="i20-kicker">VIP</span>
+            <h2 className="i20-serif">VIP 會員</h2>
+            <p>適合固定使用同行空間、希望房間節奏更穩定的人。</p>
+            <ul>
+              {vipBenefits.map((benefit) => (
+                <li key={benefit}>{benefit}</li>
+              ))}
+            </ul>
+            <Link href="/contact" className="i20-btn peach">
+              詢問 VIP 方案
+            </Link>
+          </article>
+        </div>
+
+        <div className={styles.pricingRuleGrid}>
+          {roomRules.map((rule) => (
+            <article key={rule.title}>
+              <h3>{rule.title}</h3>
+              <p>{rule.body}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className={styles.pricingSupportGrid}>
+          <article>
+            <span className="i20-kicker">Support</span>
+            <h3>付款與方案疑問</h3>
+            <p>如果你需要確認方案適合度，可直接從客服入口詢問。</p>
+            <Link href="/contact">聯絡客服 →</Link>
+          </article>
+          <article>
+            <span className="i20-kicker">Policy</span>
+            <h3>退款政策</h3>
+            <p>先看清楚退款原則，再決定是否啟用方案。</p>
+            <Link href="/refund-policy">查看退款政策 →</Link>
+          </article>
+          <article>
+            <span className="i20-kicker">Delivery</span>
+            <h3>服務交付</h3>
+            <p>了解 Rooms、排程與正式服務的交付方式。</p>
+            <Link href="/service-delivery">查看服務交付 →</Link>
+          </article>
+        </div>
+      </section>
+
+      <Image20Footer />
+    </main>
+  );
+}

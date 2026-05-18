@@ -69,81 +69,108 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="i20-auth" data-image20-dom-page="login-v9-extra9">
-      <section className="i20-auth-art">
-        <div style={{ position: "absolute", zIndex: 3, left: 34, top: 30, color: "#fff" }}>
-          <Image20Logo />
-        </div>
+    <main className={styles.authPage} data-image20-dom-page="login-v11-template-aligned">
+      <div className={styles.authBackdrop} aria-hidden="true" />
 
-        <div className="i20-auth-copy">
-          <span className="i20-kicker">Login</span>
-          <h1>回到安感島，讓自己慢慢安定下來。</h1>
-          <p>登入後可進入同行空間、查看排程與管理你的安感島。</p>
-
-          <div className={styles.authBrandList}>
-            <div>同行空間：想開始時，有一個低壓力入口。</div>
-            <div>排程與帳號：回來後，還能接續上一次的節奏。</div>
+      <section className={styles.authStage}>
+        <article className={styles.authStory}>
+          <div className={styles.authLogo}>
+            <Image20Logo />
           </div>
-        </div>
+
+          <div className={styles.authStoryCopy}>
+            <span className="i20-kicker">Login</span>
+            <h1 className="i20-serif">回到安感島，讓自己慢慢安定下來。</h1>
+            <p>
+              登入後可進入同行空間、查看排程與管理自己的安感島。
+              這裡不是催促開始，而是讓你安心接續上一次的節奏。
+            </p>
+          </div>
+        </article>
+
+        <aside className={styles.authCard}>
+          <span className="i20-kicker">歡迎回來</span>
+          <h2 className="i20-serif">登入你的帳號</h2>
+          <p>使用 Google 或 Email / Password 進入。</p>
+
+          <div className={styles.authActionStack}>
+            <button
+              className="i20-btn"
+              onClick={signInWithGoogle}
+              disabled={googleLoading || loading}
+            >
+              {googleLoading ? "正在前往 Google…" : "使用 Google 登入"}
+            </button>
+
+            <div className={styles.authDivider}>
+              <span />
+              <b>或</b>
+              <span />
+            </div>
+
+            <div className="i20-field">
+              <label>Email</label>
+              <input
+                className="i20-input"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                inputMode="email"
+              />
+            </div>
+
+            <div className="i20-field">
+              <label>Password</label>
+              <input
+                className="i20-input"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+
+            <button
+              className="i20-btn peach"
+              onClick={signIn}
+              disabled={loading || googleLoading}
+            >
+              {loading ? "登入中…" : "登入安感島"}
+            </button>
+
+            {msg ? <div className={styles.authMessage}>{msg}</div> : null}
+
+            <div className={styles.authSwitchRow}>
+              <span>還沒有帳號？</span>
+              <Link href="/auth/signup">立即註冊</Link>
+            </div>
+          </div>
+
+          <div className={styles.authTrustGrid}>
+            <div>
+              <b>隱私安心</b>
+              <span>平台規則與政策入口清楚可查。</span>
+            </div>
+            <div>
+              <b>進房前先理解</b>
+              <span>先熟悉流程，再決定今天怎麼開始。</span>
+            </div>
+            <div>
+              <b>客服可找到</b>
+              <span>遇到帳號問題，可以直接聯絡我們。</span>
+            </div>
+          </div>
+        </aside>
       </section>
 
-      <section className="i20-auth-card">
-        <span className="i20-kicker">歡迎回來</span>
-        <h2 className="i20-serif">登入你的帳號</h2>
-        <p className="i20-muted">使用 Google 或 Email / Password 進入。</p>
-
-        <div className="i20-list">
-          <button className="i20-btn" onClick={signInWithGoogle} disabled={googleLoading || loading}>
-            {googleLoading ? "正在前往 Google…" : "使用 Google 登入"}
-          </button>
-
-          <div className="i20-field">
-            <label>Email</label>
-            <input
-              className="i20-input"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="i20-field">
-            <label>Password</label>
-            <input
-              className="i20-input"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-            />
-          </div>
-
-          <button className="i20-btn peach" onClick={signIn} disabled={loading || googleLoading}>
-            {loading ? "登入中…" : "登入"}
-          </button>
-
-          {msg ? <div className="i20-panel" style={{ color: "#a43d2f" }}>{msg}</div> : null}
-
-          <div className="i20-softbar">
-            <span>還沒有帳號？</span>
-            <Link href="/auth/signup" className="i20-btn light">
-              建立帳號
-            </Link>
-          </div>
-        </div>
-
-        <div className={styles.authTrust}>
-          <span className={styles.authTrustItem}>Google 或 Email</span>
-          <span className={styles.authTrustItem}>進房前可先理解規則</span>
-          <span className={styles.authTrustItem}>客服入口清楚可找</span>
-        </div>
-
-        <div className={styles.authLegal}>
+      <footer className={styles.authFooter}>
+        <span>© 安感島 Calm&amp;Co</span>
+        <nav aria-label="登入頁頁尾">
           <Link href="/terms">服務條款</Link>
           <Link href="/privacy">隱私權政策</Link>
           <Link href="/contact">客服</Link>
-        </div>
-      </section>
+        </nav>
+      </footer>
     </main>
   );
 }

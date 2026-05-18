@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { clearAccountStatusCache } from "@/lib/accountStatusClient";
 import { invalidateClientSessionSnapshotCache } from "@/lib/clientAuth";
-import { Image20SidebarShell } from "@/components/image20/Image20Chrome";
+import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome";
 import styles from "@/components/image20/Image20Auxiliary.module.css";
 
 const PENDING_PHONE_KEY = "identity_pending_phone_e164";
@@ -33,7 +33,7 @@ function e164ToTaiwanInput(phone: string | null | undefined) {
 function mapOtpError(error: unknown) {
   const raw = error instanceof Error ? error.message : "送出手機驗證碼失敗";
   return /Unable to get SMS provider/i.test(raw)
-    ? "目前簡訊驗證服務尚未完成配置，因此這一步暫時不會阻擋你使用網站。"
+    ? "手機驗證服務暫時無法完成，請稍後再試或聯絡客服。"
     : raw;
 }
 
@@ -84,7 +84,16 @@ function IdentityContent() {
   const verifyTargetPhone = pendingPhoneE164 || normalizedPhone || "";
   const canSend = Boolean(normalizedPhone) && !sending && !verifying;
   const canVerify = Boolean(verifyTargetPhone && otp.trim()) && !sending && !verifying;
-  const progress = confirmed ? 100 : hasSent ? 76 : normalizedPhone ? 58 : 42;
+
+  const progress = confirmed ? 33 : hasSent ? 22 : normalizedPhone ? 12 : 0;
+  const progressLabel = confirmed
+    ? "已完成第 1 階段"
+    : hasSent
+      ? "等待驗證碼"
+      : "尚未開始";
+  const progressStyle = {
+    background: `conic-gradient(#e8a181 ${progress}%, rgba(255,255,255,.14) ${progress}% 100%)`,
+  } as CSSProperties;
 
   useEffect(() => {
     let cancelled = false;
@@ -185,118 +194,166 @@ function IdentityContent() {
     }
   }
 
-  const ringStyle = {
-    background: `conic-gradient(#e8a181 ${progress}%, rgba(255,255,255,.12) ${progress}% 100%)`,
-  } as CSSProperties;
-
   return (
-    <Image20SidebarShell
-      title="身份驗證"
-      email={email}
-      lead="讓帳號信任、風控與未來服務流程有更清楚的基礎，同時不把新使用者擋在門外。"
-    >
-      <div className="i20-page" data-image20-dom-page="identity-v9-extra9">
-        <section className={styles.identityHeroGrid}>
-          <article className={`i20-panel dark ${styles.identityProgressCard}`}>
-            <div className={styles.progressRing} style={ringStyle}>
-              <div className={styles.progressRingInner}>
-                <span>目前</span>
+    <main className="i20-root" data-image20-dom-page="identity-v10-template-aligned">
+      <section className={styles.identityLanding}>
+        <div className={styles.identityLandingBackdrop} aria-hidden="true" />
+        <Image20TopNav dark email={email} />
+
+        <div className={styles.identityLandingGrid}>
+          <article className={styles.identityIntro}>
+            <span className="i20-kicker">Identity</span>
+            <h1 className="i20-serif">身份驗證，讓陪伴更安心。</h1>
+            <p>
+              在安感島，陪伴來自真實與尊重。完整驗證會逐步包含聯絡驗證、
+              證件確認與最終審核，讓服務信任建立得更清楚。
+            </p>
+            <a className="i20-btn peach" href="#identity-phone-step">
+              繼續驗證
+            </a>
+          </article>
+
+          <aside className={styles.identityOverviewCard}>
+            <div className={styles.identityProgressRing} style={progressStyle}>
+              <div>
                 <strong>{progress}%</strong>
+                <span>{progressLabel}</span>
               </div>
             </div>
 
             <div>
-              <span className="i20-kicker">Identity</span>
-              <h2 className="i20-serif">信任，是可以被看懂的進度。</h2>
+              <span className="i20-kicker">Current Status</span>
+              <h2 className="i20-serif">目前驗證進度</h2>
               <p>
-                手機驗證讓後續額度、風控與安感夥伴流程更有依據；現階段仍維持可選，不影響你使用主要 Rooms 功能。
+                {confirmed
+                  ? "手機聯絡驗證已完成；證件驗證與審核步驟會在後續正式服務中接續。"
+                  : "先完成手機聯絡驗證，之後會接續證件資料與審核流程。"}
               </p>
+              <div className={styles.identityOverviewMeta}>
+                <span>完整流程：3 階段</span>
+                <span>已完成：{confirmed ? "1 / 3" : "0 / 3"}</span>
+              </div>
             </div>
+          </aside>
+        </div>
+      </section>
+
+      <section className={styles.identityBoard}>
+        <div className={styles.identityStageGrid}>
+          <article className={styles.identityStageCard} data-state={confirmed ? "done" : "active"}>
+            <span>01</span>
+            <h3>手機聯絡驗證</h3>
+            <p>確認聯絡方式可用，作為帳號安全與後續服務聯繫基礎。</p>
+            <ul>
+              <li>{confirmed ? "已完成手機號碼確認" : "等待完成手機號碼確認"}</li>
+              <li>保留帳號與客服聯繫通道</li>
+            </ul>
           </article>
 
-          <article className={`i20-panel ${styles.identityMetrics}`}>
-            <div className={styles.identityMetric}>
-              <span>驗證狀態</span>
-              <b>{confirmed ? "已完成" : hasSent ? "等待輸入驗證碼" : "尚未完成"}</b>
-            </div>
-            <div className={styles.identityMetric}>
-              <span>輸入習慣</span>
-              <b>09xxxxxxxx</b>
-            </div>
-            <div className={styles.identityMetric}>
-              <span>系統格式</span>
-              <b>+886</b>
-            </div>
+          <article className={styles.identityStageCard} data-state="planned">
+            <span>02</span>
+            <h3>證件資料確認</h3>
+            <p>正式驗證流程將包含必要的身分文件與第二證明文件。</p>
+            <ul>
+              <li>身分證件資料</li>
+              <li>第二證明文件</li>
+            </ul>
+            <button type="button" disabled>
+              待開放
+            </button>
           </article>
-        </section>
 
-        <section className={styles.identityMainGrid}>
-          <article className={`i20-panel ${styles.identityFormStack}`}>
+          <article className={styles.identityStageCard} data-state="planned">
+            <span>03</span>
+            <h3>完成與審核</h3>
+            <p>資料齊備後，進入平台審核與正式驗證完成狀態。</p>
+            <ul>
+              <li>資料審核</li>
+              <li>驗證完成</li>
+            </ul>
+            <button type="button" disabled>
+              等待前置步驟
+            </button>
+          </article>
+        </div>
+
+        <div className={styles.identityWorkGrid}>
+          <article id="identity-phone-step" className={styles.identityPhonePanel}>
             <div>
               <span className="i20-kicker">Verify</span>
-              <h3>手機號碼驗證</h3>
-              <p className="i20-muted">
-                請先輸入台灣手機號碼，收到簡訊後再填入驗證碼完成確認。
+              <h2 className="i20-serif">先完成手機驗證</h2>
+              <p>
+                請輸入台灣手機號碼，收到簡訊後填入驗證碼。這是目前已可操作的身份驗證步驟。
               </p>
             </div>
 
-            <div className="i20-field">
-              <label>台灣手機號碼</label>
-              <input
-                className="i20-input"
-                value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
-                inputMode="tel"
-                placeholder="0968xxxxxx"
-              />
+            <div className={styles.identityFormGrid}>
+              <div className="i20-field">
+                <label>台灣手機號碼</label>
+                <input
+                  className="i20-input"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value)}
+                  inputMode="tel"
+                  placeholder="0968xxxxxx"
+                />
+              </div>
+
+              <button className="i20-btn peach" onClick={send} disabled={!canSend}>
+                {sending ? "送出中…" : hasSent ? "重新發送驗證碼" : "發送驗證碼"}
+              </button>
+
+              <div className="i20-field">
+                <label>簡訊驗證碼</label>
+                <input
+                  className="i20-input"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="輸入收到的驗證碼"
+                />
+              </div>
+
+              <button className="i20-btn" onClick={verify} disabled={!canVerify}>
+                {verifying ? "驗證中…" : "完成驗證"}
+              </button>
             </div>
 
-            <button className="i20-btn peach" onClick={send} disabled={!canSend}>
-              {sending ? "送出中…" : hasSent ? "重新發送驗證碼" : "發送驗證碼"}
-            </button>
-
-            <div className="i20-field">
-              <label>簡訊驗證碼</label>
-              <input
-                className="i20-input"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                inputMode="numeric"
-                placeholder="輸入收到的驗證碼"
-              />
+            <div className={styles.identityMessageStack}>
+              {pendingPhoneE164 ? <div>本次驗證目標：{pendingPhoneE164}</div> : null}
+              {msg ? <div>{msg}</div> : null}
             </div>
-
-            <button className="i20-btn" onClick={verify} disabled={!canVerify}>
-              {verifying ? "驗證中…" : "完成驗證"}
-            </button>
-
-            {pendingPhoneE164 ? <div className="i20-card">本次驗證目標：{pendingPhoneE164}</div> : null}
-            {msg ? <div className="i20-card">{msg}</div> : null}
           </article>
 
-          <aside className={styles.identityStatusGrid}>
-            <article className={styles.identityStatus}>
-              <span className="i20-kicker">Why</span>
-              <h3>讓服務更穩</h3>
-              <p>身份資料能支援風控、額度與客服查核，不只是多一道表單。</p>
+          <aside className={styles.identitySupportColumn}>
+            <article>
+              <span className="i20-kicker">Privacy</span>
+              <h3>我們如何保護驗證資料</h3>
+              <p>驗證資訊會用於身份確認、安全維護與未來服務資格判定。</p>
+              <Link href="/privacy">查看隱私權政策 →</Link>
             </article>
-            <article className={styles.identityStatus}>
-              <span className="i20-kicker">Boundary</span>
-              <h3>不強迫打斷使用</h3>
-              <p>現階段手機驗證不做進站硬阻擋，讓你先進 Rooms，再依需要補齊。</p>
+
+            <article>
+              <span className="i20-kicker">Support</span>
+              <h3>驗證遇到問題？</h3>
+              <p>手機驗證、帳號狀態或後續證件流程有疑問，可直接聯絡客服。</p>
+              <Link href="/contact">聯絡客服 →</Link>
             </article>
-            <article className={`i20-panel dark ${styles.sideStack}`}>
+
+            <article className={styles.identitySupportDark}>
               <span className="i20-kicker">Next</span>
-              <h3>返回帳號中心</h3>
-              <p>完成或略過後，都可以回到我的島查看方案、排程與下一步。</p>
+              <h3>返回我的島</h3>
+              <p>完成現有步驟後，可回帳號中心查看方案、排程與下一步。</p>
               <Link className="i20-btn ghost" href={next}>
                 回帳號中心
               </Link>
             </article>
           </aside>
-        </section>
-      </div>
-    </Image20SidebarShell>
+        </div>
+      </section>
+
+      <Image20Footer />
+    </main>
   );
 }
 
