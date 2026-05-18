@@ -314,6 +314,789 @@
   margin-top: 20px;
 }
 
+/* Contact v10 */
+.contactHero {
+  position: relative;
+  min-height: calc(100vh - 136px);
+  overflow: hidden;
+  color: #fff4e6;
+  background: #06151d;
+}
+
+.contactHeroBackdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 16, 22, 0.96) 0%, rgba(5, 16, 22, 0.82) 34%, rgba(5, 16, 22, 0.48) 62%, rgba(5, 16, 22, 0.78) 100%),
+    linear-gradient(180deg, rgba(5, 16, 22, 0.1), rgba(5, 16, 22, 0.72)),
+    url("/site-assets/image20/hero/brand-hero-evening-shared-presence.png") center/cover no-repeat;
+  filter: saturate(0.98) contrast(0.98) brightness(0.96);
+}
+
+.contactHeroGrid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(300px, 0.86fr) minmax(360px, 0.95fr) minmax(360px, 0.95fr);
+  gap: 28px;
+  align-items: end;
+  min-height: calc(100vh - 136px);
+  padding: 142px clamp(28px, 5.6vw, 96px) 36px;
+}
+
+.contactIntro {
+  display: grid;
+  align-content: end;
+  gap: 18px;
+  max-width: 430px;
+  padding-bottom: 42px;
+}
+
+.contactIntro h1 {
+  font-size: clamp(46px, 4.8vw, 74px);
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.contactIntro p {
+  margin: 0;
+  font-family: Georgia, "Noto Serif TC", serif;
+  color: rgba(255, 240, 221, 0.84);
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.contactResponseCard {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: rgba(6, 20, 28, 0.64);
+  border: 1px solid rgba(255, 231, 205, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.contactResponseCard b,
+.contactResponseCard span {
+  display: block;
+}
+
+.contactResponseCard b {
+  color: #ffe3c7;
+  letter-spacing: 0.08em;
+}
+
+.contactResponseCard span {
+  color: rgba(255, 240, 221, 0.76);
+  line-height: 1.75;
+}
+
+.contactSupportColumn {
+  display: grid;
+  gap: 12px;
+  align-content: end;
+  padding-bottom: 6px;
+}
+
+.contactColumnTitle {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 32px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  color: #fff0df;
+  letter-spacing: 0.08em;
+}
+
+.contactSupportCard {
+  min-height: 104px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border-radius: 20px;
+  color: #213038;
+  text-decoration: none;
+  background: rgba(255, 248, 238, 0.92);
+  border: 1px solid rgba(255, 232, 206, 0.48);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.22);
+}
+
+.contactSupportCard span {
+  display: block;
+  color: #ba855f;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.contactSupportCard strong {
+  display: block;
+  margin-top: 4px;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.contactSupportCard p {
+  margin: 6px 0 0;
+  color: #6f655d;
+  line-height: 1.65;
+}
+
+.contactSupportCard b {
+  min-width: 92px;
+  color: #0d5367;
+  text-align: right;
+  letter-spacing: 0.08em;
+}
+
+.contactActionPanel {
+  align-self: end;
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  min-height: 564px;
+  border-radius: 28px;
+  background: rgba(9, 25, 35, 0.9);
+  border: 1px solid rgba(255, 231, 205, 0.18);
+  box-shadow: 0 30px 72px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+
+.contactActionPanel h2 {
+  margin: 0;
+  color: #fff0df;
+  font-size: 34px;
+  line-height: 1.24;
+  font-weight: 500;
+}
+
+.contactActionPanel p {
+  margin: 0;
+  color: rgba(255, 240, 221, 0.78);
+  line-height: 1.85;
+}
+
+.contactActionButtons {
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.contactActionButtons :global(.i20-btn) {
+  width: 100%;
+}
+
+.contactActionMeta {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.contactActionMeta div {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 231, 205, 0.12);
+}
+
+.contactActionMeta span {
+  color: rgba(255, 240, 221, 0.64);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.contactActionMeta b {
+  color: #fff0df;
+  font-weight: 700;
+}
+
+/* Friends v10 */
+.friendsHero {
+  position: relative;
+  min-height: 420px;
+  overflow: hidden;
+  color: #fff4e6;
+  background: #06151d;
+}
+
+.friendsHeroBackdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 16, 22, 0.94) 0%, rgba(5, 16, 22, 0.66) 40%, rgba(5, 16, 22, 0.28) 72%, rgba(5, 16, 22, 0.54) 100%),
+    linear-gradient(180deg, rgba(5, 16, 22, 0.18), rgba(5, 16, 22, 0.78)),
+    url("/site-assets/image20/hero/brand-hero-evening-shared-presence.png") center/cover no-repeat;
+  filter: saturate(0.96) contrast(0.98) brightness(0.95);
+}
+
+.friendsHeroInner {
+  position: relative;
+  z-index: 2;
+  min-height: 420px;
+  padding: 136px clamp(28px, 5.6vw, 96px) 42px;
+  display: grid;
+  grid-template-columns: minmax(340px, 0.95fr) minmax(340px, 0.55fr);
+  gap: 34px;
+  align-items: end;
+}
+
+.friendsHeroInner h1 {
+  font-size: clamp(44px, 4.8vw, 72px);
+  line-height: 1.08;
+  margin: 14px 0 18px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.friendsHeroInner p {
+  margin: 0;
+  max-width: 720px;
+  font-family: Georgia, "Noto Serif TC", serif;
+  color: rgba(255, 240, 221, 0.84);
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.friendsHeroNotice {
+  align-self: end;
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 231, 205, 0.18);
+  background: rgba(8, 22, 31, 0.72);
+  backdrop-filter: blur(16px);
+}
+
+.friendsHeroNotice span {
+  color: #e8b28c;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.friendsHeroNotice b {
+  color: #fff0df;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.friendsHeroNotice p {
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.friendsBody {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.58fr) minmax(420px, 1fr) minmax(360px, 0.78fr);
+  gap: 24px;
+  padding: 32px clamp(28px, 5.6vw, 96px) 58px;
+  background: linear-gradient(180deg, rgba(250, 244, 235, 0.98), rgba(242, 233, 220, 0.98));
+}
+
+.friendsEditorial {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 22px 10px 22px 0;
+}
+
+.friendsEditorial h2 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #302721;
+}
+
+.friendsEditorialList {
+  display: grid;
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.friendsEditorialList article {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(91, 67, 48, 0.14);
+}
+
+.friendsEditorialList article:last-child {
+  border-bottom: 0;
+}
+
+.friendsEditorialList b {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 19px;
+  font-weight: 500;
+  color: #30414a;
+}
+
+.friendsEditorialList p {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.8;
+}
+
+.friendsPrimaryColumn,
+.friendsSideColumn {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.friendsPanel {
+  padding: 24px;
+  border-radius: 26px;
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  background: rgba(255, 250, 242, 0.84);
+  box-shadow: 0 26px 72px rgba(8, 16, 24, 0.14);
+}
+
+.friendsDarkPanel {
+  background: linear-gradient(180deg, rgba(8, 27, 36, 0.94), rgba(10, 31, 42, 0.9));
+  color: #fff4e6;
+  border-color: rgba(255, 231, 205, 0.16);
+}
+
+.friendsDarkPanel p {
+  color: rgba(255, 240, 221, 0.78);
+}
+
+.friendsPanelHead {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.friendsPanelHead h3,
+.friendsPanel h3 {
+  margin: 6px 0 0;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 28px;
+  font-weight: 500;
+  color: inherit;
+}
+
+.pendingButton,
+.friendsInvitePreview button,
+.identityStageCard button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 67, 48, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  color: #796d63;
+  font-weight: 800;
+}
+
+.friendsEmptyList {
+  display: grid;
+  gap: 14px;
+}
+
+.friendsEmptyState,
+.friendsCompactState {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(91, 67, 48, 0.12);
+}
+
+.friendsEmptyState b,
+.friendsCompactState b {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.friendsEmptyState p,
+.friendsCompactState p,
+.friendsPanel p {
+  margin: 0;
+  color: #766b61;
+  line-height: 1.78;
+}
+
+.friendsDarkPanel p {
+  color: rgba(255, 240, 221, 0.78);
+}
+
+.friendsInviteRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid rgba(91, 67, 48, 0.12);
+}
+
+.friendsInviteRow strong,
+.friendsInviteRow span {
+  display: block;
+}
+
+.friendsInviteRow strong {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 20px;
+  font-weight: 500;
+  color: #283942;
+}
+
+.friendsInviteRow span {
+  margin-top: 5px;
+  color: #766b61;
+  line-height: 1.72;
+}
+
+.friendsInvitePreview {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(91, 67, 48, 0.12);
+  color: #756a60;
+}
+
+/* Identity v10 */
+.identityLanding {
+  position: relative;
+  min-height: 620px;
+  overflow: hidden;
+  color: #fff4e6;
+  background: #06151d;
+}
+
+.identityLandingBackdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 16, 22, 0.92) 0%, rgba(5, 16, 22, 0.72) 36%, rgba(5, 16, 22, 0.32) 70%, rgba(5, 16, 22, 0.52) 100%),
+    linear-gradient(180deg, rgba(5, 16, 22, 0.16), rgba(5, 16, 22, 0.74)),
+    url("/site-assets/image20/auth/auth-evening-window-return.png") center/cover no-repeat;
+  filter: saturate(0.96) contrast(0.98) brightness(0.96);
+}
+
+.identityLandingGrid {
+  position: relative;
+  z-index: 2;
+  min-height: 620px;
+  display: grid;
+  grid-template-columns: minmax(360px, 0.92fr) minmax(420px, 0.72fr);
+  gap: 48px;
+  align-items: center;
+  padding: 132px clamp(28px, 5.6vw, 96px) 64px;
+}
+
+.identityIntro {
+  display: grid;
+  gap: 18px;
+  max-width: 620px;
+}
+
+.identityIntro h1 {
+  margin: 0;
+  font-size: clamp(46px, 5vw, 76px);
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.identityIntro p {
+  margin: 0;
+  max-width: 640px;
+  color: rgba(255, 240, 221, 0.84);
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.identityOverviewCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 28px;
+  align-items: center;
+  min-height: 282px;
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255, 248, 238, 0.92);
+  border: 1px solid rgba(255, 232, 206, 0.4);
+  color: #203039;
+  box-shadow: 0 30px 72px rgba(0, 0, 0, 0.22);
+}
+
+.identityOverviewCard h2 {
+  margin: 8px 0 10px;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.identityOverviewCard p {
+  margin: 0;
+  color: #6f655d;
+  line-height: 1.8;
+}
+
+.identityProgressRing {
+  width: 182px;
+  height: 182px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}
+
+.identityProgressRing > div {
+  width: 146px;
+  height: 146px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: rgba(255, 251, 244, 0.95);
+  border: 1px solid rgba(91, 67, 48, 0.12);
+}
+
+.identityProgressRing strong,
+.identityProgressRing span {
+  display: block;
+}
+
+.identityProgressRing strong {
+  font-family: Georgia, "Noto Serif TC", serif;
+  color: #0d5367;
+  font-size: 46px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.identityProgressRing span {
+  margin-top: 6px;
+  color: #756a60;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.identityOverviewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.identityOverviewMeta span {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(13, 83, 103, 0.08);
+  color: #30505a;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.identityBoard {
+  display: grid;
+  gap: 22px;
+  padding: 34px clamp(28px, 5.6vw, 96px) 58px;
+  background: linear-gradient(180deg, rgba(250, 244, 235, 0.98), rgba(242, 233, 220, 0.98));
+}
+
+.identityStageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.identityStageCard {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  background: rgba(255, 250, 242, 0.84);
+  box-shadow: 0 26px 72px rgba(8, 16, 24, 0.12);
+}
+
+.identityStageCard[data-state="done"] {
+  border-color: rgba(116, 154, 134, 0.28);
+}
+
+.identityStageCard[data-state="active"] {
+  border-color: rgba(232, 161, 129, 0.36);
+}
+
+.identityStageCard[data-state="planned"] {
+  opacity: 0.92;
+}
+
+.identityStageCard > span {
+  color: #b98762;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.identityStageCard h3 {
+  margin: 0;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 28px;
+  font-weight: 500;
+  color: #2f2923;
+}
+
+.identityStageCard p {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.76;
+}
+
+.identityStageCard ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #756a60;
+  line-height: 1.8;
+}
+
+.identityWorkGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.identityPhonePanel {
+  display: grid;
+  gap: 18px;
+  padding: 26px;
+  border-radius: 28px;
+  background: rgba(255, 250, 242, 0.88);
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  box-shadow: 0 26px 72px rgba(8, 16, 24, 0.14);
+}
+
+.identityPhonePanel h2 {
+  margin: 8px 0 10px;
+  font-size: 34px;
+  font-weight: 500;
+  color: #302721;
+}
+
+.identityPhonePanel p {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.8;
+}
+
+.identityFormGrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.identityMessageStack {
+  display: grid;
+  gap: 10px;
+}
+
+.identityMessageStack div {
+  padding: 13px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  background: rgba(255, 255, 255, 0.64);
+  color: #655b53;
+  line-height: 1.7;
+}
+
+.identitySupportColumn {
+  display: grid;
+  gap: 16px;
+}
+
+.identitySupportColumn article {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  background: rgba(255, 250, 242, 0.84);
+  box-shadow: 0 22px 56px rgba(8, 16, 24, 0.12);
+}
+
+.identitySupportColumn h3 {
+  margin: 0;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.identitySupportColumn p {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.76;
+}
+
+.identitySupportColumn a {
+  color: #0d5367;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.identitySupportDark {
+  background: linear-gradient(180deg, rgba(8, 27, 36, 0.94), rgba(10, 31, 42, 0.9)) !important;
+  color: #fff4e6;
+  border-color: rgba(255, 231, 205, 0.16) !important;
+}
+
+.identitySupportDark p {
+  color: rgba(255, 240, 221, 0.78);
+}
+
+.identitySupportDark a {
+  color: #fff4e6;
+}
+
+@media (max-width: 1180px) {
+  .contactHeroGrid,
+  .friendsHeroInner,
+  .identityLandingGrid,
+  .friendsBody,
+  .identityWorkGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .contactActionPanel {
+    min-height: auto;
+  }
+
+  .friendsBody {
+    gap: 22px;
+  }
+
+  .identityOverviewCard {
+    max-width: 760px;
+  }
+}
+
 @media (max-width: 1020px) {
   .contentBand {
     padding-left: 18px;
@@ -333,7 +1116,8 @@
   .summaryGrid,
   .authMetaGrid,
   .legalSummaryGrid,
-  .legalArticleGrid {
+  .legalArticleGrid,
+  .identityStageGrid {
     grid-template-columns: 1fr;
   }
 
@@ -347,5 +1131,966 @@
 
   .friendRow :global(.i20-btn) {
     grid-column: 1 / -1;
+  }
+
+  .contactHero,
+  .friendsHero,
+  .identityLanding {
+    min-height: auto;
+  }
+
+  .contactHeroGrid,
+  .friendsHeroInner,
+  .identityLandingGrid {
+    min-height: auto;
+    padding: 118px 18px 28px;
+  }
+
+  .contactIntro {
+    padding-bottom: 0;
+  }
+
+  .contactSupportCard {
+    grid-template-columns: 1fr;
+  }
+
+  .contactSupportCard b {
+    text-align: left;
+  }
+
+  .friendsBody,
+  .identityBoard {
+    padding: 24px 18px 42px;
+  }
+
+  .friendsInviteRow,
+  .identityOverviewCard,
+  .identityFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .identityProgressRing {
+    width: 156px;
+    height: 156px;
+  }
+
+  .identityProgressRing > div {
+    width: 126px;
+    height: 126px;
+  }
+}
+
+
+/* Auth v11 */
+.authPage {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  color: #fff4e6;
+  background: #06151d;
+}
+
+.authBackdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(6, 16, 22, 0.80) 0%, rgba(6, 16, 22, 0.52) 38%, rgba(6, 16, 22, 0.32) 62%, rgba(6, 16, 22, 0.72) 100%),
+    linear-gradient(180deg, rgba(6, 16, 22, 0.18), rgba(6, 16, 22, 0.66)),
+    url("/site-assets/image20/auth/auth-evening-window-return.png") 46% center / cover no-repeat;
+  filter: saturate(0.98) contrast(0.98) brightness(0.98);
+}
+
+.authStage {
+  position: relative;
+  z-index: 2;
+  min-height: calc(100vh - 86px);
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(440px, 580px);
+  align-items: center;
+  gap: clamp(32px, 6vw, 104px);
+  padding: 42px clamp(32px, 5.6vw, 96px) 36px;
+}
+
+.authStory {
+  min-height: calc(100vh - 164px);
+  display: grid;
+  align-content: space-between;
+}
+
+.authLogo {
+  width: fit-content;
+  color: #fff4e6;
+}
+
+.authStoryCopy {
+  max-width: 640px;
+  display: grid;
+  gap: 18px;
+  padding-bottom: clamp(42px, 8vh, 96px);
+}
+
+.authStoryCopy h1 {
+  margin: 0;
+  font-size: clamp(48px, 5vw, 78px);
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-shadow: 0 12px 42px rgba(0, 0, 0, 0.34);
+}
+
+.authStoryCopy p {
+  margin: 0;
+  max-width: 650px;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 19px;
+  line-height: 1.92;
+  color: rgba(255, 240, 221, 0.88);
+}
+
+.authCard {
+  justify-self: end;
+  width: min(100%, 560px);
+  display: grid;
+  gap: 14px;
+  padding: 34px 38px 28px;
+  border-radius: 32px;
+  background:
+    linear-gradient(180deg, rgba(255, 249, 241, 0.97), rgba(246, 238, 226, 0.96));
+  color: #203039;
+  border: 1px solid rgba(255, 232, 206, 0.45);
+  box-shadow: 0 34px 84px rgba(0, 0, 0, 0.28);
+}
+
+.authCard h2 {
+  margin: 0;
+  color: #26353d;
+  font-size: 42px;
+  line-height: 1.18;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.authCard > p {
+  margin: 0 0 4px;
+  color: #72675d;
+  line-height: 1.8;
+}
+
+.authActionStack {
+  display: grid;
+  gap: 13px;
+  margin-top: 4px;
+}
+
+.authActionStack :global(.i20-btn) {
+  width: 100%;
+}
+
+.authDivider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: center;
+  color: #82776d;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.authDivider span {
+  height: 1px;
+  background: rgba(70, 52, 38, 0.16);
+}
+
+.authMessage {
+  padding: 13px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(164, 61, 47, 0.22);
+  background: rgba(255, 246, 241, 0.84);
+  color: #a43d2f;
+  line-height: 1.72;
+}
+
+.authSwitchRow {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px;
+  color: #6f655d;
+}
+
+.authSwitchRow a {
+  color: #0d5367;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.authTrustGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 6px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(70, 52, 38, 0.12);
+}
+
+.authTrustGrid div {
+  display: grid;
+  gap: 5px;
+}
+
+.authTrustGrid b {
+  color: #30434b;
+  font-size: 13px;
+}
+
+.authTrustGrid span {
+  color: #7a7067;
+  font-size: 12px;
+  line-height: 1.62;
+}
+
+.authFooter {
+  position: relative;
+  z-index: 2;
+  min-height: 86px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 0 clamp(32px, 5.6vw, 96px);
+  background: rgba(5, 16, 22, 0.82);
+  border-top: 1px solid rgba(255, 231, 205, 0.14);
+  color: rgba(255, 240, 221, 0.78);
+  backdrop-filter: blur(14px);
+}
+
+.authFooter nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.authFooter a {
+  color: rgba(255, 240, 221, 0.82);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+/* Pricing v11 */
+.pricingHero {
+  position: relative;
+  min-height: 560px;
+  overflow: hidden;
+  color: #fff4e6;
+  background: #06151d;
+}
+
+.pricingHeroBackdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 16, 22, 0.95) 0%, rgba(5, 16, 22, 0.82) 36%, rgba(5, 16, 22, 0.34) 70%, rgba(5, 16, 22, 0.54) 100%),
+    linear-gradient(180deg, rgba(5, 16, 22, 0.12), rgba(5, 16, 22, 0.74)),
+    url("/site-assets/image20/hero/brand-hero-evening-shared-presence.png") center / cover no-repeat;
+  filter: saturate(0.96) contrast(0.98) brightness(0.96);
+}
+
+.pricingHeroCopy {
+  position: relative;
+  z-index: 2;
+  max-width: 880px;
+  padding: 150px clamp(28px, 5.6vw, 96px) 64px;
+  display: grid;
+  gap: 18px;
+}
+
+.pricingHeroCopy h1 {
+  margin: 0;
+  font-size: clamp(46px, 5.2vw, 82px);
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.pricingHeroCopy p {
+  margin: 0;
+  max-width: 760px;
+  font-family: Georgia, "Noto Serif TC", serif;
+  color: rgba(255, 240, 221, 0.84);
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.pricingHeroActions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.pricingBody {
+  display: grid;
+  gap: 26px;
+  padding: 34px clamp(28px, 5.6vw, 96px) 58px;
+  background: linear-gradient(180deg, rgba(250, 244, 235, 0.98), rgba(242, 233, 220, 0.98));
+}
+
+.pricingComparison {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 124px minmax(320px, 1fr);
+  align-items: center;
+  gap: 0;
+  width: min(1120px, 100%);
+  margin: -96px auto 0;
+  position: relative;
+  z-index: 4;
+}
+
+.pricingPlanCard {
+  min-height: 420px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding: 32px;
+  border-radius: 30px;
+  background: rgba(255, 250, 242, 0.95);
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  box-shadow: 0 28px 78px rgba(8, 16, 24, 0.16);
+}
+
+.pricingPlanCard h2 {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.14;
+  font-weight: 500;
+  color: #2d2621;
+}
+
+.pricingPlanCard p {
+  margin: 0;
+  color: #766b61;
+  line-height: 1.82;
+}
+
+.pricingPlanCard ul {
+  display: grid;
+  gap: 11px;
+  margin: 8px 0 4px;
+  padding-left: 18px;
+  color: #655b53;
+  line-height: 1.72;
+}
+
+.pricingPlanCard :global(.i20-btn) {
+  width: fit-content;
+  margin-top: auto;
+}
+
+.pricingVipCard {
+  background:
+    linear-gradient(180deg, rgba(231, 241, 243, 0.98), rgba(218, 231, 235, 0.98));
+  border-color: rgba(13, 83, 103, 0.24);
+}
+
+.pricingBadge {
+  position: relative;
+  z-index: 2;
+  width: 124px;
+  height: 124px;
+  margin-inline: auto;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  background: linear-gradient(180deg, #e8a181, #c97e61);
+  color: #fff8ef;
+  box-shadow: 0 24px 52px rgba(165, 91, 62, 0.28);
+  text-align: center;
+}
+
+.pricingBadge b {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.pricingBadge span {
+  width: 76px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pricingRuleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.pricingRuleGrid article,
+.pricingSupportGrid article {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 250, 242, 0.84);
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  box-shadow: 0 24px 64px rgba(8, 16, 24, 0.12);
+}
+
+.pricingRuleGrid h3,
+.pricingSupportGrid h3 {
+  margin: 0;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 28px;
+  font-weight: 500;
+  color: #2f2923;
+}
+
+.pricingRuleGrid p,
+.pricingSupportGrid p {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.78;
+}
+
+.pricingSupportGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.pricingSupportGrid a {
+  color: #0d5367;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+/* Account Center v11 */
+.accountDashboard {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  color: #203039;
+  background:
+    linear-gradient(180deg, rgba(250, 244, 235, 0.98), rgba(242, 233, 220, 0.98));
+}
+
+.accountSidebar {
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 28px;
+  padding: 28px 22px 24px;
+  background:
+    linear-gradient(180deg, rgba(7, 21, 29, 0.98), rgba(11, 31, 41, 0.96));
+  color: #fff4e6;
+  border-right: 1px solid rgba(255, 231, 205, 0.12);
+}
+
+.accountSidebar :global(.i20-logo) {
+  width: fit-content;
+}
+
+.accountSideNav {
+  display: grid;
+  gap: 8px;
+}
+
+.accountSideNav a {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 16px;
+  color: rgba(255, 240, 221, 0.84);
+  text-decoration: none;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.accountSideNav a:hover,
+.accountSideActive {
+  color: #fff4e6 !important;
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 231, 205, 0.16);
+}
+
+.accountSidebarNote {
+  align-self: end;
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 231, 205, 0.14);
+}
+
+.accountSidebarNote b {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.accountSidebarNote span {
+  color: rgba(255, 240, 221, 0.72);
+  line-height: 1.72;
+}
+
+.accountSignOut {
+  min-height: 48px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 231, 205, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff4e6;
+  font-weight: 900;
+}
+
+.accountMain {
+  min-width: 0;
+  padding: 24px 28px 48px;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.accountTopbar {
+  min-height: 68px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 18px;
+  border-radius: 24px;
+  background: rgba(255, 250, 242, 0.78);
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  box-shadow: 0 18px 48px rgba(8, 16, 24, 0.10);
+}
+
+.accountTopbar div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.accountTopbar span {
+  color: #b98762;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.accountTopbar b {
+  font-size: 16px;
+  color: #283942;
+}
+
+.accountTopActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.accountTopActions a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(13, 83, 103, 0.08);
+  color: #0d5367;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.accountHero {
+  position: relative;
+  min-height: 282px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 22px;
+  align-items: end;
+  overflow: hidden;
+  padding: 30px;
+  border-radius: 30px;
+  color: #fff4e6;
+  background: #06151d;
+  box-shadow: 0 28px 78px rgba(8, 16, 24, 0.18);
+}
+
+.accountHeroBackdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 16, 22, 0.94) 0%, rgba(5, 16, 22, 0.72) 42%, rgba(5, 16, 22, 0.28) 70%, rgba(5, 16, 22, 0.56) 100%),
+    url("/site-assets/image20/hero/brand-hero-evening-shared-presence.png") center / cover no-repeat;
+  filter: saturate(0.96) contrast(0.98) brightness(0.96);
+}
+
+.accountHeroCopy,
+.accountHeroQuote {
+  position: relative;
+  z-index: 2;
+}
+
+.accountHeroCopy {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.accountHeroCopy h1 {
+  margin: 0;
+  font-size: clamp(38px, 4vw, 60px);
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.accountHeroCopy p {
+  margin: 0;
+  color: rgba(255, 240, 221, 0.82);
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 17px;
+  line-height: 1.84;
+}
+
+.accountHeroQuote {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 22px;
+  background: rgba(8, 22, 31, 0.66);
+  border: 1px solid rgba(255, 231, 205, 0.16);
+  backdrop-filter: blur(16px);
+}
+
+.accountHeroQuote b {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.accountHeroQuote span {
+  color: rgba(255, 240, 221, 0.74);
+  line-height: 1.72;
+}
+
+.accountProfileGrid {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.02fr) minmax(360px, 0.98fr);
+  gap: 18px;
+}
+
+.accountProfileCard,
+.accountPlanCard,
+.accountMetricCard,
+.accountContentCard,
+.accountSupportStack article,
+.accountLoading {
+  border-radius: 26px;
+  border: 1px solid rgba(74, 52, 37, 0.14);
+  background: rgba(255, 250, 242, 0.86);
+  box-shadow: 0 24px 64px rgba(8, 16, 24, 0.12);
+}
+
+.accountProfileCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: center;
+  padding: 24px;
+}
+
+.accountAvatar {
+  width: 110px;
+  height: 110px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff4e6;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 42px;
+  background:
+    linear-gradient(135deg, rgba(232, 161, 129, 0.94), rgba(13, 83, 103, 0.92));
+  box-shadow: 0 24px 52px rgba(8, 16, 24, 0.18);
+}
+
+.accountProfileCard h2,
+.accountPlanCard h2 {
+  margin: 8px 0 10px;
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1.18;
+}
+
+.accountProfileCard p,
+.accountPlanCard p {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.76;
+}
+
+.accountProfileCard a,
+.accountPlanCard a,
+.accountMetricCard a,
+.accountContentHead a,
+.accountSupportStack a {
+  color: #0d5367;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.accountPlanCard {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(228, 239, 242, 0.96), rgba(216, 230, 234, 0.96));
+  border-color: rgba(13, 83, 103, 0.22);
+}
+
+.accountPlanMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.accountPlanMeta span {
+  padding: 10px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  color: #34505a;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.accountMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.accountMetricCard {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+}
+
+.accountMetricCard h3,
+.accountContentHead h3,
+.accountSupportStack h3 {
+  margin: 0;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.24;
+}
+
+.accountMetricCard > b {
+  color: #213942;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 34px;
+  font-weight: 500;
+}
+
+.accountMetricCard p,
+.accountSupportStack p {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.78;
+}
+
+.accountContentGrid {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.92fr) minmax(360px, 0.92fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.accountContentCard {
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.accountContentHead {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.accountEmptyState,
+.accountPreferenceList div {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(74, 52, 37, 0.12);
+  background: rgba(255, 255, 255, 0.60);
+}
+
+.accountEmptyState b,
+.accountPreferenceList b {
+  font-family: Georgia, "Noto Serif TC", serif;
+  color: #2d3c44;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.accountEmptyState p,
+.accountPreferenceList span {
+  margin: 0;
+  color: #756a60;
+  line-height: 1.74;
+}
+
+.accountPreferenceList {
+  display: grid;
+  gap: 12px;
+}
+
+.accountSupportStack {
+  display: grid;
+  gap: 18px;
+}
+
+.accountSupportStack article {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+}
+
+.accountLoading {
+  padding: 18px;
+  color: #6f655d;
+  line-height: 1.72;
+}
+
+/* Responsive additions */
+@media (max-width: 1180px) {
+  .authStage,
+  .pricingComparison,
+  .accountDashboard,
+  .accountHero,
+  .accountProfileGrid,
+  .accountContentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .authStory {
+    min-height: auto;
+    gap: 48px;
+  }
+
+  .authCard {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .pricingComparison {
+    gap: 18px;
+    margin-top: -72px;
+  }
+
+  .pricingBadge {
+    order: -1;
+  }
+
+  .accountSidebar {
+    position: relative;
+    min-height: auto;
+  }
+
+  .accountSideNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .accountMetricGrid,
+  .pricingRuleGrid,
+  .pricingSupportGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1020px) {
+  .authStage {
+    min-height: auto;
+    padding: 24px 18px 28px;
+  }
+
+  .authStoryCopy {
+    padding-bottom: 0;
+  }
+
+  .authStoryCopy h1 {
+    font-size: 48px;
+  }
+
+  .authCard {
+    padding: 26px 20px 22px;
+  }
+
+  .authTrustGrid,
+  .accountSideNav,
+  .accountMetricGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .authFooter {
+    min-height: auto;
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .pricingHeroCopy {
+    padding: 122px 18px 40px;
+  }
+
+  .pricingBody,
+  .accountMain {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .pricingComparison {
+    margin-top: -46px;
+  }
+
+  .pricingPlanCard {
+    min-height: auto;
+    padding: 24px;
+  }
+
+  .accountTopbar,
+  .accountProfileCard,
+  .accountContentHead {
+    align-items: start;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .accountHero {
+    padding: 22px;
+  }
+
+  .accountProfileCard {
+    grid-template-columns: 1fr;
+  }
+
+  .accountAvatar {
+    width: 92px;
+    height: 92px;
+    font-size: 34px;
   }
 }
