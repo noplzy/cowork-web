@@ -3,6 +3,7 @@ import { Image20LegalPage } from "@/components/image20/Image20Legal";
 export default function TermsPage() {
   return (
     <Image20LegalPage
+      variant="terms"
       eyebrow="Terms"
       title="服務條款"
       lead="讓使用者知道這裡可以做什麼，也知道不能做什麼；清楚的規則，本身就是信任。"
@@ -17,7 +18,7 @@ export default function TermsPage() {
           title: "平台定位",
           body: [
             "安感島是以低壓力陪伴、安靜同行與可信任互動為核心的數位服務平台。",
-            "服務內容包含但不限於同行空間、排程、安感夥伴與後續正式公開功能。",
+            "服務內容包含同行空間、排程、安感夥伴與後續正式公開功能。",
           ],
         },
         {
@@ -57,7 +58,7 @@ export default function TermsPage() {
         },
       ]}
       asideTitle="規則不是阻擋，而是保護服務品質。"
-      asideBody="平台若要走向成熟營運，必須把哪些互動不被接受說清楚，而不是等問題發生後才補一句。"
+      asideBody="成熟服務不能靠模糊默契維持秩序；互動邊界、責任與客服入口都應該被清楚寫下。"
       asideLinks={[
         { href: "/contact", label: "聯絡客服" },
         { href: "/privacy", label: "查看隱私權政策" },

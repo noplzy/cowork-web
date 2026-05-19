@@ -3,6 +3,7 @@ import { Image20LegalPage } from "@/components/image20/Image20Legal";
 export default function ServiceDeliveryPage() {
   return (
     <Image20LegalPage
+      variant="delivery"
       eyebrow="Service Delivery"
       title="服務交付說明"
       lead="數位服務要怎麼開始、怎麼進行、怎麼算完成，先說清楚，才有成熟的商業感。"

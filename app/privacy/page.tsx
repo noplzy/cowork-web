@@ -3,6 +3,7 @@ import { Image20LegalPage } from "@/components/image20/Image20Legal";
 export default function PrivacyPage() {
   return (
     <Image20LegalPage
+      variant="privacy"
       eyebrow="Privacy Policy"
       title="隱私權政策"
       lead="安感島的前提，是你可以安心出現；資料用途、房內互動與 AI 邊界都應被清楚說明。"
