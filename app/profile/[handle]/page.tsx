@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome";
-import styles from "@/components/image20/Image20Auxiliary.module.css";
+import styles from "@/components/image20/Image20EditorialPages.module.css";
 
 type PublicProfilePageProps = {
   params: Promise<{ handle: string }> | { handle: string };
@@ -64,6 +64,14 @@ function labelFrom(map: Record<string, string>, value: string) {
   return map[value] ?? "未分類";
 }
 
+function formatTwd(value: number) {
+  return new Intl.NumberFormat("zh-TW", {
+    style: "currency",
+    currency: "TWD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export default async function PublicProfilePage({ params }: PublicProfilePageProps) {
   const { handle } = await Promise.resolve(params);
   const normalizedHandle = decodeURIComponent(handle ?? "").trim();
@@ -99,119 +107,224 @@ export default async function PublicProfilePage({ params }: PublicProfilePagePro
     .limit(3);
 
   const services = (serviceResult.data ?? []) as ServiceRow[];
-  const tags = profile.tags ?? [];
+  const tags = (profile.tags ?? []).slice(0, 6);
+
+  const styleSignals = [
+    {
+      code: "友",
+      title: profile.accepting_friend_requests ? "接受好友邀請" : "暫不接受好友邀請",
+      body: profile.accepting_friend_requests
+        ? "公開檔案已開放被發現，後續邀請流程會依功能狀態提供。"
+        : "這位島民選擇保留距離，公開頁不代表可任意靠近。",
+    },
+    {
+      code: "排",
+      title: profile.accepting_schedule_invites ? "接受排程邀請" : "暫不接受排程邀請",
+      body: profile.accepting_schedule_invites
+        ? "可保留未來排程互動空間，是否顯示依公開狀態而定。"
+        : "目前不開放外部排程邀請。",
+    },
+    {
+      code: "公",
+      title: profile.show_upcoming_schedule ? "可顯示公開時段" : "不公開近期時段",
+      body: profile.show_upcoming_schedule
+        ? "若有可展示排程，會集中於公開頁的時段區。"
+        : "這位島民選擇不在公開頁呈現行程。",
+    },
+  ] as const;
 
   return (
-    <main className={`i20-root ${styles.publicProfileRoot}`} data-image20-dom-page="public-profile-v12">
-      <section className={styles.publicProfileHero}>
-        <div className={styles.publicProfileBackdrop} aria-hidden="true" />
-        <Image20TopNav dark />
+    <main className={styles.profilePage} data-image20-dom-page="public-profile-template-v13">
+      <section className={styles.profileHero}>
+        <div className={styles.profileHeroMedia} aria-hidden="true" />
+        <Image20TopNav />
 
-        <div className={styles.publicProfileHeroGrid}>
-          <article className={styles.publicProfileIdentity}>
-            <div className={styles.publicProfileAvatar}>
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.display_name} />
-              ) : (
-                <span>{fallbackInitial(profile.display_name)}</span>
-              )}
+        <div className={styles.profileHeroInner}>
+          <div className={styles.profilePortrait}>
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt={profile.display_name} />
+            ) : (
+              <span>{fallbackInitial(profile.display_name)}</span>
+            )}
+            <div className={styles.profileOnlineBadge}>
+              <i className={styles.profileStatusDot} aria-hidden="true" />
+              公開頁
+            </div>
+          </div>
+
+          <article className={styles.profileIdentity}>
+            <div className={styles.profileMetaRow}>
+              <span className="i20-kicker">Public Profile</span>
+              {profile.is_professional_buddy ? (
+                <span className={styles.profileBuddyBadge}>安感夥伴</span>
+              ) : null}
             </div>
 
-            <div>
-              <div className={styles.publicProfileMetaLine}>
-                <span className="i20-kicker">Public Profile</span>
-                {profile.is_professional_buddy ? <b>安感夥伴</b> : null}
-              </div>
-              <h1 className="i20-serif">{profile.display_name}</h1>
-              <strong>@{profile.handle}</strong>
-              <p>{profile.bio || "這位島民尚未公開自我介紹。"}</p>
+            <h1 className="i20-serif">{profile.display_name}</h1>
+            <strong className={styles.profileHandle}>@{profile.handle}</strong>
+            <p className={styles.profileLead}>
+              {profile.bio || "這位島民尚未公開自我介紹，但仍保留一個被安靜理解的入口。"}
+            </p>
 
-              <div className={styles.publicProfileSignals}>
-                <span>{profile.accepting_friend_requests ? "接受好友邀請" : "暫不接受好友邀請"}</span>
-                <span>{profile.accepting_schedule_invites ? "接受排程邀請" : "暫不接受排程邀請"}</span>
-                <span>{profile.show_upcoming_schedule ? "可顯示公開行程" : "行程暫不公開"}</span>
-              </div>
+            <div className={styles.profileSignalRow}>
+              <span>{profile.accepting_friend_requests ? "可接受好友邀請" : "暫不接受好友邀請"}</span>
+              <span>{profile.accepting_schedule_invites ? "可接受排程邀請" : "暫不接受排程邀請"}</span>
+              <span>{profile.show_upcoming_schedule ? "公開時段可見" : "行程不公開"}</span>
+            </div>
+
+            <div className={styles.profileTrustCard}>
+              <b>信任與安全</b>
+              <span>公開頁只顯示對方願意公開的資訊，不展示私人聯絡方式與非公開內容。</span>
             </div>
           </article>
 
-          <aside className={styles.publicProfileActionCard}>
+          <aside className={styles.profileActionCard}>
             <span className="i20-kicker">Connect</span>
-            <h2 className="i20-serif">想和這位島民建立連結嗎？</h2>
-            <p>公開檔案頁先整理可信任資訊、服務入口與後續互動區位。</p>
-            <div className={styles.publicProfileActionButtons}>
-              <button type="button" disabled>
-                打招呼功能待開放
-              </button>
-              <button type="button" disabled>
-                好友邀請待開放
-              </button>
-              <Link href="/buddies">查看 Buddies 服務</Link>
+            <h2 className="i20-serif">想更了解這位島民？</h2>
+            <p>
+              先從公開服務、同行空間與平台規則理解彼此，
+              不把公開檔案變成無邊界的社交壓力。
+            </p>
+
+            <div className={styles.profileActions}>
+              <Link href="#public-services">查看公開服務</Link>
+              <Link href="/rooms">探索同行空間</Link>
+              <Link href="/terms">查看平台規則</Link>
             </div>
+
+            <span className={styles.profilePrivacyNote}>
+              安感島重視隱私；公開頁不是私人訊息通道。
+            </span>
           </aside>
         </div>
       </section>
 
-      <section className={styles.publicProfileBody}>
-        <article className={styles.publicProfilePanel}>
-          <span className="i20-kicker">Tags</span>
-          <h3 className="i20-serif">公開標籤與陪伴傾向</h3>
-          <div className={styles.publicProfileTagRow}>
-            {tags.length ? (
-              tags.map((tag) => <span key={tag}>{tag}</span>)
-            ) : (
-              <span>尚未公開標籤</span>
-            )}
-          </div>
-          <p>標籤用來協助理解互動氣質，不代表平台對個人做出完整分類。</p>
-        </article>
+      <section className={styles.profileBody}>
+        <article className={styles.profileBodyPanel}>
+          <span className="i20-kicker">Public Tags</span>
+          <h3 className="i20-serif">公開標籤與擅長主題</h3>
+          <p className={styles.profilePanelLead}>
+            這些標籤用來幫助理解風格，不代表對個人做完整分類。
+          </p>
 
-        <article className={styles.publicProfilePanel}>
-          <span className="i20-kicker">Services</span>
-          <h3 className="i20-serif">公開 Buddies 服務</h3>
-          <div className={styles.publicProfileServiceList}>
-            {services.length ? (
-              services.map((service) => (
-                <div className={styles.publicProfileServiceCard} key={service.id}>
-                  <div>
-                    <b>{service.title}</b>
-                    <p>{service.summary}</p>
-                  </div>
-                  <div>
-                    <span>{labelFrom(categoryLabels, service.buddy_category)}</span>
-                    <span>{labelFrom(interactionLabels, service.interaction_style)}</span>
-                    <span>{labelFrom(deliveryLabels, service.delivery_mode)}</span>
-                  </div>
+          <div className={styles.profileTileGrid}>
+            {tags.length ? (
+              tags.map((tag) => (
+                <div className={styles.profileTile} key={tag}>
+                  <b>{tag}</b>
+                  <span>公開標籤</span>
                 </div>
               ))
             ) : (
-              <div className={styles.publicProfileEmpty}>
-                <b>目前沒有公開服務。</b>
-                <p>若這位島民日後上架 Buddies 服務，會集中顯示於此。</p>
+              <div className={styles.profileTile}>
+                <b>尚未公開</b>
+                <span>目前沒有可展示標籤</span>
               </div>
             )}
           </div>
+
+          <div className={styles.profileQuietNote}>
+            <b>不公開，也是一種設定。</b>
+            <span>公開頁會尊重個人選擇，不補寫沒有被公開的資訊。</span>
+          </div>
         </article>
 
-        <article className={styles.publicProfilePanel}>
+        <article className={styles.profileBodyPanel}>
+          <span className="i20-kicker">Companion Style</span>
+          <h3 className="i20-serif">陪伴與互動風格</h3>
+          <p className={styles.profilePanelLead}>
+            用公開設定整理彼此距離，而不是用過度資訊堆出熟悉感。
+          </p>
+
+          <div className={styles.profileStyleList}>
+            {styleSignals.map((item) => (
+              <div className={styles.profileStyleItem} key={item.title}>
+                <em>{item.code}</em>
+                <div>
+                  <b>{item.title}</b>
+                  <span>{item.body}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.profileQuote}>
+            <b>公開自介</b>
+            <span>{profile.bio || "這位島民尚未公開自介。"}</span>
+          </div>
+        </article>
+
+        <article className={styles.profileBodyPanel}>
           <span className="i20-kicker">Schedule</span>
           <h3 className="i20-serif">近期公開房間 / 時段</h3>
-          <div className={styles.publicProfileEmpty}>
-            <b>公開排程區位已保留。</b>
-            <p>後續可接公開排程資料，顯示可預約房間與可見時間。</p>
+          <p className={styles.profilePanelLead}>
+            只有公開可見的排程，才應該出現在這個位置。
+          </p>
+
+          <div className={styles.profileScheduleList}>
+            {profile.show_upcoming_schedule ? (
+              <div className={styles.profileScheduleCard}>
+                <b>目前沒有可展示的公開時段。</b>
+                <span>這位島民允許公開時段呈現；若後續有排程，會在此整理。</span>
+              </div>
+            ) : (
+              <div className={styles.profileScheduleCard}>
+                <b>行程目前不公開。</b>
+                <span>安感島尊重使用者的公開設定，不會補展示未授權內容。</span>
+              </div>
+            )}
           </div>
+
+          <Link className={styles.profileInlineLink} href="/rooms">
+            前往同行空間 →
+          </Link>
         </article>
 
-        <article className={styles.publicProfilePanel}>
-          <span className="i20-kicker">Safety</span>
-          <h3 className="i20-serif">信任與安全</h3>
-          <div className={styles.publicProfileSafetyList}>
-            <span>只顯示公開可見的個人檔案</span>
-            <span>不展示私人聯絡資訊</span>
-            <span>服務與互動入口會依權限逐步開放</span>
+        <aside className={styles.profileServiceAside} id="public-services">
+          <span className="i20-kicker">Buddies Services</span>
+          <h3 className="i20-serif">公開 Buddies 服務</h3>
+          <p>若這位島民有公開上架的服務，會優先整理在這裡。</p>
+
+          <div className={styles.profileServiceList}>
+            {services.length ? (
+              services.map((service) => (
+                <article className={styles.profileServiceCard} key={service.id}>
+                  <div>
+                    <b>{service.title}</b>
+                    <span>{service.summary}</span>
+                    <strong>{formatTwd(service.price_per_hour_twd)} / 小時</strong>
+                  </div>
+
+                  <div>
+                    <em>{labelFrom(categoryLabels, service.buddy_category)}</em>
+                    <em>{labelFrom(interactionLabels, service.interaction_style)}</em>
+                    <em>{labelFrom(deliveryLabels, service.delivery_mode)}</em>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <article className={styles.profileServiceCard}>
+                <div>
+                  <b>目前沒有公開服務。</b>
+                  <span>這位島民尚未公開上架 Buddies 服務。</span>
+                </div>
+              </article>
+            )}
           </div>
-          <Link href="/terms">查看平台規則 →</Link>
-        </article>
+
+          <div className={styles.profileHelperCard}>
+            <b>想理解安感夥伴？</b>
+            <span>可以先回到 Buddies 市集，查看正式公開的服務卡。</span>
+            <Link className={styles.profileInlineLink} href="/buddies">
+              前往安感夥伴 →
+            </Link>
+          </div>
+        </aside>
       </section>
+
+      <div className={styles.profileBottomSignature}>
+        安感島 Calm&amp;Co —— 讓每一次公開，都保留安全與分寸。
+      </div>
 
       <Image20Footer />
     </main>
