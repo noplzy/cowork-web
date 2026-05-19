@@ -3,6 +3,7 @@ import { Image20LegalPage } from "@/components/image20/Image20Legal";
 export default function RefundPolicyPage() {
   return (
     <Image20LegalPage
+      variant="refund"
       eyebrow="Refund Policy"
       title="退款政策"
       lead="付款前先知道邊界，發生問題時也知道怎麼處理。退款不是模糊承諾，而是清楚流程。"
