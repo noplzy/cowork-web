@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createDailyPrivateRoom, getAuthUserFromRequest } from "@/lib/serverRoomUtils";
+import { ROOM_INFRA_BUILD_TAG, addMinutes } from "@/lib/server/roomInfra";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,9 @@ type CreateRoomBody = {
   visibility?: "public" | "members" | "friends" | "invited";
   host_note?: string | null;
 };
+
+const ROOM_SELECT =
+  "id,title,duration_minutes,mode,max_size,created_by,daily_room_url,room_category,interaction_style,visibility,host_note,invite_code,created_at,status,started_at,scheduled_end_at,ended_at,last_presence_at,cleanup_reason";
 
 export async function POST(req: Request) {
   try {
@@ -31,16 +35,19 @@ export async function POST(req: Request) {
     const hostNote = (body.host_note ?? "").trim() || null;
 
     if (!title) {
-      return NextResponse.json({ error: "請先填寫同行空間名稱。" }, { status: 400 });
+      return NextResponse.json({ error: "請先填寫同行空間名稱。", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 400 });
     }
 
     if (![25, 50, 75, 100].includes(durationMinutes)) {
-      return NextResponse.json({ error: "即時同行空間目前只支援 25 / 50 / 75 / 100 分鐘。" }, { status: 400 });
+      return NextResponse.json({ error: "即時同行空間目前只支援 25 / 50 / 75 / 100 分鐘。", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 400 });
     }
 
     if (!["focus", "life", "share", "hobby"].includes(roomCategory ?? "")) {
-      return NextResponse.json({ error: "同行空間目前只支援專注任務、生活陪伴、主題分享、興趣同好。" }, { status: 400 });
+      return NextResponse.json({ error: "同行空間目前只支援專注任務、生活陪伴、主題分享、興趣同好。", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 400 });
     }
+
+    const now = new Date();
+    const scheduledEndAt = addMinutes(now, durationMinutes).toISOString();
 
     const insertRoom = await supabaseAdmin
       .from("rooms")
@@ -54,12 +61,15 @@ export async function POST(req: Request) {
         interaction_style: interactionStyle,
         visibility,
         host_note: hostNote,
+        status: "active",
+        started_at: now.toISOString(),
+        scheduled_end_at: scheduledEndAt,
       })
-      .select("id,title,duration_minutes,mode,max_size,created_by,daily_room_url,room_category,interaction_style,visibility,host_note,invite_code,created_at")
+      .select(ROOM_SELECT)
       .single();
 
     if (insertRoom.error || !insertRoom.data) {
-      return NextResponse.json({ error: insertRoom.error?.message ?? "建立同行空間失敗。" }, { status: 400 });
+      return NextResponse.json({ error: insertRoom.error?.message ?? "建立同行空間失敗。", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 400 });
     }
 
     const room = insertRoom.data as any;
@@ -70,7 +80,7 @@ export async function POST(req: Request) {
 
     if (roomMember.error) {
       await supabaseAdmin.from("rooms").delete().eq("id", room.id);
-      return NextResponse.json({ error: roomMember.error.message }, { status: 500 });
+      return NextResponse.json({ error: roomMember.error.message, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
     }
 
     try {
@@ -81,7 +91,7 @@ export async function POST(req: Request) {
         .from("rooms")
         .update({ daily_room_url: created.url })
         .eq("id", room.id)
-        .select("id,title,duration_minutes,mode,max_size,created_by,daily_room_url,room_category,interaction_style,visibility,host_note,invite_code,created_at")
+        .select(ROOM_SELECT)
         .single();
 
       if (updateRoom.error || !updateRoom.data) {
@@ -91,16 +101,17 @@ export async function POST(req: Request) {
       return NextResponse.json({
         room: updateRoom.data,
         invite_code: (updateRoom.data as any).invite_code ?? null,
+        build_tag: ROOM_INFRA_BUILD_TAG,
       });
     } catch (error: any) {
       await supabaseAdmin.from("room_members").delete().eq("room_id", room.id).eq("user_id", userId);
       await supabaseAdmin.from("rooms").delete().eq("id", room.id);
-      return NextResponse.json({ error: error?.message || "建立 Daily 房間失敗。" }, { status: 500 });
+      return NextResponse.json({ error: error?.message || "建立 Daily 房間失敗。", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
     }
   } catch (error: any) {
     if (error?.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "請先登入後再建立同行空間。" }, { status: 401 });
+      return NextResponse.json({ error: "請先登入後再建立同行空間。", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 401 });
     }
-    return NextResponse.json({ error: error?.message || "Unexpected server error" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Unexpected server error", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
   }
 }

@@ -1,21 +1,24 @@
 // app/api/daily/meeting-token/route.ts
-// Daily REST API: POST /meeting-tokens
-// ✅ Milestone 3: Monthly credits (免費每月 4 場) + VIP 續命規則 + 25/50 時間盒
-// - 免費：每月 4 場（25m=1場, 50m=2場；2人/6人房同樣計費）
-// - VIP：只有一種方案（VIP = 無限續場）
-// - 續命護欄：
-//   * Pair 房：若「另一方」是 VIP 且仍在房內，免費方可在額度用完後繼續續場
-//   * Group 房：每個人要續場都要自己是 VIP（或有免費額度）
-// - Server 端強制：在發 token 前先做 entitlement + credit consume
+// P0 Rooms infra: idempotent room access sessions + Daily meeting token issuance.
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  ROOM_INFRA_BUILD_TAG,
+  buildBillingSessionKey,
+  creditCostByDuration,
+  getMonthStartTaipeiISO,
+  getVipStatus,
+  isRoomEndedOrExpired,
+  parseDailyRoomNameFromUrl,
+} from "@/lib/server/roomInfra";
 
 export const runtime = "nodejs";
 
 type ReqBody = { roomId?: string };
 
 const FREE_MONTHLY_CREDITS = 4;
+const ACCESS_SESSION_PENDING_RETRY_MS = 90_000;
 
 function extractBearer(req: Request): string | null {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -24,50 +27,99 @@ function extractBearer(req: Request): string | null {
   return m ? m[1].trim() : null;
 }
 
-function parseRoomNameFromUrl(roomUrl: string): string {
-  const u = new URL(roomUrl);
-  // pathname like "/cowork_xxx/" -> "cowork_xxx"
-  return u.pathname.replace(/^\/+|\/+$/g, "");
-}
-
-/**
- * 以 Asia/Taipei 的「每月 1 號 00:00」作為週期起點，回傳 month_start (YYYY-MM-DD)
- * 這裡用「UTC 時間 + 8 小時」的方式避免 Node 端時區不一致問題。
- */
-function getMonthStartTaipeiISO(now = new Date()): string {
-  // 以 Asia/Taipei 的「每月 1 號 00:00」作為週期起點
-  const tz = new Date(now.getTime() + 8 * 3600 * 1000); // shift to +08:00
-  const first = new Date(Date.UTC(tz.getUTCFullYear(), tz.getUTCMonth(), 1));
-  return first.toISOString().slice(0, 10);
-}
-
-function creditCostByDuration(durationMinutes: number): number {
-  // 目前只做 25/50；保留未來 75 的彈性
-  if (durationMinutes >= 75) return 3;
-  if (durationMinutes >= 50) return 2;
-  return 1;
-}
-
-async function getVipStatus(userId: string): Promise<{ isVip: boolean; vipUntil: string | null; plan: string }> {
-  const { data, error } = await supabaseAdmin
-    .from("user_entitlements")
-    .select("plan,vip_until")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    // entitlement 表還沒建立 / RLS 設定不對 等，都不要讓它直接爆掉（先當 free）
-    return { isVip: false, vipUntil: null, plan: "free" };
+async function getSupabaseUser(userJwt: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnon) {
+    throw new Error("Missing Supabase env (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY)");
   }
 
-  const plan = (data?.plan || "free") as string;
-  const vipUntil = (data?.vip_until ?? null) as string | null;
+  const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: supabaseAnon,
+      Authorization: `Bearer ${userJwt}`,
+    },
+  });
 
-  const isVip =
-    plan === "vip" &&
-    (!vipUntil || new Date(vipUntil).getTime() > Date.now());
+  if (!authResp.ok) {
+    const raw = await authResp.text().catch(() => "");
+    const error = new Error("Invalid Supabase session token") as Error & { raw?: string; status?: number };
+    error.raw = raw;
+    error.status = 401;
+    throw error;
+  }
 
-  return { isVip, vipUntil, plan };
+  return (await authResp.json().catch(() => null)) as any;
+}
+
+async function getRoomAccessSession(input: {
+  roomId: string;
+  userId: string;
+  dailyRoomName: string;
+  billingSessionKey: string;
+  durationMinutes: number;
+  costCredits: number;
+  entitlementSource: string;
+  allowedByPairVipCarry: boolean;
+}) {
+  const nowIso = new Date().toISOString();
+  const insertResult = await supabaseAdmin
+    .from("room_access_sessions")
+    .insert({
+      room_id: input.roomId,
+      user_id: input.userId,
+      daily_room_name: input.dailyRoomName,
+      billing_session_key: input.billingSessionKey,
+      duration_minutes: input.durationMinutes,
+      cost_credits: input.costCredits,
+      charge_status: "pending",
+      entitlement_source: input.entitlementSource,
+      allowed_by_pair_vip_carry: input.allowedByPairVipCarry,
+      status: "active",
+      provider_payload: {},
+      created_at: nowIso,
+      updated_at: nowIso,
+    })
+    .select("*")
+    .single();
+
+  if (!insertResult.error && insertResult.data) {
+    return { session: insertResult.data as any, created: true };
+  }
+
+  const duplicate =
+    insertResult.error?.code === "23505" ||
+    /duplicate key|unique/i.test(insertResult.error?.message ?? "");
+
+  if (!duplicate) {
+    throw new Error(insertResult.error?.message || "建立 room access session 失敗。");
+  }
+
+  const existingResult = await supabaseAdmin
+    .from("room_access_sessions")
+    .select("*")
+    .eq("room_id", input.roomId)
+    .eq("user_id", input.userId)
+    .eq("billing_session_key", input.billingSessionKey)
+    .maybeSingle();
+
+  if (existingResult.error || !existingResult.data) {
+    throw new Error(existingResult.error?.message || "讀取既有 room access session 失敗。");
+  }
+
+  return { session: existingResult.data as any, created: false };
+}
+
+async function markAccessSession(id: string, patch: Record<string, any>) {
+  const { data, error } = await supabaseAdmin
+    .from("room_access_sessions")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as any;
 }
 
 export async function POST(req: Request) {
@@ -76,63 +128,43 @@ export async function POST(req: Request) {
     const roomId = (body?.roomId || "").trim();
 
     if (!roomId) {
-      return NextResponse.json({ error: "Missing roomId" }, { status: 400 });
+      return NextResponse.json({ error: "Missing roomId", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 400 });
     }
 
     const dailyKey = process.env.DAILY_API_KEY;
     const dailyApiBase = process.env.DAILY_API_BASE || "https://api.daily.co/v1";
     if (!dailyKey) {
-      return NextResponse.json({ error: "Missing DAILY_API_KEY" }, { status: 500 });
+      return NextResponse.json({ error: "Missing DAILY_API_KEY", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !supabaseAnon || !serviceRole) {
-      return NextResponse.json(
-        { error: "Missing Supabase env (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY)" },
-        { status: 500 }
-      );
-    }
-
-    // 1) 驗證使用者（不要信任前端傳 user_id）
     const userJwt = extractBearer(req);
     if (!userJwt) {
-      return NextResponse.json({ error: "Missing Authorization Bearer <supabase_access_token>" }, { status: 401 });
+      return NextResponse.json({ error: "Missing Authorization Bearer <supabase_access_token>", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 401 });
     }
 
-    const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: {
-        apikey: supabaseAnon,
-        Authorization: `Bearer ${userJwt}`,
-      },
-    });
-
-    if (!authResp.ok) {
-      const raw = await authResp.text().catch(() => "");
-      return NextResponse.json({ error: "Invalid Supabase session token", raw }, { status: 401 });
-    }
-
-    const user = (await authResp.json().catch(() => null)) as any;
+    const user = await getSupabaseUser(userJwt);
     const userId: string | undefined = user?.id;
     const email: string | undefined = user?.email;
     if (!userId) {
-      return NextResponse.json({ error: "Supabase user missing id" }, { status: 401 });
+      return NextResponse.json({ error: "Supabase user missing id", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 401 });
     }
 
-    // 2) 查房間 + 是否成員
     const { data: room, error: roomErr } = await supabaseAdmin
       .from("rooms")
-      .select("id,created_by,duration_minutes,mode,max_size,daily_room_url")
+      .select("id,created_by,created_at,duration_minutes,mode,max_size,daily_room_url,status,scheduled_end_at,ended_at")
       .eq("id", roomId)
       .single();
 
     if (roomErr || !room) {
-      return NextResponse.json({ error: roomErr?.message || "Room not found" }, { status: 404 });
+      return NextResponse.json({ error: roomErr?.message || "Room not found", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 404 });
+    }
+
+    if (isRoomEndedOrExpired(room as any, 3)) {
+      return NextResponse.json({ error: "Room has ended", code: "ROOM_ENDED", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 410 });
     }
 
     if (!room.daily_room_url) {
-      return NextResponse.json({ error: "Daily room not created yet" }, { status: 409 });
+      return NextResponse.json({ error: "Daily room not created yet", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 409 });
     }
 
     const isOwner = room.created_by === userId;
@@ -145,21 +177,18 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (memErr) {
-      return NextResponse.json({ error: memErr.message }, { status: 500 });
+      return NextResponse.json({ error: memErr.message, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
     }
 
     if (!mem && !isOwner) {
-      return NextResponse.json({ error: "Not a room member" }, { status: 403 });
+      return NextResponse.json({ error: "Not a room member", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 403 });
     }
 
-    // 3) Entitlement + Credits
     const durationMin = Number(room.duration_minutes || 25);
     const costCredits = creditCostByDuration(durationMin);
-
     const selfEnt = await getVipStatus(userId);
     const selfIsVip = selfEnt.isVip;
 
-    // Pair 續命：如果自己不是 VIP & 本週額度已用完，但另一方是 VIP 且仍在房內 -> allow
     let allowedByPairVipCarry = false;
 
     if (!selfIsVip && room.mode === "pair") {
@@ -169,69 +198,133 @@ export async function POST(req: Request) {
         .eq("room_id", roomId);
 
       if (!m2err && Array.isArray(members)) {
-        const otherIds = members.map((x: any) => x.user_id).filter((id: any) => id && id !== userId);
-        if (otherIds.length > 0) {
-          for (const oid of otherIds) {
-            const oEnt = await getVipStatus(String(oid));
-            if (oEnt.isVip) {
-              allowedByPairVipCarry = true;
-              break;
-            }
+        for (const item of members) {
+          const otherUserId = String((item as any).user_id || "");
+          if (!otherUserId || otherUserId === userId) continue;
+          const otherEnt = await getVipStatus(otherUserId);
+          if (otherEnt.isVip) {
+            allowedByPairVipCarry = true;
+            break;
           }
         }
       }
     }
 
-    // 3.1) 若非 VIP，且不是被 Pair VIP 續命，則要扣本週額度
-    let remainingCredits: number | null = null;
+    const entitlementSource = selfIsVip
+      ? "vip"
+      : allowedByPairVipCarry
+        ? "pair_vip_carry"
+        : "free_credits";
 
-    if (!selfIsVip && !allowedByPairVipCarry) {
-      const weekStart = getMonthStartTaipeiISO(new Date());
-
-      const { data: remaining, error: rpcErr } = await supabaseAdmin.rpc("cowork_try_consume_credits", {
-        p_user_id: userId,
-        p_month_start: weekStart,
-        p_cost: costCredits,
-        p_allowance: FREE_MONTHLY_CREDITS,
-      });
-
-      if (rpcErr) {
-        return NextResponse.json({ error: `Credit RPC error: ${rpcErr.message}` }, { status: 500 });
-      }
-
-      const rem = Number(remaining);
-      if (!Number.isFinite(rem) || rem < 0) {
-        return NextResponse.json(
-          {
-            error: "Free monthly credits exhausted",
-            code: "CREDITS_EXHAUSTED",
-            allowance: FREE_MONTHLY_CREDITS,
-            cost: costCredits,
-          },
-          { status: 402 }
-        );
-      }
-
-      remainingCredits = rem;
+    const dailyRoomName = parseDailyRoomNameFromUrl(room.daily_room_url);
+    if (!dailyRoomName) {
+      return NextResponse.json({ error: "Invalid Daily room URL", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
     }
 
-    // VIP or Pair-carry：remainingCredits 由 status API 算（這裡回 null）
-    // 若你想要前端顯示「∞」，前端用 is_vip 或 allowed_by_pair_vip_carry 判斷即可。
+    const billingSessionKey = buildBillingSessionKey(room as any);
+    let { session: accessSession, created: createdAccessSession } = await getRoomAccessSession({
+      roomId,
+      userId,
+      dailyRoomName,
+      billingSessionKey,
+      durationMinutes: durationMin,
+      costCredits,
+      entitlementSource,
+      allowedByPairVipCarry,
+    });
 
-    // 4) 產 token（時間盒：依 room.duration_minutes）
-    const roomName = parseRoomNameFromUrl(room.daily_room_url);
+    const pendingAgeMs = Date.now() - new Date(accessSession.updated_at || accessSession.created_at).getTime();
+    const stalePending = accessSession.charge_status === "pending" && pendingAgeMs > ACCESS_SESSION_PENDING_RETRY_MS;
+
+    if (!createdAccessSession && accessSession.charge_status === "pending" && !stalePending) {
+      return NextResponse.json(
+        {
+          error: "Room access session is still being prepared. Please retry shortly.",
+          code: "ACCESS_SESSION_PENDING_RETRY",
+          access_session_id: accessSession.id,
+          build_tag: ROOM_INFRA_BUILD_TAG,
+        },
+        { status: 409 }
+      );
+    }
+
+    let remainingCredits: number | null = null;
+    let chargedThisCall = false;
+
+    if (createdAccessSession || stalePending) {
+      try {
+        if (!selfIsVip && !allowedByPairVipCarry) {
+          const monthStart = getMonthStartTaipeiISO(new Date());
+          const { data: remaining, error: rpcErr } = await supabaseAdmin.rpc("cowork_try_consume_credits", {
+            p_user_id: userId,
+            p_month_start: monthStart,
+            p_cost: costCredits,
+            p_allowance: FREE_MONTHLY_CREDITS,
+          });
+
+          if (rpcErr) throw new Error(`Credit RPC error: ${rpcErr.message}`);
+
+          const rem = Number(remaining);
+          if (!Number.isFinite(rem) || rem < 0) {
+            await markAccessSession(accessSession.id, {
+              charge_status: "failed",
+              status: "credit_failed",
+              last_error: "Free monthly credits exhausted",
+            });
+
+            return NextResponse.json(
+              {
+                error: "Free monthly credits exhausted",
+                code: "CREDITS_EXHAUSTED",
+                allowance: FREE_MONTHLY_CREDITS,
+                cost: costCredits,
+                access_session_id: accessSession.id,
+                build_tag: ROOM_INFRA_BUILD_TAG,
+              },
+              { status: 402 }
+            );
+          }
+
+          remainingCredits = rem;
+          chargedThisCall = true;
+          accessSession = await markAccessSession(accessSession.id, {
+            charge_status: "charged",
+            charged_at: new Date().toISOString(),
+            entitlement_source: entitlementSource,
+            allowed_by_pair_vip_carry: false,
+            cost_credits: costCredits,
+            status: "active",
+            last_error: null,
+          });
+        } else {
+          accessSession = await markAccessSession(accessSession.id, {
+            charge_status: "waived",
+            charged_at: new Date().toISOString(),
+            entitlement_source: entitlementSource,
+            allowed_by_pair_vip_carry: allowedByPairVipCarry,
+            cost_credits: 0,
+            status: "active",
+            last_error: null,
+          });
+        }
+      } catch (error: any) {
+        await markAccessSession(accessSession.id, {
+          charge_status: "failed",
+          status: "credit_failed",
+          last_error: error?.message || "Credit consume failed",
+        }).catch(() => null);
+        throw error;
+      }
+    }
 
     const now = Math.floor(Date.now() / 1000);
-    // 讓 token 到期「稍微晚一點點」避免時鐘誤差（~90s）
     const durationSec = Math.max(15 * 60, durationMin * 60 + 90);
     const exp = now + durationSec;
-
-    const userName =
-      (email && email.split("@")[0]) || `u_${userId.slice(0, 8)}`;
+    const userName = (email && email.split("@")[0]) || `u_${userId.slice(0, 8)}`;
 
     const tokenPayload: any = {
       properties: {
-        room_name: roomName,
+        room_name: dailyRoomName,
         exp,
         eject_at_token_exp: true,
         user_name: userName,
@@ -251,37 +344,71 @@ export async function POST(req: Request) {
 
     const dailyJson = await dailyResp.json().catch(() => ({}));
     if (!dailyResp.ok) {
+      await markAccessSession(accessSession.id, {
+        status: "token_failed",
+        last_error: dailyJson?.info || dailyJson?.error || "Daily create token failed",
+        provider_payload: { daily_error: dailyJson },
+      }).catch(() => null);
+
       return NextResponse.json(
-        { error: dailyJson?.info || dailyJson?.error || "Daily create token failed", raw: dailyJson },
+        {
+          error: dailyJson?.info || dailyJson?.error || "Daily create token failed",
+          raw: dailyJson,
+          access_session_id: accessSession.id,
+          build_tag: ROOM_INFRA_BUILD_TAG,
+        },
         { status: dailyResp.status }
       );
     }
 
     const token = dailyJson?.token;
     if (!token) {
-      return NextResponse.json({ error: "Daily token missing in response", raw: dailyJson }, { status: 500 });
+      await markAccessSession(accessSession.id, {
+        status: "token_failed",
+        last_error: "Daily token missing in response",
+        provider_payload: { daily_response: dailyJson },
+      }).catch(() => null);
+      return NextResponse.json({ error: "Daily token missing in response", raw: dailyJson, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
     }
+
+    accessSession = await markAccessSession(accessSession.id, {
+      last_token_issued_at: new Date().toISOString(),
+      token_exp: new Date(exp * 1000).toISOString(),
+      status: "active",
+      provider_payload: {
+        room_name: dailyRoomName,
+        token_exp: exp,
+        token_refreshed_without_recharge: !createdAccessSession && !stalePending,
+      },
+      last_error: null,
+    });
 
     return NextResponse.json({
       token,
       exp,
-      room_name: roomName,
+      room_name: dailyRoomName,
       is_owner: Boolean(isOwner),
-
-      // 💳 billing/entitlement for UI
       duration_minutes: durationMin,
-      cost_credits: costCredits,
+      cost_credits: Number(accessSession.cost_credits ?? costCredits),
       free_monthly_allowance: FREE_MONTHLY_CREDITS,
-      remaining_credits: remainingCredits, // null means VIP or pair-carry
+      remaining_credits: remainingCredits,
       is_vip: selfIsVip,
       allowed_by_pair_vip_carry: allowedByPairVipCarry,
       plan: selfEnt.plan,
       vip_until: selfEnt.vipUntil,
+      access_session_id: accessSession.id,
+      charge_status: accessSession.charge_status,
+      entitlement_source: accessSession.entitlement_source,
+      charged_this_call: chargedThisCall,
+      token_refreshed_without_recharge: !createdAccessSession && !stalePending,
+      billing_session_key: billingSessionKey,
+      build_tag: ROOM_INFRA_BUILD_TAG,
     });
   } catch (e: any) {
+    const status = Number(e?.status || 500);
     return NextResponse.json(
-      { error: e?.message || "Unexpected server error" },
-      { status: 500 }
+      { error: e?.message || "Unexpected server error", raw: e?.raw, build_tag: ROOM_INFRA_BUILD_TAG },
+      { status: status >= 400 && status < 600 ? status : 500 }
     );
   }
 }
