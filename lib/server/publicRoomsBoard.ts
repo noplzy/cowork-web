@@ -20,6 +20,9 @@ export type PublicRoomBoardRow = {
   visibility?: ScheduleVisibility | null;
   host_note?: string | null;
   invite_code?: string | null;
+  status?: string | null;
+  scheduled_end_at?: string | null;
+  last_presence_at?: string | null;
 };
 
 export type PublicScheduledRoomPostRow = {
@@ -47,27 +50,30 @@ export type PublicRoomsBoardSnapshot = {
 };
 
 const PUBLIC_ROOMS_BOARD_REVALIDATE_SECONDS = 60;
-const PUBLIC_ROOMS_BOARD_BUILD_TAG = "2026-04-17-public-rooms-board-cache-v1";
+const PUBLIC_ROOMS_BOARD_BUILD_TAG = "2026-05-26-public-rooms-board-active-only-v2";
 
 async function fetchPublicRoomsBoardFromDb(
   cacheState: "cached" | "fresh"
 ): Promise<PublicRoomsBoardSnapshot> {
   const publicVisibilityFilter = "visibility.eq.public,visibility.is.null";
+  const nowIso = new Date().toISOString();
 
   const [roomsResult, schedulePostsResult] = await Promise.all([
     supabaseAdmin
       .from("rooms")
       .select(
-        "id,title,duration_minutes,mode,max_size,created_at,created_by,room_category,interaction_style,visibility,host_note,invite_code"
+        "id,title,duration_minutes,mode,max_size,created_at,created_by,room_category,interaction_style,visibility,host_note,invite_code,status,scheduled_end_at,last_presence_at"
       )
       .or(publicVisibilityFilter)
+      .eq("status", "active")
+      .gt("scheduled_end_at", nowIso)
       .order("created_at", { ascending: false })
       .limit(40),
     supabaseAdmin
       .from("scheduled_room_posts")
       .select("*")
       .or(publicVisibilityFilter)
-      .gt("start_at", new Date().toISOString())
+      .gt("start_at", nowIso)
       .order("start_at", { ascending: true })
       .limit(30),
   ]);
@@ -109,7 +115,7 @@ async function fetchPublicRoomsBoardFromDb(
 
 const getCachedPublicRoomsBoard = unstable_cache(
   async () => fetchPublicRoomsBoardFromDb("cached"),
-  ["public-rooms-board-cache-v1"],
+  ["public-rooms-board-cache-v2-active-only"],
   {
     revalidate: PUBLIC_ROOMS_BOARD_REVALIDATE_SECONDS,
     tags: ["public-rooms-board"],
