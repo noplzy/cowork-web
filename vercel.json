@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/internal/rooms/cleanup",
-      "schedule": "*/5 * * * *"
+      "schedule": "10 17 * * *"
     }
   ]
 }
