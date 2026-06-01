@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const ROOM_INFRA_BUILD_TAG = "p0-rooms-infra-2026-05-26";
+export const ROOM_INFRA_BUILD_TAG = "formal-room-lifecycle-2026-05-30";
 
 export type RoomLifecycleStatus = "active" | "ended" | "expired" | "error";
 export type RoomVisibility = "public" | "members" | "friends" | "invited";
@@ -26,6 +26,14 @@ export type RoomInfraRow = {
   cleanup_reason?: string | null;
 };
 
+export type DailyRoomListItem = {
+  id?: string;
+  name?: string;
+  url?: string;
+  created_at?: string;
+  [key: string]: unknown;
+};
+
 export function parseDailyRoomNameFromUrl(roomUrl?: string | null): string | null {
   if (!roomUrl) return null;
   try {
@@ -35,6 +43,10 @@ export function parseDailyRoomNameFromUrl(roomUrl?: string | null): string | nul
   } catch {
     return null;
   }
+}
+
+export function isManagedDailyRoomName(roomName?: string | null) {
+  return Boolean(roomName && (roomName.startsWith("cowork_") || roomName.startsWith("buddy_")));
 }
 
 export function addMinutes(date: Date, minutes: number) {
@@ -156,4 +168,31 @@ export async function tryDeleteDailyRoom(roomName: string) {
   }
 
   return { ok: true, skipped: false, deleted: true };
+}
+
+export async function listManagedDailyRooms(limit = 100): Promise<{ ok: boolean; rooms: DailyRoomListItem[]; error?: string }> {
+  const dailyKey = process.env.DAILY_API_KEY;
+  const dailyApiBase = process.env.DAILY_API_BASE || "https://api.daily.co/v1";
+
+  if (!dailyKey) {
+    return { ok: false, rooms: [], error: "missing_daily_key" };
+  }
+
+  const response = await fetch(`${dailyApiBase}/rooms?limit=${Math.max(1, Math.min(limit, 100))}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${dailyKey}` },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => "");
+    return { ok: false, rooms: [], error: raw || `daily_list_${response.status}` };
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  const rooms = Array.isArray(payload?.data) ? payload.data : [];
+  return {
+    ok: true,
+    rooms: rooms.filter((item: DailyRoomListItem) => isManagedDailyRoomName(item?.name)),
+  };
 }
