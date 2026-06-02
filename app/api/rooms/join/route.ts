@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { areUsersFriends, getAuthUserFromRequest, isVipUser } from "@/lib/serverRoomUtils";
 import { ROOM_INFRA_BUILD_TAG, isRoomEndedOrExpired } from "@/lib/server/roomInfra";
+import { userBlockExists } from "@/lib/server/safety";
 
 export const runtime = "nodejs";
 
@@ -74,6 +75,14 @@ export async function POST(req: Request) {
 
     if (isRoomEndedOrExpired(room, 3)) {
       return NextResponse.json({ error: "這間同行空間已結束。", code: "ROOM_ENDED", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 410 });
+    }
+
+    const blocked = await userBlockExists(userId, room.created_by);
+    if (blocked) {
+      return NextResponse.json(
+        { error: "你目前無法加入這間同行空間。", code: "BLOCKED_BY_SAFETY_GATE", build_tag: ROOM_INFRA_BUILD_TAG },
+        { status: 403 }
+      );
     }
 
     const existingMembership = await supabaseAdmin

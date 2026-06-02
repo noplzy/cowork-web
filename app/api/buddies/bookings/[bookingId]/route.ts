@@ -8,15 +8,19 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ bookingId: string }> };
 type PatchBody = { action?: "accept" | "decline" | "cancel" | "complete"; provider_note?: string | null };
 
+const ALLOW_UNPAID_FULFILLMENT = String(process.env.BUDDIES_ALLOW_UNPAID_FULFILLMENT || "").toLowerCase() === "true";
+
 async function createFulfillmentRoom(service: BuddyServiceRow, booking: BuddyBookingRow) {
   const title = `${service.title}｜履約房`;
   const roomCategory = mapBuddyCategoryToRoomCategory(service.buddy_category);
+  const now = new Date();
+  const durationMinutes = booking.hours_booked >= 2 ? 50 : 25;
 
   const insertRoom = await supabaseAdmin
     .from("rooms")
     .insert({
       title,
-      duration_minutes: booking.hours_booked >= 2 ? 50 : 25,
+      duration_minutes: durationMinutes,
       mode: "pair",
       max_size: 2,
       created_by: booking.provider_user_id,
@@ -24,6 +28,9 @@ async function createFulfillmentRoom(service: BuddyServiceRow, booking: BuddyBoo
       interaction_style: service.interaction_style,
       visibility: "invited",
       host_note: "這是安感夥伴預約成立後自動建立的履約房。",
+      status: "active",
+      started_at: now.toISOString(),
+      scheduled_end_at: new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString(),
     })
     .select("id,invite_code")
     .single();
@@ -111,6 +118,17 @@ export async function PATCH(req: Request, context: RouteContext) {
     if (action === "accept") {
       if (booking.booking_status !== "pending") {
         return NextResponse.json({ error: "只有待回覆的預約可以接受。", build_tag: BUDDIES_BUILD_TAG }, { status: 400 });
+      }
+
+      if (booking.payment_status !== "paid" && !ALLOW_UNPAID_FULFILLMENT) {
+        return NextResponse.json(
+          {
+            error: "這筆預約尚未完成付款，不能建立履約房。若目前是人工內測，請在 Vercel 設定 BUDDIES_ALLOW_UNPAID_FULFILLMENT=true。",
+            code: "BUDDY_BOOKING_UNPAID",
+            build_tag: BUDDIES_BUILD_TAG,
+          },
+          { status: 402 }
+        );
       }
 
       const serviceResult = await supabaseAdmin.from("buddy_services").select("*").eq("id", booking.service_id).maybeSingle();
