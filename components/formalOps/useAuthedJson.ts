@@ -1,0 +1,7 @@
+"use client";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getClientSessionSnapshot } from "@/lib/clientAuth";
+export function useAuthedJson(redirectTo:string){const router=useRouter();const[accessToken,setAccessToken]=useState("");const[email,setEmail]=useState("");useEffect(()=>{let c=false;(async()=>{const s=await getClientSessionSnapshot().catch(()=>null);if(!s?.accessToken){router.replace(`/auth/login?next=${encodeURIComponent(redirectTo)}`);return}if(c)return;setAccessToken(s.accessToken);setEmail(s.email)})();return()=>{c=true}},[redirectTo,router]);async function authedFetch(path:string,init:RequestInit={}){if(!accessToken)throw new Error("尚未取得登入 token。");const headers=new Headers(init.headers);headers.set("Authorization",`Bearer ${accessToken}`);if(!headers.has("Content-Type")&&init.body)headers.set("Content-Type","application/json");const r=await fetch(path,{...init,headers,cache:"no-store"});const p=await r.json().catch(()=>({}));if(!r.ok)throw new Error(p.error||`Request failed: ${r.status}`);return p}return{accessToken,email,authedFetch}}
+export function formatDateTime(v?:string|null){if(!v)return"—";const d=new Date(v);if(Number.isNaN(d.getTime()))return"—";return new Intl.DateTimeFormat("zh-TW",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(d)}
+export function formatTwd(v?:number|string|null){return new Intl.NumberFormat("zh-TW",{style:"currency",currency:"TWD",maximumFractionDigits:0}).format(Number(v||0))}
