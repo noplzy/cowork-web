@@ -1,4 +1,4 @@
-export const PRODUCT_CATALOG_BUILD_TAG = "product-catalog-pricing-v1083-2026-06-04";
+export const PRODUCT_CATALOG_BUILD_TAG = "product-catalog-pricing-v1084-2026-06-04";
 
 export type ProductStage = "production_pilot" | "pricing_v2_next_spec" | "future_extension";
 export type PurchaseStatus = "active" | "planned" | "blocked";
@@ -114,8 +114,8 @@ export const ROOM_DURATION_POLICY: RoomDurationPolicy = {
 
 /**
  * Backward-compatible exports.
- * Some existing pages/routes may already import these names from productCatalog.
- * Do not remove them while pricing/catalog migration is still in progress.
+ * Existing pages/routes may import these names while the pricing/catalog migration
+ * is being rolled out. Keep them here to avoid brittle cross-file build failures.
  */
 export const ROOM_CATEGORIES = [
   { code: "focus", value: "focus", label: "專注任務", description: "共工、讀書、寫作、任務陪跑" },
@@ -125,6 +125,7 @@ export const ROOM_CATEGORIES = [
 ] as const;
 
 export const ROOM_CATEGORY_OPTIONS = ROOM_CATEGORIES;
+export const ROOM_CATEGORY_CODES = ROOM_CATEGORIES.map((item) => item.code) as RoomCategoryCode[];
 
 export const PRESENCE_MODES = [
   { code: "quiet", value: "quiet", label: "安靜在場", description: "不說話也能一起待著" },
@@ -139,6 +140,7 @@ export const GENERAL_ROOM_DURATIONS = ROOM_DURATION_POLICY.generalDurations;
 export const ACTIVITY_ROOM_DURATION = ROOM_DURATION_POLICY.activityDuration;
 export const DEPRECATED_ROOM_DURATIONS = ROOM_DURATION_POLICY.deprecatedDurations;
 export const ROOM_DURATIONS = [...GENERAL_ROOM_DURATIONS, ACTIVITY_ROOM_DURATION] as const;
+export const GROUP_SIZE_OPTIONS = [2, 4, 6] as const;
 
 export const VALUE_BASED_PRICING_PRINCIPLES = [
   "不靠限制基本陪伴製造焦慮，而是用使用深度、房主能力、AI 主持成本與活動房權限做分層。",
@@ -404,12 +406,42 @@ export function getPurchasablePlan(code: string | null | undefined) {
   return plan;
 }
 
+/**
+ * Alias kept for lib/billingPlans.ts versions that still import
+ * resolveCheckoutProductPlan from productCatalog.
+ */
+export function resolveCheckoutProductPlan(code: string | null | undefined) {
+  return getPurchasablePlan(code);
+}
+
 export function isGeneralRoomDuration(duration: number) {
   return ROOM_DURATION_POLICY.generalDurations.includes(duration);
 }
 
+/**
+ * Alias kept for app/api/rooms/create/route.ts versions that import
+ * isAllowedGeneralRoomDuration.
+ */
+export function isAllowedGeneralRoomDuration(duration: number) {
+  return isGeneralRoomDuration(Number(duration));
+}
+
 export function isActivityRoomDuration(duration: number) {
   return duration === ROOM_DURATION_POLICY.activityDuration;
+}
+
+export function normalizeGroupSize(value: unknown, mode?: "pair" | "group" | string | null) {
+  if (mode === "pair") return 2;
+  const numeric = Number(value);
+  return GROUP_SIZE_OPTIONS.includes(numeric as 2 | 4 | 6) ? numeric : 4;
+}
+
+export function isRoomCategory(value: unknown): value is RoomCategoryCode {
+  return ROOM_CATEGORY_CODES.includes(value as RoomCategoryCode);
+}
+
+export function normalizeRoomCategory(value: unknown): RoomCategoryCode {
+  return isRoomCategory(value) ? value : "focus";
 }
 
 export function hostCreditsForDuration(duration: number) {
