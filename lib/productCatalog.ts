@@ -1,4 +1,4 @@
-export const PRODUCT_CATALOG_BUILD_TAG = "product-catalog-pricing-v1085-2026-06-04";
+export const PRODUCT_CATALOG_BUILD_TAG = "product-catalog-pricing-v1086-2026-06-04";
 
 export type ProductStage = "production_pilot" | "pricing_v2_next_spec" | "future_extension";
 export type PurchaseStatus = "active" | "planned" | "blocked";
@@ -50,6 +50,12 @@ export type ProductPlan = {
   autoRenew: boolean;
   checkoutPlanCode: string | null;
   purchaseEnabled: boolean;
+  /** Compatibility alias for older billing/UI mapping. Prefer positioning. */
+  description: string;
+  /** Compatibility alias for older billing/UI mapping. Prefer highlights. */
+  benefits: string[];
+  /** Compatibility alias for older billing/UI mapping. Prefer amountTwd. */
+  amount: number | null;
   invoiceItemName: string;
   tradeDescription: string;
   audience: AudienceSegment;
@@ -165,6 +171,9 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     autoRenew: false,
     checkoutPlanCode: null,
     purchaseEnabled: false,
+    description: "先感受「有人一起開始」的氛圍。",
+    benefits: ["公開房體驗", "短場入門", "基本 Presence Mode", "不承諾 AI 主持"],
+    amount: 0,
     invoiceItemName: "安感島免費體驗",
     tradeDescription: "ANGANDAO Free Trial",
     audience: "curious_free",
@@ -200,6 +209,9 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     autoRenew: false,
     checkoutPlanCode: "vip_month",
     purchaseEnabled: true,
+    description: "先完成一次性付款、權益入帳、客服與退款可追蹤閉環。",
+    benefits: ["一次性信用卡付款", "付款成功後開通 30 天 VIP", "不自動續扣", "人工退款審核"],
+    amount: 199,
     invoiceItemName: "安感島 VIP 月方案（試營運）",
     tradeDescription: "ANGANDAO VIP Pilot Monthly",
     audience: "operator_manual",
@@ -234,6 +246,9 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     autoRenew: true,
     checkoutPlanCode: null,
     purchaseEnabled: false,
+    description: "入門 VIP，賣的是安全可控的低壓力陪伴，不是高成本 AI。",
+    benefits: ["好友房 / 邀請制房", "25 / 50 / 75 一般房", "基本 Presence 偏好", "少量 Personal AI 文字救援"],
+    amount: 299,
     invoiceItemName: "安感島 安心同行月方案",
     tradeDescription: "ANGANDAO Companion Basic Monthly",
     audience: "low_pressure_regular",
@@ -269,6 +284,9 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     autoRenew: true,
     checkoutPlanCode: null,
     purchaseEnabled: false,
+    description: "主推方案，賣的是規律陪伴與 Shared Host AI 有感，不是個人 AI 吃到飽。",
+    benefits: ["包含安心同行主要權益", "每月 8 Host Credit 規劃", "房後摘要 / 回顧規劃", "Shared Host AI 入門"],
+    amount: 599,
     invoiceItemName: "安感島 常駐同行月方案",
     tradeDescription: "ANGANDAO Companion Regular Monthly",
     audience: "habit_builder",
@@ -304,6 +322,9 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     autoRenew: true,
     checkoutPlanCode: null,
     purchaseEnabled: false,
+    description: "給房主、活動、帶朋友的人；賣主持能力、贊助能力與活動房，不是單純更多分鐘。",
+    benefits: ["90 分鐘活動房規劃", "每月 32 Host Credit 規劃", "主持控制台規劃", "房主贊助 AI / 延長通行證"],
+    amount: 1299,
     invoiceItemName: "安感島 主持島民月方案",
     tradeDescription: "ANGANDAO Host Islander Monthly",
     audience: "host_creator",
