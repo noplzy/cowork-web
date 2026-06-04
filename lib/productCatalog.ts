@@ -1,4 +1,4 @@
-export const PRODUCT_CATALOG_BUILD_TAG = "product-catalog-pricing-v1084-2026-06-04";
+export const PRODUCT_CATALOG_BUILD_TAG = "product-catalog-pricing-v1085-2026-06-04";
 
 export type ProductStage = "production_pilot" | "pricing_v2_next_spec" | "future_extension";
 export type PurchaseStatus = "active" | "planned" | "blocked";
@@ -49,6 +49,7 @@ export type ProductPlan = {
   entitlementDays: number | null;
   autoRenew: boolean;
   checkoutPlanCode: string | null;
+  purchaseEnabled: boolean;
   invoiceItemName: string;
   tradeDescription: string;
   audience: AudienceSegment;
@@ -163,6 +164,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     entitlementDays: null,
     autoRenew: false,
     checkoutPlanCode: null,
+    purchaseEnabled: false,
     invoiceItemName: "安感島免費體驗",
     tradeDescription: "ANGANDAO Free Trial",
     audience: "curious_free",
@@ -197,6 +199,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     entitlementDays: 30,
     autoRenew: false,
     checkoutPlanCode: "vip_month",
+    purchaseEnabled: true,
     invoiceItemName: "安感島 VIP 月方案（試營運）",
     tradeDescription: "ANGANDAO VIP Pilot Monthly",
     audience: "operator_manual",
@@ -230,6 +233,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     entitlementDays: 30,
     autoRenew: true,
     checkoutPlanCode: null,
+    purchaseEnabled: false,
     invoiceItemName: "安感島 安心同行月方案",
     tradeDescription: "ANGANDAO Companion Basic Monthly",
     audience: "low_pressure_regular",
@@ -264,6 +268,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     entitlementDays: 30,
     autoRenew: true,
     checkoutPlanCode: null,
+    purchaseEnabled: false,
     invoiceItemName: "安感島 常駐同行月方案",
     tradeDescription: "ANGANDAO Companion Regular Monthly",
     audience: "habit_builder",
@@ -298,6 +303,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     entitlementDays: 30,
     autoRenew: true,
     checkoutPlanCode: null,
+    purchaseEnabled: false,
     invoiceItemName: "安感島 主持島民月方案",
     tradeDescription: "ANGANDAO Host Islander Monthly",
     audience: "host_creator",
