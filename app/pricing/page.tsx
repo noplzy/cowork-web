@@ -1,118 +1,112 @@
-import Link from "next/link";
 import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome";
+import { PricingCheckoutButton } from "@/components/billing/PricingCheckoutButton";
 import styles from "@/components/image20/Image20Auxiliary.module.css";
+import {
+  PRODUCT_ADD_ONS,
+  PRODUCT_PLANS,
+  ROOM_DURATION_POLICY,
+  VALUE_BASED_PRICING_PRINCIPLES,
+} from "@/lib/productCatalog";
+
+type PricingPlanCard = {
+  code: string;
+  title: string;
+  shortTitle: string;
+  priceLabel: string;
+  stageLabel: string;
+  isPurchasable: boolean;
+  isFeatured: boolean;
+  isPale: boolean;
+  icon: string;
+  positioning: string;
+  jobToBeDone: string;
+  upgradeTrigger: string;
+  disabledReason: string;
+  highlights: string[];
+};
 
 const trustItems = [
   {
-    title: "透明方案",
-    body: "會員、AI 主持、房主贊助分開標示。",
+    title: "價格不誤導",
+    body: "目前可付款與下一版規劃分開標示，不把尚未完成的權益寫成已開放。",
   },
   {
     title: "舒服在場",
-    body: "不強迫開鏡頭，可選安靜、音訊、柔焦或開鏡頭。",
+    body: "不強迫開鏡頭，Presence 是信任與成本模型，不是監考。",
   },
   {
-    title: "支援排程",
-    body: "可依照你的節奏建立好友房、邀請制房與活動房。",
+    title: "AI 不吃到飽",
+    body: "安感島不賣無限個人 AI 陪聊，價值集中在 Shared Host AI。",
   },
   {
-    title: "真人協助",
-    body: "方案、退款與房主贊助，都可以先問客服。",
-  },
-] as const;
-
-const plans = [
-  {
-    kicker: "FREE",
-    icon: "☘",
-    title: "免費體驗",
-    subtitle: "適合先感受陪伴氛圍的你",
-    price: "0",
-    cycle: "/ 月",
-    benefits: ["每月 4 場 25 分鐘同行房", "每月 1 場 50 分鐘體驗房", "可加入公開、好友與邀請制房", "1 點 AI 主持體驗額度"],
-    href: "/rooms",
-    cta: "立即開始",
-    featured: false,
-    pale: false,
-  },
-  {
-    kicker: "MEMBER",
-    icon: "♡",
-    title: "安心同行",
-    subtitle: "日常陪伴的好選擇",
-    price: "299",
-    cycle: "/ 月",
-    benefits: ["可使用 25 / 50 / 75 分鐘一般房", "可建立好友房與邀請制房", "2 人房任一方 VIP 可延長", "每月 8 點 AI 主持額度"],
-    href: "/contact",
-    cta: "選擇此方案",
-    featured: false,
-    pale: false,
-  },
-  {
-    kicker: "最受歡迎",
-    icon: "☆",
-    title: "常駐同行",
-    subtitle: "穩定陪伴，讓每週更順",
-    price: "599",
-    cycle: "/ 月",
-    benefits: ["包含安心同行主要權益", "每月 2 場 90 分鐘活動房", "每月 32 點 AI 主持額度", "文字救援、語音陪跑與房後摘要"],
-    href: "/contact",
-    cta: "選擇此方案",
-    featured: true,
-    pale: false,
-  },
-  {
-    kicker: "HOST",
-    icon: "♕",
-    title: "主持島民",
-    subtitle: "成為陪伴的引導者",
-    price: "1,299",
-    cycle: "/ 月",
-    benefits: ["每月 8 場 90 分鐘活動房", "每月 100 點 AI 主持額度", "好友延長券與活動摘要", "房主主持控制台與贊助標籤"],
-    href: "/contact",
-    cta: "選擇此方案",
-    featured: false,
-    pale: true,
-  },
-] as const;
-
-const helperItems = [
-  {
-    icon: "›",
-    title: "怎麼開始",
-    body: "註冊後可先從免費體驗開始，幾秒鐘就能加入第一個空間。",
-    href: "/rooms",
-  },
-  {
-    icon: "≋",
-    title: "方案怎麼選",
-    body: "固定進房看安心同行；高頻使用看常駐同行；常開房看主持島民。",
-    href: "/contact",
-  },
-  {
-    icon: "×",
-    title: "可以取消嗎",
-    body: "方案、AI 加購與活動包規則，以正式公告與客服確認為準。",
-    href: "/refund-policy",
-  },
-  {
-    icon: "♧",
-    title: "需要幫忙嗎",
-    body: "有任何問題都可以聯絡我們，包含活動房、房主贊助與退款協助。",
-    href: "/contact",
+    title: "可營運帳務",
+    body: "付款、發票、退款、客服與 ledger 必須對得起來。",
   },
 ] as const;
 
 const notes = [
-  "25 / 50 / 75 為一般房；90 分鐘主要給活動房、主題房與 Studio 使用。",
-  "Global Guide 不做昂貴 LLM 陪聊；AI 價值集中在房內 Shared Host。",
-  "1 點 Host Credit = 25 分鐘 AI 主持；Personal Room AI 只做開始、卡住與收尾救援。",
-  "安感夥伴真人服務交易方案另行定義，不與本頁會員方案混在一起。",
+  "目前正式可付款：VIP 月方案（試營運）NT$199 / 30 天，一次性付款，不自動續扣。",
+  "NT$299 / 599 / 1299 是 Pricing v2 next-spec，等訂閱、發票、退款、Host Credit 與 AI cost cap 對齊後才開放。",
+  "一般房間正式規格為 25 / 50 / 75 分鐘；90 分鐘保留給活動房、Studio、Buddies 或主持島民能力。",
+  "Host Credit 是 AI 主持權，不是 AI 整場持續講話時間；Personal AI 只做開始、卡住與收尾救援。",
 ] as const;
+
+function normalizePlan(rawPlan: unknown): PricingPlanCard {
+  const plan = rawPlan as Record<string, any>;
+  const code = String(plan.code || "");
+  const purchaseStatus = String(plan.purchaseStatus || plan.availability || "");
+  const stage = String(plan.stage || "");
+
+  const isPurchasable =
+    Boolean(plan.purchaseEnabled) ||
+    purchaseStatus === "active" ||
+    Boolean(plan.checkoutPlanCode && plan.amountTwd !== null && plan.amountTwd !== undefined);
+
+  const stageLabel = isPurchasable
+    ? "目前開放"
+    : stage === "pricing_v2_next_spec"
+      ? "下一版規劃"
+      : "尚未開放";
+
+  const fallbackTitle = String(plan.title || plan.shortTitle || code || "方案");
+  const fallbackHighlights = Array.isArray(plan.highlights)
+    ? plan.highlights.map((item: unknown) => String(item))
+    : Array.isArray(plan.benefits)
+      ? plan.benefits.map((item: unknown) => String(item))
+      : [];
+
+  return {
+    code,
+    title: fallbackTitle,
+    shortTitle: String(plan.shortTitle || fallbackTitle),
+    priceLabel:
+      typeof plan.priceLabel === "string"
+        ? plan.priceLabel
+        : plan.amountTwd === 0
+          ? "NT$0"
+          : plan.amountTwd
+            ? `NT$${Number(plan.amountTwd).toLocaleString("zh-TW")} / 月`
+            : "尚未定價",
+    stageLabel,
+    isPurchasable,
+    isFeatured: code === "companion_regular_599",
+    isPale: code === "host_islander_1299",
+    icon: code === "vip_month" ? "♡" : code === "companion_regular_599" ? "☆" : code === "host_islander_1299" ? "♕" : "☘",
+    positioning: String(plan.positioning || plan.description || "依照使用深度分層，避免把高成本能力塞進低價方案。"),
+    jobToBeDone: String(plan.jobToBeDone || "選擇適合目前使用節奏的陪伴方式。"),
+    upgradeTrigger: String(plan.upgradeTrigger || "需要更多房間能力、Shared Host AI 或房主工具時再升級。"),
+    disabledReason: String(plan.disabledReason || plan.userFriendlyNotice || "這個方案尚未開放付款。"),
+    highlights: fallbackHighlights,
+  };
+}
+
+const visiblePlans = (PRODUCT_PLANS as unknown[])
+  .map(normalizePlan)
+  .filter((plan) => plan.code !== "free");
 
 export default function PricingPage() {
   return (
-    <main className="i20-root" data-image20-dom-page="pricing-v16-cinematic-pricing">
+    <main className="i20-root" data-image20-dom-page="pricing-v1082-type-safe-catalog">
       <section className={styles.pricingHero}>
         <div className={styles.pricingHeroBackdrop} aria-hidden="true" />
         <Image20TopNav dark />
@@ -120,7 +114,7 @@ export default function PricingPage() {
         <div className={styles.pricingHeroCopy}>
           <span className="i20-kicker">Pricing</span>
           <h1 className="i20-serif">方案 / 價格</h1>
-          <p>選擇適合你的陪伴方式。先輕鬆開始，再依照你的節奏慢慢延伸。</p>
+          <p>先誠實標示目前能買什麼，再清楚說明下一版會如何用 Rooms、Presence、Host Credit 與房主贊助分層。</p>
         </div>
       </section>
 
@@ -134,52 +128,95 @@ export default function PricingPage() {
           ))}
         </div>
 
+        <div className="pricing-v16-production-banner">
+          <span className="i20-kicker">Production Fact</span>
+          <h2 className="i20-serif">目前 production 只開放 NT$199 / 30 天一次性 VIP 試營運。</h2>
+          <p>這不是降級，而是避免把尚未完成的訂閱、AI 主持包、房主贊助與發票退款流程提前賣給使用者。</p>
+        </div>
+
         <div className="pricing-v16-plan-row">
-          {plans.map((plan) => (
+          {visiblePlans.map((plan) => (
             <article
-              key={plan.title}
+              key={plan.code || plan.title}
               className={[
                 "pricing-v16-plan-card",
-                plan.featured ? "pricing-v16-plan-featured" : "",
-                plan.pale ? "pricing-v16-plan-pale" : "",
+                plan.isFeatured ? "pricing-v16-plan-featured" : "",
+                plan.isPale ? "pricing-v16-plan-pale" : "",
+                plan.isPurchasable ? "pricing-v16-plan-active" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
-              <span className="pricing-v16-kicker">{plan.kicker}</span>
+              <span className="pricing-v16-kicker">{plan.stageLabel}</span>
               <div className="pricing-v16-icon" aria-hidden="true">
                 {plan.icon}
               </div>
               <h2>{plan.title}</h2>
-              <p className="pricing-v16-subtitle">{plan.subtitle}</p>
+              <p className="pricing-v16-subtitle">{plan.positioning}</p>
               <div className="pricing-v16-price">
-                <span>NT$</span>
-                <strong>{plan.price}</strong>
-                <em>{plan.cycle}</em>
+                <strong>{plan.priceLabel}</strong>
               </div>
+              <p className="pricing-v16-job">{plan.jobToBeDone}</p>
               <ul>
-                {plan.benefits.map((benefit) => (
+                {plan.highlights.map((benefit) => (
                   <li key={benefit}>{benefit}</li>
                 ))}
               </ul>
-              <Link href={plan.href} className="pricing-v16-cta">
-                {plan.cta}
-              </Link>
+              <div className="pricing-v16-fence">
+                <b>升級誘因</b>
+                <span>{plan.upgradeTrigger}</span>
+              </div>
+              <PricingCheckoutButton
+                planCode={plan.code}
+                disabled={!plan.isPurchasable}
+                disabledReason={plan.disabledReason}
+              >
+                {plan.isPurchasable ? "購買此方案" : "尚未開放付款"}
+              </PricingCheckoutButton>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="pricing-v16-ivory" aria-label="方案協助">
-        <div className="pricing-v16-helper-row">
-          {helperItems.map((item) => (
-            <Link href={item.href} key={item.title} className="pricing-v16-helper-card">
-              <span aria-hidden="true">{item.icon}</span>
+      <section className="pricing-v16-ivory" aria-label="商業邏輯與加購">
+        <div className="pricing-v16-two-col">
+          <article className="pricing-v16-decision-card">
+            <span className="i20-kicker">Value-based Tiering</span>
+            <h2 className="i20-serif">方案分層不是逼人升級，而是把高成本能力放在正確的位置。</h2>
+            <div className="pricing-v16-principles">
+              {VALUE_BASED_PRICING_PRINCIPLES.map((item) => (
+                <p key={String(item)}>{String(item)}</p>
+              ))}
+            </div>
+          </article>
+
+          <article className="pricing-v16-decision-card">
+            <span className="i20-kicker">Room Policy</span>
+            <h2 className="i20-serif">Rooms 時長要有清楚語意。</h2>
+            <div className="pricing-v16-duration-grid">
+              {ROOM_DURATION_POLICY.generalDurations.map((duration) => (
+                <div key={duration}>
+                  <b>{duration}</b>
+                  <span>{ROOM_DURATION_POLICY.durationLabels[duration]}</span>
+                </div>
+              ))}
               <div>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
+                <b>{ROOM_DURATION_POLICY.activityDuration}</b>
+                <span>{ROOM_DURATION_POLICY.durationLabels[ROOM_DURATION_POLICY.activityDuration]}</span>
               </div>
-            </Link>
+            </div>
+          </article>
+        </div>
+
+        <div className="pricing-v16-addon-row">
+          {PRODUCT_ADD_ONS.filter((item) => item.code !== "whole_room_extension").map((addon) => (
+            <article key={addon.code}>
+              <span className="i20-kicker">Host Credit</span>
+              <h3>{addon.title}</h3>
+              <b>{addon.priceLabel}</b>
+              <p>{addon.positioning}</p>
+              <small>{addon.disabledReason}</small>
+            </article>
           ))}
         </div>
 
@@ -197,15 +234,14 @@ export default function PricingPage() {
           position: relative;
           z-index: 4;
           margin-top: -98px;
-          padding: 0 clamp(28px, 6vw, 110px) 16px;
-          background: linear-gradient(180deg, rgba(6, 24, 32, 0) 0, rgba(6, 24, 32, 0) 86px, #071b23 86px, #071b23 360px, #f3ede3 360px);
+          padding: 0 clamp(28px, 6vw, 110px) 44px;
+          background: linear-gradient(180deg, rgba(6, 24, 32, 0) 0, rgba(6, 24, 32, 0) 86px, #071b23 86px, #071b23 420px, #f3ede3 420px);
         }
 
         .pricing-v16-trust-strip {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           border: 1px solid rgba(255, 229, 201, 0.16);
-          border-radius: 0;
           overflow: hidden;
           background: rgba(12, 31, 39, 0.72);
           color: #fff2df;
@@ -214,7 +250,7 @@ export default function PricingPage() {
         }
 
         .pricing-v16-trust-strip article {
-          min-height: 88px;
+          min-height: 96px;
           padding: 20px 28px 18px;
           border-right: 1px solid rgba(255, 229, 201, 0.18);
         }
@@ -238,6 +274,28 @@ export default function PricingPage() {
           line-height: 1.62;
         }
 
+        .pricing-v16-production-banner {
+          max-width: 1440px;
+          margin: 32px auto 0;
+          padding: 26px 30px;
+          border: 1px solid rgba(255, 229, 201, 0.18);
+          border-radius: 24px;
+          background: linear-gradient(135deg, rgba(244, 216, 181, 0.18), rgba(16, 48, 58, 0.72));
+          color: #fff2df;
+        }
+
+        .pricing-v16-production-banner h2 {
+          margin: 8px 0;
+          font-weight: 500;
+        }
+
+        .pricing-v16-production-banner p {
+          max-width: 860px;
+          margin: 0;
+          color: rgba(255, 242, 223, 0.75);
+          line-height: 1.8;
+        }
+
         .pricing-v16-plan-row {
           position: relative;
           z-index: 2;
@@ -249,314 +307,252 @@ export default function PricingPage() {
         }
 
         .pricing-v16-plan-card {
-          position: relative;
           min-width: 0;
-          min-height: 356px;
+          min-height: 560px;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          padding: 26px 30px 28px;
-          border-radius: 20px;
-          border: 1px solid rgba(45, 34, 26, 0.18);
-          background: linear-gradient(180deg, #fbf3e8 0%, #efe3d4 100%);
-          color: #2f2923;
-          text-align: center;
-          box-shadow: 0 28px 68px rgba(0, 0, 0, 0.22);
-        }
-
-        .pricing-v16-plan-pale {
-          background: linear-gradient(180deg, #fbf1e7 0%, #efdfce 100%);
+          align-items: stretch;
+          padding: 28px 28px 26px;
+          border-radius: 24px;
+          border: 1px solid rgba(45, 34, 26, 0.16);
+          background: rgba(255, 249, 240, 0.94);
+          box-shadow: 0 26px 70px rgba(22, 15, 9, 0.16);
+          color: #2c2019;
         }
 
         .pricing-v16-plan-featured {
-          transform: translateY(-14px);
-          background: radial-gradient(circle at 50% 0%, rgba(255, 214, 170, 0.16), transparent 42%), linear-gradient(180deg, #544b41 0%, #1f2728 100%);
-          color: #fff0dc;
-          border-color: rgba(229, 158, 111, 0.78);
-          box-shadow: 0 0 0 1px rgba(248, 199, 138, 0.34), 0 32px 82px rgba(0, 0, 0, 0.34);
+          background: #fff4df;
+          border-color: rgba(190, 123, 76, 0.34);
+          box-shadow: 0 32px 90px rgba(122, 75, 41, 0.22);
         }
 
-        .pricing-v16-plan-featured::before {
-          content: "最受歡迎";
-          position: absolute;
-          top: -1px;
-          left: 50%;
-          transform: translateX(-50%);
-          padding: 4px 26px 6px;
-          border-radius: 0 0 16px 16px;
-          background: linear-gradient(180deg, rgba(236, 174, 123, 0.96), rgba(218, 133, 92, 0.96));
-          color: #fff8ef;
-          font-size: 13px;
-          letter-spacing: 0.16em;
+        .pricing-v16-plan-active {
+          outline: 3px solid rgba(218, 154, 92, 0.34);
+        }
+
+        .pricing-v16-plan-pale {
+          background: #f7efe2;
         }
 
         .pricing-v16-kicker {
-          display: block;
-          min-height: 16px;
-          color: #db956e;
+          width: fit-content;
+          border: 1px solid rgba(45, 34, 26, 0.16);
+          border-radius: 999px;
+          padding: 7px 12px;
           font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 0.2em;
+          letter-spacing: 0.12em;
           text-transform: uppercase;
+          color: rgba(45, 34, 26, 0.68);
         }
 
         .pricing-v16-icon {
-          margin: 10px 0 6px;
-          color: rgba(143, 106, 79, 0.68);
-          font-size: 34px;
-          line-height: 1;
-        }
-
-        .pricing-v16-plan-featured .pricing-v16-icon {
-          color: #f0c48d;
+          margin-top: 18px;
+          font-size: 26px;
         }
 
         .pricing-v16-plan-card h2 {
-          margin: 0;
+          margin: 16px 0 8px;
           font-family: Georgia, "Noto Serif TC", serif;
-          font-size: clamp(27px, 1.75vw, 36px);
-          line-height: 1.15;
+          font-size: 26px;
           font-weight: 500;
-          letter-spacing: 0.12em;
         }
 
-        .pricing-v16-subtitle {
-          min-height: 42px;
-          margin: 8px 0 16px;
-          color: #7b6b5d;
-          font-size: 15px;
-          line-height: 1.6;
-        }
-
-        .pricing-v16-plan-featured .pricing-v16-subtitle {
-          color: rgba(255, 240, 220, 0.76);
-        }
-
-        .pricing-v16-price {
-          display: flex;
-          align-items: baseline;
-          justify-content: center;
-          gap: 5px;
-          margin: 0 0 18px;
-          white-space: nowrap;
-        }
-
-        .pricing-v16-price span,
-        .pricing-v16-price em {
-          color: inherit;
-          opacity: 0.82;
-          font-size: 15px;
-          font-style: normal;
+        .pricing-v16-subtitle,
+        .pricing-v16-job,
+        .pricing-v16-fence span,
+        .pricing-v17-action-note {
+          color: rgba(45, 34, 26, 0.68);
+          line-height: 1.7;
+          font-size: 14px;
         }
 
         .pricing-v16-price strong {
+          display: block;
+          margin: 16px 0;
           font-family: Georgia, "Noto Serif TC", serif;
-          font-size: clamp(38px, 2.6vw, 52px);
-          line-height: 1;
+          font-size: 30px;
           font-weight: 500;
-          letter-spacing: 0.03em;
         }
 
         .pricing-v16-plan-card ul {
-          display: grid;
-          gap: 8px;
-          width: 100%;
-          margin: 0 0 22px;
+          flex: 1;
+          margin: 18px 0;
           padding: 0;
           list-style: none;
-          color: #665a50;
-          text-align: left;
+        }
+
+        .pricing-v16-plan-card li {
+          padding: 8px 0;
+          border-top: 1px solid rgba(45, 34, 26, 0.1);
           font-size: 14px;
           line-height: 1.55;
         }
 
-        .pricing-v16-plan-featured ul {
-          color: rgba(255, 240, 220, 0.82);
+        .pricing-v16-fence {
+          display: grid;
+          gap: 6px;
+          margin: 0 0 18px;
+          padding: 14px;
+          border-radius: 16px;
+          background: rgba(45, 34, 26, 0.055);
         }
 
-        .pricing-v16-plan-card li {
-          position: relative;
-          padding-left: 20px;
+        .pricing-v17-action-wrap {
+          display: grid;
+          gap: 8px;
         }
 
-        .pricing-v16-plan-card li::before {
-          content: "✓";
-          position: absolute;
-          left: 0;
-          top: 0;
-          color: #d98f67;
-          font-weight: 900;
+        .pricing-v17-action-note {
+          margin: 0;
         }
 
+        .pricing-v17-cta,
         .pricing-v16-cta {
-          display: inline-flex;
-          justify-content: center;
-          align-items: center;
-          min-width: 168px;
-          margin-top: auto;
-          padding: 13px 22px;
-          border-radius: 12px;
-          background: linear-gradient(180deg, #eea07b, #dd7f5b);
-          color: #fffaf3;
-          text-decoration: none;
+          width: 100%;
+          border: 0;
+          border-radius: 999px;
+          padding: 13px 16px;
+          background: #172f36;
+          color: #fff2df;
+          cursor: pointer;
           font-weight: 700;
-          letter-spacing: 0.08em;
-          box-shadow: 0 15px 30px rgba(201, 111, 77, 0.25);
+          letter-spacing: 0.06em;
+          text-decoration: none;
+          text-align: center;
         }
 
-        .pricing-v16-plan-card:not(.pricing-v16-plan-featured) .pricing-v16-cta {
-          background: #e38e69;
-          color: #fff8ef;
-          box-shadow: none;
+        .pricing-v17-cta[aria-disabled="true"] {
+          background: rgba(45, 34, 26, 0.2);
+          color: rgba(45, 34, 26, 0.62);
         }
 
         .pricing-v16-ivory {
-          margin-top: -1px;
-          padding: 36px clamp(28px, 6vw, 110px) 50px;
+          padding: 58px clamp(28px, 6vw, 110px) 80px;
           background: #f3ede3;
         }
 
-        .pricing-v16-helper-row {
+        .pricing-v16-two-col {
+          display: grid;
+          grid-template-columns: 1.1fr 0.9fr;
+          gap: 24px;
+          max-width: 1480px;
+          margin: 0 auto;
+        }
+
+        .pricing-v16-decision-card,
+        .pricing-v16-addon-row article,
+        .pricing-v16-note-bar {
+          border: 1px solid rgba(45, 34, 26, 0.12);
+          border-radius: 24px;
+          background: rgba(255, 250, 242, 0.82);
+          box-shadow: 0 18px 50px rgba(40, 26, 14, 0.08);
+        }
+
+        .pricing-v16-decision-card {
+          padding: 30px;
+        }
+
+        .pricing-v16-decision-card h2 {
+          margin: 8px 0 18px;
+          font-weight: 500;
+        }
+
+        .pricing-v16-principles p,
+        .pricing-v16-note-bar p {
+          margin: 0;
+          padding: 14px 0;
+          border-top: 1px solid rgba(45, 34, 26, 0.1);
+          line-height: 1.75;
+          color: rgba(45, 34, 26, 0.72);
+        }
+
+        .pricing-v16-duration-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .pricing-v16-duration-grid div {
+          padding: 18px;
+          border-radius: 18px;
+          background: rgba(23, 47, 54, 0.08);
+        }
+
+        .pricing-v16-duration-grid b {
+          display: block;
+          font-size: 24px;
+          font-family: Georgia, "Noto Serif TC", serif;
+        }
+
+        .pricing-v16-duration-grid span {
+          color: rgba(45, 34, 26, 0.65);
+          font-size: 13px;
+          line-height: 1.6;
+        }
+
+        .pricing-v16-addon-row {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 0;
-          max-width: 1600px;
-          margin: 0 auto 22px;
-          border-top: 1px solid rgba(84, 64, 48, 0.16);
-          border-bottom: 1px solid rgba(84, 64, 48, 0.16);
-        }
-
-        .pricing-v16-helper-card {
-          display: grid;
-          grid-template-columns: 62px 1fr;
           gap: 18px;
-          min-height: 116px;
-          padding: 24px 26px;
-          border-right: 1px solid rgba(84, 64, 48, 0.16);
-          color: #3a2f27;
-          text-decoration: none;
+          max-width: 1480px;
+          margin: 28px auto 0;
         }
 
-        .pricing-v16-helper-card:last-child {
-          border-right: 0;
+        .pricing-v16-addon-row article {
+          padding: 22px;
         }
 
-        .pricing-v16-helper-card > span {
-          width: 54px;
-          height: 54px;
-          display: grid;
-          place-items: center;
-          border-radius: 50%;
-          background: rgba(111, 84, 62, 0.09);
-          color: #2e2a25;
-          font-size: 28px;
-          font-family: Georgia, serif;
+        .pricing-v16-addon-row h3 {
+          margin: 10px 0 8px;
+          font-size: 18px;
         }
 
-        .pricing-v16-helper-card h3 {
-          margin: 0 0 8px;
+        .pricing-v16-addon-row b {
           font-family: Georgia, "Noto Serif TC", serif;
-          font-size: 23px;
-          line-height: 1.25;
-          font-weight: 500;
-          letter-spacing: 0.06em;
+          font-size: 24px;
         }
 
-        .pricing-v16-helper-card p {
-          margin: 0;
-          color: #7a6f65;
-          font-size: 14px;
-          line-height: 1.68;
+        .pricing-v16-addon-row p,
+        .pricing-v16-addon-row small {
+          display: block;
+          color: rgba(45, 34, 26, 0.64);
+          line-height: 1.65;
         }
 
         .pricing-v16-note-bar {
-          max-width: 1600px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 0;
-          color: #6f655d;
-          font-size: 13px;
-          line-height: 1.62;
+          max-width: 1480px;
+          margin: 28px auto 0;
+          padding: 10px 24px;
         }
 
-        .pricing-v16-note-bar p {
-          margin: 0;
-          padding: 0 22px;
-          border-right: 1px solid rgba(84, 64, 48, 0.14);
-        }
-
-        .pricing-v16-note-bar p:first-child {
-          padding-left: 0;
-        }
-
-        .pricing-v16-note-bar p:last-child {
-          border-right: 0;
-        }
-
-        @media (max-width: 1220px) {
+        @media (max-width: 1180px) {
           .pricing-v16-plan-row,
           .pricing-v16-trust-strip,
-          .pricing-v16-helper-row,
-          .pricing-v16-note-bar {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .pricing-v16-stage {
-            background: linear-gradient(180deg, rgba(6, 24, 32, 0) 0, rgba(6, 24, 32, 0) 86px, #071b23 86px, #071b23 640px, #f3ede3 640px);
-          }
-
-          .pricing-v16-plan-featured {
-            transform: none;
-          }
-
-          .pricing-v16-trust-strip article:nth-child(2),
-          .pricing-v16-helper-card:nth-child(2),
-          .pricing-v16-note-bar p:nth-child(2) {
-            border-right: 0;
-          }
-
-          .pricing-v16-trust-strip article:nth-child(-n + 2),
-          .pricing-v16-helper-card:nth-child(-n + 2) {
-            border-bottom: 1px solid rgba(255, 229, 201, 0.14);
-          }
-
-          .pricing-v16-note-bar p {
-            padding: 12px 22px;
-            border-bottom: 1px solid rgba(84, 64, 48, 0.12);
+          .pricing-v16-addon-row,
+          .pricing-v16-two-col {
+            grid-template-columns: 1fr 1fr;
           }
         }
 
-        @media (max-width: 720px) {
+        @media (max-width: 760px) {
           .pricing-v16-stage {
-            margin-top: -48px;
-            padding-inline: 18px;
-            background: linear-gradient(180deg, rgba(6, 24, 32, 0) 0, rgba(6, 24, 32, 0) 48px, #071b23 48px, #071b23 1520px, #f3ede3 1520px);
-          }
-
-          .pricing-v16-plan-row,
-          .pricing-v16-trust-strip,
-          .pricing-v16-helper-row,
-          .pricing-v16-note-bar {
-            grid-template-columns: 1fr;
-          }
-
-          .pricing-v16-trust-strip article,
-          .pricing-v16-helper-card,
-          .pricing-v16-note-bar p {
-            border-right: 0;
-          }
-
-          .pricing-v16-plan-card {
-            min-height: auto;
+            padding: 0 18px 32px;
           }
 
           .pricing-v16-ivory {
-            padding-inline: 18px;
+            padding: 42px 18px 58px;
           }
 
-          .pricing-v16-helper-card {
-            grid-template-columns: 52px 1fr;
+          .pricing-v16-plan-row,
+          .pricing-v16-trust-strip,
+          .pricing-v16-addon-row,
+          .pricing-v16-two-col {
+            grid-template-columns: 1fr;
+          }
+
+          .pricing-v16-trust-strip article {
+            border-right: 0;
+            border-bottom: 1px solid rgba(255, 229, 201, 0.18);
           }
         }
       `}</style>
