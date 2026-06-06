@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { ADMIN_OPS_BUILD_TAG, adminErrorResponse, getAdminUserFromRequest, writeAdminAudit } from "@/lib/server/adminAuth";
 import { cleanText } from "@/lib/server/safety";
+import { queueNotification } from "@/lib/server/notificationOutbox";
 
 export const runtime = "nodejs";
 
@@ -21,9 +22,7 @@ export async function GET(req: Request, context: RouteContext) {
       supabaseAdmin.from("support_ticket_events").select("*").eq("ticket_id", ticketId).order("created_at", { ascending: false }).limit(100),
     ]);
 
-    if (ticket.error || !ticket.data) {
-      return NextResponse.json({ error: ticket.error?.message || "找不到客服單。", build_tag: ADMIN_OPS_BUILD_TAG }, { status: 404 });
-    }
+    if (ticket.error || !ticket.data) return NextResponse.json({ error: ticket.error?.message || "找不到客服單。", build_tag: ADMIN_OPS_BUILD_TAG }, { status: 404 });
 
     await writeAdminAudit(req, { adminUserId: admin.userId, actionType: "admin_support_ticket_viewed", targetType: "support_ticket", targetId: ticketId });
     return NextResponse.json({ ticket: ticket.data, messages: messages.data ?? [], events: events.data ?? [], build_tag: ADMIN_OPS_BUILD_TAG });
@@ -40,9 +39,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     const body = (await req.json().catch(() => ({}))) as PatchBody;
 
     const current = await supabaseAdmin.from("support_tickets").select("*").eq("id", ticketId).maybeSingle();
-    if (current.error || !current.data) {
-      return NextResponse.json({ error: current.error?.message || "找不到客服單。", build_tag: ADMIN_OPS_BUILD_TAG }, { status: 404 });
-    }
+    if (current.error || !current.data) return NextResponse.json({ error: current.error?.message || "找不到客服單。", build_tag: ADMIN_OPS_BUILD_TAG }, { status: 404 });
 
     const nextStatus = cleanText(body.status, 40);
     const nextPriority = cleanText(body.priority, 40);
@@ -66,9 +63,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     if (adminMessage) patch.last_admin_message_at = new Date().toISOString();
 
     const updated = await supabaseAdmin.from("support_tickets").update(patch).eq("id", ticketId).select("*").single();
-    if (updated.error || !updated.data) {
-      return NextResponse.json({ error: updated.error?.message || "更新客服單失敗。", build_tag: ADMIN_OPS_BUILD_TAG }, { status: 400 });
-    }
+    if (updated.error || !updated.data) return NextResponse.json({ error: updated.error?.message || "更新客服單失敗。", build_tag: ADMIN_OPS_BUILD_TAG }, { status: 400 });
 
     if (adminMessage) {
       await supabaseAdmin.from("support_ticket_messages").insert({ ticket_id: ticketId, sender_user_id: admin.userId, sender_role: "admin", body: adminMessage });
@@ -84,13 +79,22 @@ export async function PATCH(req: Request, context: RouteContext) {
       metadata: { priority: updated.data.priority, has_admin_message: Boolean(adminMessage) },
     });
 
-    await writeAdminAudit(req, {
-      adminUserId: admin.userId,
-      actionType: "admin_support_ticket_updated",
-      targetType: "support_ticket",
-      targetId: ticketId,
-      metadata: { from_status: current.data.status, to_status: updated.data.status },
-    });
+    if (adminMessage || (nextStatus && nextStatus !== current.data.status)) {
+      await queueNotification({
+        userId: updated.data.user_id,
+        channel: "in_app",
+        templateKey: "support_ticket_updated",
+        subject: "客服單已更新",
+        body: adminMessage ? `客服已回覆：${adminMessage.slice(0, 160)}` : `客服單狀態已更新為 ${updated.data.status}`,
+        priority: nextStatus === "resolved" || nextStatus === "closed" ? "normal" : "high",
+        targetType: "support_ticket",
+        targetId: ticketId,
+        dedupeKey: `support_ticket_updated:${ticketId}:${updated.data.updated_at}`,
+        metadata: { status: updated.data.status, priority: updated.data.priority },
+      }).catch(() => null);
+    }
+
+    await writeAdminAudit(req, { adminUserId: admin.userId, actionType: "admin_support_ticket_updated", targetType: "support_ticket", targetId: ticketId, metadata: { from_status: current.data.status, to_status: updated.data.status } });
 
     return NextResponse.json({ ticket: updated.data, build_tag: ADMIN_OPS_BUILD_TAG });
   } catch (error: any) {
