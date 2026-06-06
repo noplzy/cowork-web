@@ -1,8 +1,12 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { queueNotification } from "@/lib/server/notificationOutbox";
 
-export const NOTIFICATION_TEMPLATES_BUILD_TAG = "notification-templates-v112-2026-06-05";
+export const NOTIFICATION_TEMPLATES_BUILD_TAG = "notification-templates-v1121-2026-06-05";
+
 export type NotificationChannel = "in_app" | "email" | "sms" | "line" | "telegram" | "webhook";
+export type NotificationCategory = "support" | "billing" | "safety" | "room" | "ai" | "system" | "marketing";
+export type NotificationPriority = "low" | "normal" | "high" | "urgent";
+
 type TemplateVariables = Record<string, string | number | boolean | null | undefined>;
 
 const DEFAULT_PREFERENCES = {
@@ -22,6 +26,15 @@ const DEFAULT_PREFERENCES = {
   locale: "zh-TW",
 };
 
+const VALID_CHANNELS: readonly NotificationChannel[] = ["in_app", "email", "sms", "line", "telegram", "webhook"];
+
+function normalizeChannels(channels?: NotificationChannel[] | null): NotificationChannel[] {
+  if (!channels?.length) return ["in_app"];
+  return channels.filter((channel): channel is NotificationChannel =>
+    VALID_CHANNELS.includes(channel as NotificationChannel),
+  );
+}
+
 function renderTemplate(template: string | null | undefined, variables: TemplateVariables) {
   return String(template || "").replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => {
     const value = variables[key];
@@ -30,7 +43,7 @@ function renderTemplate(template: string | null | undefined, variables: Template
   });
 }
 
-function preferenceKeyForChannel(channel: string) {
+function preferenceKeyForChannel(channel: NotificationChannel) {
   if (channel === "email") return "email_enabled";
   if (channel === "sms") return "sms_enabled";
   if (channel === "line") return "line_enabled";
@@ -48,11 +61,21 @@ function preferenceKeyForCategory(category: string) {
 }
 
 export async function ensureNotificationPreferences(userId: string) {
-  const existing = await supabaseAdmin.from("notification_preferences").select("*").eq("user_id", userId).maybeSingle();
+  const existing = await supabaseAdmin
+    .from("notification_preferences")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
   if (existing.error) throw existing.error;
   if (existing.data) return existing.data;
 
-  const inserted = await supabaseAdmin.from("notification_preferences").insert({ user_id: userId, ...DEFAULT_PREFERENCES }).select("*").single();
+  const inserted = await supabaseAdmin
+    .from("notification_preferences")
+    .insert({ user_id: userId, ...DEFAULT_PREFERENCES })
+    .select("*")
+    .single();
+
   if (inserted.error) throw inserted.error;
   return inserted.data;
 }
@@ -63,21 +86,50 @@ export async function getNotificationPreferences(userId: string) {
 
 export async function updateNotificationPreferences(userId: string, patch: Record<string, unknown>) {
   await ensureNotificationPreferences(userId);
-  const allowedBooleanKeys = ["in_app_enabled", "email_enabled", "sms_enabled", "line_enabled", "telegram_enabled", "support_updates", "billing_updates", "safety_updates", "room_updates", "marketing_updates", "quiet_hours_enabled"];
+
+  const allowedBooleanKeys = [
+    "in_app_enabled",
+    "email_enabled",
+    "sms_enabled",
+    "line_enabled",
+    "telegram_enabled",
+    "support_updates",
+    "billing_updates",
+    "safety_updates",
+    "room_updates",
+    "marketing_updates",
+    "quiet_hours_enabled",
+  ];
+
   const update: Record<string, unknown> = {};
-  for (const key of allowedBooleanKeys) if (typeof patch[key] === "boolean") update[key] = patch[key];
+
+  for (const key of allowedBooleanKeys) {
+    if (typeof patch[key] === "boolean") update[key] = patch[key];
+  }
+
   if (typeof patch.quiet_hours_start === "string") update.quiet_hours_start = patch.quiet_hours_start.slice(0, 8);
   if (typeof patch.quiet_hours_end === "string") update.quiet_hours_end = patch.quiet_hours_end.slice(0, 8);
   if (typeof patch.locale === "string") update.locale = patch.locale.slice(0, 12);
   update.updated_at = new Date().toISOString();
 
-  const result = await supabaseAdmin.from("notification_preferences").update(update).eq("user_id", userId).select("*").single();
+  const result = await supabaseAdmin
+    .from("notification_preferences")
+    .update(update)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+
   if (result.error) throw result.error;
   return result.data;
 }
 
 export async function listNotificationTemplates() {
-  const result = await supabaseAdmin.from("notification_templates").select("*").order("category", { ascending: true }).order("template_key", { ascending: true });
+  const result = await supabaseAdmin
+    .from("notification_templates")
+    .select("*")
+    .order("category", { ascending: true })
+    .order("template_key", { ascending: true });
+
   if (result.error) throw result.error;
   return result.data ?? [];
 }
@@ -87,7 +139,7 @@ export async function queueTemplateNotification(input: {
   templateKey: string;
   variables?: TemplateVariables;
   channels?: NotificationChannel[];
-  priority?: "low" | "normal" | "high" | "urgent";
+  priority?: NotificationPriority;
   targetType?: string | null;
   targetId?: string | null;
   dedupeKey?: string | null;
@@ -95,16 +147,31 @@ export async function queueTemplateNotification(input: {
   recipient?: string | null;
 }) {
   const preferences = await ensureNotificationPreferences(input.userId);
-  const channels = input.channels?.length ? input.channels : ["in_app"];
-  const results: any[] = [];
+  const channels: NotificationChannel[] = normalizeChannels(input.channels);
+  const results: Array<Record<string, unknown>> = [];
 
   for (const channel of channels) {
-    const template = await supabaseAdmin.from("notification_templates").select("*").eq("template_key", input.templateKey).eq("channel", channel).eq("enabled", true).maybeSingle();
+    const template = await supabaseAdmin
+      .from("notification_templates")
+      .select("*")
+      .eq("template_key", input.templateKey)
+      .eq("channel", channel)
+      .eq("enabled", true)
+      .maybeSingle();
+
     if (template.error) throw template.error;
 
     let fallbackTemplate = template.data;
+
     if (!fallbackTemplate && channel !== "in_app") {
-      const fallback = await supabaseAdmin.from("notification_templates").select("*").eq("template_key", input.templateKey).eq("channel", "in_app").eq("enabled", true).maybeSingle();
+      const fallback = await supabaseAdmin
+        .from("notification_templates")
+        .select("*")
+        .eq("template_key", input.templateKey)
+        .eq("channel", "in_app")
+        .eq("enabled", true)
+        .maybeSingle();
+
       if (fallback.error) throw fallback.error;
       fallbackTemplate = fallback.data;
     }
@@ -114,9 +181,11 @@ export async function queueTemplateNotification(input: {
       continue;
     }
 
-    const channelAllowed = Boolean((preferences as any)[preferenceKeyForChannel(channel)]);
-    const categoryKey = preferenceKeyForCategory(String(fallbackTemplate.category || "system"));
-    const categoryAllowed = categoryKey ? Boolean((preferences as any)[categoryKey]) : true;
+    const channelPreferenceKey = preferenceKeyForChannel(channel);
+    const categoryPreferenceKey = preferenceKeyForCategory(String(fallbackTemplate.category || "system"));
+    const channelAllowed = Boolean(preferences[channelPreferenceKey]);
+    const categoryAllowed = categoryPreferenceKey ? Boolean(preferences[categoryPreferenceKey]) : true;
+
     if (!input.force && (!channelAllowed || !categoryAllowed)) {
       results.push({ channel, skipped: true, reason: "preference_disabled" });
       continue;
@@ -133,7 +202,11 @@ export async function queueTemplateNotification(input: {
       targetType: input.targetType ?? null,
       targetId: input.targetId ?? null,
       dedupeKey: input.dedupeKey ? `${input.dedupeKey}:${channel}` : null,
-      metadata: { source: "notification_template_v112", variables: input.variables ?? {}, category: fallbackTemplate.category },
+      metadata: {
+        source: "notification_template_v1121",
+        variables: input.variables ?? {},
+        category: fallbackTemplate.category,
+      },
     });
 
     results.push({ channel, notification: queued });
