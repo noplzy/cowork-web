@@ -1,0 +1,6 @@
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAuthUserFromRequest } from "@/lib/serverRoomUtils";
+export const runtime = "nodejs";
+const BUILD_TAG = "account-subscriptions-v109-2026-06-04";
+export async function GET(req: Request) { try { const { userId } = await getAuthUserFromRequest(req); const [profiles, events] = await Promise.all([supabaseAdmin.from("subscription_profiles").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(80), supabaseAdmin.from("subscription_events").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(80)]); const firstError = profiles.error || events.error; if (firstError) return NextResponse.json({ error: firstError.message, build_tag: BUILD_TAG }, { status: 400 }); return NextResponse.json({ subscriptions: profiles.data ?? [], events: events.data ?? [], build_tag: BUILD_TAG }); } catch (error: any) { if (error?.message === "UNAUTHORIZED") return NextResponse.json({ error: "請先登入後再查看訂閱。", build_tag: BUILD_TAG }, { status: 401 }); return NextResponse.json({ error: error?.message || "讀取訂閱資料失敗。", build_tag: BUILD_TAG }, { status: 500 }); } }
