@@ -21,21 +21,44 @@ export function getClientIp(req: Request) {
   return req.headers.get("x-real-ip") || null;
 }
 
+function isMissingUserBlocksSafetySchema(message?: string | null) {
+  const text = String(message || "");
+  return (
+    /relation .*user_blocks.* does not exist/i.test(text) ||
+    /column .*user_blocks\.(id|blocker_user_id|blocked_user_id).* does not exist/i.test(text) ||
+    /Could not find the '(id|blocker_user_id|blocked_user_id)' column/i.test(text)
+  );
+}
+
+/**
+ * Relationship block safety gate.
+ *
+ * Important:
+ * - The production user_blocks table may not have an `id` column because an older
+ *   account-security block table existed first.
+ * - Room join must not hard-crash because of a non-essential select column.
+ * - This function only needs to know whether either side blocked the other, so
+ *   it selects relationship columns instead of `id`.
+ */
 export async function userBlockExists(userA: string, userB: string) {
   if (!userA || !userB || userA === userB) return false;
 
   const { data, error } = await supabaseAdmin
     .from("user_blocks")
-    .select("id")
+    .select("blocker_user_id,blocked_user_id")
     .or(
       `and(blocker_user_id.eq.${userA},blocked_user_id.eq.${userB}),and(blocker_user_id.eq.${userB},blocked_user_id.eq.${userA})`
     )
     .limit(1);
 
   if (error) {
-    // If the migration has not been applied, do not hard-crash legacy room entry.
-    // The route still returns its build tag so deployment can be diagnosed.
-    if (/relation .*user_blocks.* does not exist/i.test(error.message)) return false;
+    // If the relationship-block migration has not been applied, do not crash
+    // legacy room entry. The room route still returns build_tag for diagnosis.
+    if (isMissingUserBlocksSafetySchema(error.message)) {
+      console.warn("[USER_BLOCKS_SAFETY_SCHEMA_SOFT_SKIP]", error.message);
+      return false;
+    }
+
     throw error;
   }
 
