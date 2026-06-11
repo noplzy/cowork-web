@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     const { userId } = await getAuthUserFromRequest(req);
     const limit = 80;
 
-    const [orders, ledger, refunds, invoices, entitlements, entitlementEvents] = await Promise.all([
+    const [orders, ledger, refunds, invoices, invoiceTasks, refundTasks, subscriptions, subscriptionEvents, entitlements, entitlementEvents] = await Promise.all([
       supabaseAdmin
         .from("payment_orders")
         .select("id,merchant_trade_no,provider,plan_code,amount,currency,status,item_name,trade_desc,vip_days,provider_trade_no,paid_at,last_error,created_at,updated_at")
@@ -36,6 +36,30 @@ export async function GET(req: Request) {
         .order("created_at", { ascending: false })
         .limit(limit),
       supabaseAdmin
+        .from("ecpay_invoice_tasks")
+        .select("id,payment_order_id,invoice_event_id,status,provider_invoice_no,provider_random_number,last_error,processed_at,created_at,updated_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabaseAdmin
+        .from("ecpay_refund_tasks")
+        .select("id,payment_order_id,refund_request_id,status,provider_refund_id,last_error,processed_at,created_at,updated_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabaseAdmin
+        .from("subscription_profiles")
+        .select("id,provider,plan_code,status,period_amount,period_type,frequency,next_charge_at,current_period_start,current_period_end,cancel_requested_at,cancelled_at,last_provider_error,created_at,updated_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabaseAdmin
+        .from("subscription_events")
+        .select("id,subscription_profile_id,event_type,merchant_trade_no,payment_order_id,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabaseAdmin
         .from("user_entitlements")
         .select("plan,vip_until")
         .eq("user_id", userId)
@@ -48,7 +72,18 @@ export async function GET(req: Request) {
         .limit(limit),
     ]);
 
-    const firstError = [orders.error, ledger.error, refunds.error, invoices.error, entitlements.error, entitlementEvents.error].find(Boolean);
+    const firstError = [
+      orders.error,
+      ledger.error,
+      refunds.error,
+      invoices.error,
+      invoiceTasks.error,
+      refundTasks.error,
+      subscriptions.error,
+      subscriptionEvents.error,
+      entitlements.error,
+      entitlementEvents.error,
+    ].find(Boolean);
     if (firstError) {
       return NextResponse.json({ error: firstError.message, build_tag: FORMAL_OPS_BUILD_TAG }, { status: 400 });
     }
@@ -59,6 +94,10 @@ export async function GET(req: Request) {
       billing_ledger: ledger.data ?? [],
       refund_requests: refunds.data ?? [],
       invoice_events: invoices.data ?? [],
+      invoice_tasks: invoiceTasks.data ?? [],
+      refund_tasks: refundTasks.data ?? [],
+      subscription_profiles: subscriptions.data ?? [],
+      subscription_events: subscriptionEvents.data ?? [],
       entitlement_events: entitlementEvents.data ?? [],
       build_tag: FORMAL_OPS_BUILD_TAG,
     });
