@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const BILLING_AUTOMATION_BUILD_TAG = "billing-automation-v115-2026-06-10";
+export const BILLING_AUTOMATION_BUILD_TAG = "billing-automation-v116-2026-06-13";
 
 const INVOICE_TERMINAL_STATUSES = new Set(["issued", "completed", "voided", "allowance_issued", "cancelled"]);
 const REFUND_TERMINAL_STATUSES = new Set(["refunded", "completed", "cancelled"]);
@@ -25,12 +25,20 @@ export function verifyBillingAutomationSecret(req: Request) {
   if (got !== expected) throw Object.assign(new Error("UNAUTHORIZED_BILLING_AUTOMATION"), { status: 401 });
 }
 
+function getAdapterSecret() {
+  return process.env.ECPAY_ADAPTER_SECRET || process.env.BILLING_AUTOMATION_SECRET || process.env.ROOM_CLEANUP_SECRET || process.env.CRON_SECRET || "";
+}
+
 async function postJson(endpoint: string, payload: Record<string, unknown>) {
+  const adapterSecret = getAdapterSecret();
+  if (!adapterSecret) throw new Error("Missing ECPAY_ADAPTER_SECRET / BILLING_AUTOMATION_SECRET for provider adapter call");
+
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-calmco-billing-build": BILLING_AUTOMATION_BUILD_TAG,
+      "x-internal-secret": adapterSecret,
     },
     body: JSON.stringify(payload),
   });
@@ -318,6 +326,40 @@ export async function processInvoiceTasks(limit = 20) {
 
         results.push({ invoice_event_id: invoice.id, task_id: task.id, status: "issued", invoice_number: invoiceNumber });
       } else {
+        const requestedManual = String(providerResult?.status || providerResult?.event_type || "").trim() === "manual_required" || providerResult?.manual_required === true;
+        if (requestedManual) {
+          const reason = providerResult?.reason || providerResult?.message || "provider_requested_manual_review";
+          await supabaseAdmin
+            .from("ecpay_invoice_tasks")
+            .update({
+              status: "manual_required",
+              provider_payload: providerResult,
+              last_error: reason,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", task.id);
+
+          await supabaseAdmin.from("invoice_events").insert({
+            user_id: invoice.user_id,
+            payment_order_id: invoice.payment_order_id,
+            provider: "ecpay_invoice",
+            event_type: "manual_required",
+            invoice_number: invoice.invoice_number || null,
+            invoice_random_number: invoice.invoice_random_number || null,
+            metadata: {
+              task_id: task.id,
+              source_invoice_event_id: invoice.id,
+              action_type: actionType,
+              refund_request_id: task.refund_request_id ?? invoice.metadata?.refund_request_id ?? null,
+              provider_result: providerResult,
+              build_tag: BILLING_AUTOMATION_BUILD_TAG,
+            },
+          });
+
+          results.push({ invoice_event_id: invoice.id, task_id: task.id, status: "manual_required", action_type: actionType, reason });
+          continue;
+        }
+
         const followupEvent = normalizeFollowupResultEvent(providerResult, actionType);
         const invoiceNumber = extractInvoiceNumber(providerResult) || invoice.invoice_number || null;
         const randomNumber = extractInvoiceRandomNumber(providerResult) || invoice.invoice_random_number || null;
@@ -328,7 +370,7 @@ export async function processInvoiceTasks(limit = 20) {
             status: followupEvent === "voided" || followupEvent === "allowance_issued" ? followupEvent : "completed",
             provider_invoice_no: invoiceNumber,
             provider_random_number: randomNumber,
-            provider_task_id: providerResult.task_id ?? providerResult.TradeNo ?? null,
+            provider_task_id: providerResult.task_id ?? providerResult.TradeNo ?? providerResult.allowance_number ?? null,
             provider_payload: providerResult,
             last_error: null,
             processed_at: new Date().toISOString(),
@@ -343,7 +385,7 @@ export async function processInvoiceTasks(limit = 20) {
           event_type: followupEvent,
           invoice_number: invoiceNumber,
           invoice_random_number: randomNumber,
-          issued_at: providerResult.processed_at || providerResult.IssueDate || new Date().toISOString(),
+          issued_at: providerResult.processed_at || providerResult.IssueDate || providerResult.IA_Date || new Date().toISOString(),
           metadata: {
             task_id: task.id,
             source_invoice_event_id: invoice.id,
