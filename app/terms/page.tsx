@@ -112,7 +112,7 @@ const termCards = [
     meta: "Future Features",
     items: [
       "尚未正式開放的功能，不會以模糊文案假裝已落地。",
-      "AI Companion 與相關延伸服務，會在公開前補充規則。",
+      "新功能會在公開前補充用途、規則與資料邊界。",
       "正式版本以網站當下公告與產品頁面為準。",
     ],
     href: "/privacy",
@@ -122,7 +122,7 @@ const termCards = [
 
 export default function TermsPage() {
   return (
-    <main className={styles.editorialPage} data-image20-dom-page="terms-template-v13">
+    <main className={styles.editorialPage} data-image20-dom-page="terms-template-v118-ecpay-review-safe">
       <section className={styles.darkHero}>
         <div className={styles.termsHeroMedia} aria-hidden="true" />
         <Image20TopNav dark />

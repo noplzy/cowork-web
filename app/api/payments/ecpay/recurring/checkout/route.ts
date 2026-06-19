@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { createCheckMacValue, formatTradeDate, generateMerchantTradeNo, getEcpayConfig } from "@/lib/ecpay";
+import {
+  createCheckMacValue,
+  formatTradeDate,
+  generateMerchantTradeNo,
+  getEcpayConfig,
+  getRecurringCheckoutPaymentConfig,
+} from "@/lib/ecpay";
 import { getProductPlan } from "@/lib/productCatalog";
 
 export const runtime = "nodejs";
+
+const RECURRING_CHECKOUT_BUILD_TAG = "ecpay-recurring-checkout-v117-2026-06-15";
 
 type RecurringProductPlan = {
   code: string;
@@ -63,6 +71,7 @@ export async function POST(req: Request) {
           error:
             "自動扣款尚未啟用。請確認綠界商店已開通信用卡定期定額 / 自動扣款服務後，才設定 ECPAY_RECURRING_ENABLED=true。",
           code: "RECURRING_DISABLED",
+          build_tag: RECURRING_CHECKOUT_BUILD_TAG,
         },
         { status: 400 },
       );
@@ -88,12 +97,14 @@ export async function POST(req: Request) {
         {
           error: "此訂閱方案目前仍是 next-spec，尚未開放自動扣款。",
           code: "RECURRING_PLAN_NOT_OPEN",
+          build_tag: RECURRING_CHECKOUT_BUILD_TAG,
         },
         { status: 400 },
       );
     }
 
     const config = getEcpayConfig();
+    const paymentConfig = getRecurringCheckoutPaymentConfig();
     const origin = getOrigin(req);
     const merchantTradeNo = generateMerchantTradeNo("SUB");
     const merchantMemberId = `u${userId.replaceAll("-", "").slice(0, 19)}`;
@@ -112,7 +123,7 @@ export async function POST(req: Request) {
         frequency: 1,
         exec_times: 999,
         auto_renew: true,
-        raw_payload: { plan, source: "recurring_checkout_v1081" },
+        raw_payload: { plan, source: "recurring_checkout_v117", build_tag: RECURRING_CHECKOUT_BUILD_TAG },
       })
       .select("*")
       .single();
@@ -134,20 +145,22 @@ export async function POST(req: Request) {
       ItemName: plan.invoiceItemName,
       ReturnURL: returnUrl,
       PeriodReturnURL: returnUrl,
-      ChoosePayment: "Credit",
+      ChoosePayment: paymentConfig.choosePayment,
       EncryptType: "1",
       ClientBackURL: clientBackUrl,
-      NeedExtraPaidInfo: "Y",
+      NeedExtraPaidInfo: paymentConfig.needExtraPaidInfo,
       CustomField1: plan.code,
       CustomField2: profile.data.id,
+      CustomField3: user.email || "",
       MerchantMemberID: merchantMemberId,
       PeriodAmount: String(plan.amountTwd),
       PeriodType: "M",
       Frequency: "1",
       ExecTimes: "999",
-      Remark: "SUBSCRIPTION_PROFILE_V1081",
+      Remark: "SUBSCRIPTION_PROFILE_V117",
     };
 
+    if (paymentConfig.storeId) ecpayFields.StoreID = paymentConfig.storeId;
     ecpayFields.CheckMacValue = createCheckMacValue(ecpayFields, config.hashKey, config.hashIV);
 
     await supabaseAdmin.from("subscription_events").insert({
@@ -155,11 +168,20 @@ export async function POST(req: Request) {
       user_id: userId,
       event_type: "recurring_checkout_created",
       merchant_trade_no: merchantTradeNo,
-      provider_payload: { fields_without_checkmac: { ...ecpayFields, CheckMacValue: "[redacted]" } },
+      provider_payload: {
+        fields_without_checkmac: { ...ecpayFields, CheckMacValue: "[redacted]" },
+        build_tag: RECURRING_CHECKOUT_BUILD_TAG,
+      },
     });
 
-    return NextResponse.json({ action: config.checkoutUrl, method: "POST", merchantTradeNo, fields: ecpayFields });
+    return NextResponse.json({
+      action: config.checkoutUrl,
+      method: "POST",
+      merchantTradeNo,
+      fields: ecpayFields,
+      diagnostic: { build_tag: RECURRING_CHECKOUT_BUILD_TAG, choose_payment: paymentConfig.choosePayment },
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "建立自動扣款流程失敗。" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "建立自動扣款流程失敗。", build_tag: RECURRING_CHECKOUT_BUILD_TAG }, { status: 500 });
   }
 }

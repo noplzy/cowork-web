@@ -2,7 +2,6 @@ import { Image20Footer, Image20TopNav } from "@/components/image20/Image20Chrome
 import { PricingCheckoutButton } from "@/components/billing/PricingCheckoutButton";
 import styles from "@/components/image20/Image20Auxiliary.module.css";
 import {
-  PRODUCT_ADD_ONS,
   PRODUCT_PLANS,
   ROOM_DURATION_POLICY,
   VALUE_BASED_PRICING_PRINCIPLES,
@@ -35,8 +34,8 @@ const trustItems = [
     body: "不強迫開鏡頭，Presence 是信任與成本模型，不是監考。",
   },
   {
-    title: "AI 不吃到飽",
-    body: "安感島不賣無限個人 AI 陪聊，價值集中在 Shared Host AI。",
+    title: "先做可交付",
+    body: "金流審核期間，只展示可清楚說明、可客服承接的服務內容。",
   },
   {
     title: "可營運帳務",
@@ -46,9 +45,9 @@ const trustItems = [
 
 const notes = [
   "目前正式可付款：VIP 月方案（試營運）NT$199 / 30 天，一次性付款，不自動續扣。",
-  "NT$299 / 599 / 1299 是 Pricing v2 next-spec，等訂閱、發票、退款、Host Credit 與 AI cost cap 對齊後才開放。",
+  "NT$299 / 599 / 1299 是 Pricing v2 next-spec，等訂閱、發票、退款、房主贊助與帳務規則對齊後才開放。",
   "一般房間正式規格為 25 / 50 / 75 分鐘；90 分鐘保留給活動房、Studio、Buddies 或主持島民能力。",
-  "Host Credit 是 AI 主持權，不是 AI 整場持續講話時間；Personal AI 只做開始、卡住與收尾救援。",
+  "金流審核期間，前台暫時只保留同行空間、VIP 權益、客服、退款與帳務相關說明。",
 ] as const;
 
 function normalizePlan(rawPlan: unknown): PricingPlanCard {
@@ -94,7 +93,7 @@ function normalizePlan(rawPlan: unknown): PricingPlanCard {
     icon: code === "vip_month" ? "♡" : code === "companion_regular_599" ? "☆" : code === "host_islander_1299" ? "♕" : "☘",
     positioning: String(plan.positioning || plan.description || "依照使用深度分層，避免把高成本能力塞進低價方案。"),
     jobToBeDone: String(plan.jobToBeDone || "選擇適合目前使用節奏的陪伴方式。"),
-    upgradeTrigger: String(plan.upgradeTrigger || "需要更多房間能力、Shared Host AI 或房主工具時再升級。"),
+    upgradeTrigger: String(plan.upgradeTrigger || "需要更多房間能力、房主工具或活動能力時再升級。"),
     disabledReason: String(plan.disabledReason || plan.userFriendlyNotice || "這個方案尚未開放付款。"),
     highlights: fallbackHighlights,
   };
@@ -106,7 +105,7 @@ const visiblePlans = (PRODUCT_PLANS as unknown[])
 
 export default function PricingPage() {
   return (
-    <main className="i20-root" data-image20-dom-page="pricing-v1082-type-safe-catalog">
+    <main className="i20-root" data-image20-dom-page="pricing-v118-ecpay-review-safe">
       <section className={styles.pricingHero}>
         <div className={styles.pricingHeroBackdrop} aria-hidden="true" />
         <Image20TopNav dark />
@@ -114,7 +113,7 @@ export default function PricingPage() {
         <div className={styles.pricingHeroCopy}>
           <span className="i20-kicker">Pricing</span>
           <h1 className="i20-serif">方案 / 價格</h1>
-          <p>先誠實標示目前能買什麼，再清楚說明下一版會如何用 Rooms、Presence、Host Credit 與房主贊助分層。</p>
+          <p>先誠實標示目前能買什麼，再清楚說明下一版會如何用 Rooms、Presence、房主贊助與客服保障分層。</p>
         </div>
       </section>
 
@@ -131,7 +130,7 @@ export default function PricingPage() {
         <div className="pricing-v16-production-banner">
           <span className="i20-kicker">Production Fact</span>
           <h2 className="i20-serif">目前 production 只開放 NT$199 / 30 天一次性 VIP 試營運。</h2>
-          <p>這不是降級，而是避免把尚未完成的訂閱、AI 主持包、房主贊助與發票退款流程提前賣給使用者。</p>
+          <p>這不是降級，而是避免把尚未完成的訂閱、房主贊助、活動包與發票退款流程提前賣給使用者。</p>
         </div>
 
         <div className="pricing-v16-plan-row">
@@ -178,7 +177,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="pricing-v16-ivory" aria-label="商業邏輯與加購">
+      <section className="pricing-v16-ivory" aria-label="商業邏輯與方案規則">
         <div className="pricing-v16-two-col">
           <article className="pricing-v16-decision-card">
             <span className="i20-kicker">Value-based Tiering</span>
@@ -206,18 +205,6 @@ export default function PricingPage() {
               </div>
             </div>
           </article>
-        </div>
-
-        <div className="pricing-v16-addon-row">
-          {PRODUCT_ADD_ONS.filter((item) => item.code !== "whole_room_extension").map((addon) => (
-            <article key={addon.code}>
-              <span className="i20-kicker">Host Credit</span>
-              <h3>{addon.title}</h3>
-              <b>{addon.priceLabel}</b>
-              <p>{addon.positioning}</p>
-              <small>{addon.disabledReason}</small>
-            </article>
-          ))}
         </div>
 
         <div className="pricing-v16-note-bar">
@@ -440,7 +427,6 @@ export default function PricingPage() {
         }
 
         .pricing-v16-decision-card,
-        .pricing-v16-addon-row article,
         .pricing-v16-note-bar {
           border: 1px solid rgba(45, 34, 26, 0.12);
           border-radius: 24px;
@@ -490,35 +476,6 @@ export default function PricingPage() {
           line-height: 1.6;
         }
 
-        .pricing-v16-addon-row {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 18px;
-          max-width: 1480px;
-          margin: 28px auto 0;
-        }
-
-        .pricing-v16-addon-row article {
-          padding: 22px;
-        }
-
-        .pricing-v16-addon-row h3 {
-          margin: 10px 0 8px;
-          font-size: 18px;
-        }
-
-        .pricing-v16-addon-row b {
-          font-family: Georgia, "Noto Serif TC", serif;
-          font-size: 24px;
-        }
-
-        .pricing-v16-addon-row p,
-        .pricing-v16-addon-row small {
-          display: block;
-          color: rgba(45, 34, 26, 0.64);
-          line-height: 1.65;
-        }
-
         .pricing-v16-note-bar {
           max-width: 1480px;
           margin: 28px auto 0;
@@ -528,7 +485,6 @@ export default function PricingPage() {
         @media (max-width: 1180px) {
           .pricing-v16-plan-row,
           .pricing-v16-trust-strip,
-          .pricing-v16-addon-row,
           .pricing-v16-two-col {
             grid-template-columns: 1fr 1fr;
           }
@@ -545,7 +501,6 @@ export default function PricingPage() {
 
           .pricing-v16-plan-row,
           .pricing-v16-trust-strip,
-          .pricing-v16-addon-row,
           .pricing-v16-two-col {
             grid-template-columns: 1fr;
           }

@@ -5,7 +5,6 @@ import "./mobile-desktop-overrides.css";
 import "./mobile-nav-layer-fix.css";
 import "./image20-dom.css";
 import { AuthSessionGuard } from "@/components/AuthSessionGuard";
-import { Image20AiCompanion } from "@/components/image20/Image20Ai";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -21,7 +20,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthSessionGuard />
         {children}
-        <Image20AiCompanion />
       </body>
     </html>
   );

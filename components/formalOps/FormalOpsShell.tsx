@@ -15,7 +15,7 @@ export function FormalOpsShell({ activeHref, navItems, eyebrow, title, descripti
         <nav aria-label="正式營運導覽" className={styles.accountSideNav}>
           {navItems.map(([href, label]) => <Link key={href} href={href} className={href === activeHref ? styles.accountSideActive : undefined}>{label}</Link>)}
         </nav>
-        <div className={styles.accountSidebarNote}><b>安感島正式營運</b><span>個人檔案、身分綁定、客服、帳務、通知、AI 主持與 Buddies 都需要可追蹤紀錄。</span></div>
+        <div className={styles.accountSidebarNote}><b>安感島正式營運</b><span>個人檔案、身分綁定、客服、帳務、通知、房間與 Buddies 都需要可追蹤紀錄。</span></div>
       </aside>
       <section className={styles.accountMain}>
         <header className={styles.accountTopbar}><div><span>{eyebrow}</span><b>{title}</b></div>{topActions ? <div className={styles.accountTopActions}>{topActions}</div> : null}</header>
@@ -39,7 +39,6 @@ export const accountOpsNav = [
   ["/account/notification-preferences", "通知偏好"],
   ["/account/billing", "帳務紀錄"],
   ["/account/subscriptions", "訂閱管理"],
-  ["/account/host-credit", "AI 主持額度"],
   ["/account/support", "客服紀錄"],
   ["/account/refunds", "退款申請"],
   ["/account/security", "安全與封鎖"],
@@ -60,7 +59,6 @@ export const adminOpsNav = [
   ["/admin/refunds", "退款審核"],
   ["/admin/billing", "付款帳務"],
   ["/admin/billing/automation", "自動化任務"],
-  ["/admin/ai/host-credits", "AI 額度管理"],
   ["/buddies", "Buddies 前台"],
   ["/account", "回我的中心"],
 ] as const;

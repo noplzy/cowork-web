@@ -60,7 +60,7 @@ const privacyColumns = [
         body: "你的在場方式，應由產品設定與房間規則決定。",
       },
       {
-        title: "不模糊承諾 AI",
+        title: "不模糊承諾",
         body: "尚未正式開放的功能，不用不精準文案先佔位。",
       },
       {
@@ -93,10 +93,10 @@ const privacyColumns = [
   },
 ] as const;
 
-const aiPrinciples = [
+const servicePrinciples = [
   {
     title: "開放前先說清楚",
-    body: "AI Companion 或房內 AI 模式正式上線前，會補充用途與範圍。",
+    body: "新功能正式上線前，會補充用途、範圍與使用方式。",
   },
   {
     title: "保存與期限需明示",
@@ -114,7 +114,7 @@ const aiPrinciples = [
 
 export default function PrivacyPage() {
   return (
-    <main className={styles.editorialPage} data-image20-dom-page="privacy-policy-template-v13">
+    <main className={styles.editorialPage} data-image20-dom-page="privacy-policy-template-v118-ecpay-review-safe">
       <section className={styles.darkHero}>
         <div className={styles.privacyHeroMedia} aria-hidden="true" />
         <Image20TopNav dark />
@@ -124,7 +124,7 @@ export default function PrivacyPage() {
             <span className="i20-kicker">Privacy Policy</span>
             <h1 className="i20-serif">你的信任，是我們最重視的承諾。</h1>
             <p>
-              安感島不是只把隱私寫成條款，而是把資料用途、互動邊界與 AI 相關說明
+              安感島不是只把隱私寫成條款，而是把資料用途、互動邊界與服務說明
               做成能被理解的公開承諾。
             </p>
 
@@ -139,7 +139,7 @@ export default function PrivacyPage() {
             <span className="i20-kicker">Privacy First</span>
             <h2>先讓你知道資料怎麼被使用，再談服務如何靠近你。</h2>
             <p>
-              若你對房內互動、第三方服務或 AI 資料邊界有疑問，
+              若你對房內互動、第三方服務或資料邊界有疑問，
               這裡應該先說清楚。
             </p>
             <div className={styles.heroNoticeLinks}>
@@ -179,16 +179,16 @@ export default function PrivacyPage() {
 
       <section className={styles.privacyAiBand}>
         <article className={styles.privacyAiLead}>
-          <span className="i20-kicker">AI Companion</span>
-          <h2 className="i20-serif">AI 相關資料邊界，必須另外說明。</h2>
+          <span className="i20-kicker">Service Boundary</span>
+          <h2 className="i20-serif">尚未開放的能力，必須另外說明。</h2>
           <p>
-            若未來開放 AI Companion 或房內 AI 模式，資料處理方式會以正式公開內容為準。
+            若未來開放新的房內輔助或自動化能力，資料處理方式會以正式公開內容為準。
             在此之前，安感島不會用「好像已經存在」的語氣讓你誤判。
           </p>
         </article>
 
         <div className={styles.privacyAiPrinciples}>
-          {aiPrinciples.map((item) => (
+          {servicePrinciples.map((item) => (
             <article className={styles.privacyAiPrinciple} key={item.title}>
               <b>{item.title}</b>
               <span>{item.body}</span>

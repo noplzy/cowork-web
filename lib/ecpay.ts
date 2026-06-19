@@ -9,7 +9,29 @@ export type EcpayConfig = {
   queryUrl: string;
 };
 
+export type EcpayCheckoutPayment = {
+  choosePayment: string;
+  chooseSubPayment?: string;
+  ignorePayment?: string;
+  storeId?: string;
+  needExtraPaidInfo: "Y" | "N";
+  paymentMode: "all_enabled_methods" | "single_method";
+};
+
 export type StringLike = string | number | boolean;
+
+const SUPPORTED_CHOOSE_PAYMENTS = new Set([
+  "ALL",
+  "Credit",
+  "WebATM",
+  "ATM",
+  "CVS",
+  "BARCODE",
+  "ApplePay",
+  "TWQR",
+  "BNPL",
+  "WeiXin",
+]);
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -19,9 +41,41 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function optionalEnv(name: string): string {
+  return String(process.env[name] || "").trim();
+}
+
 function parseStageFlag(value: string | undefined): boolean {
   const normalized = String(value || "").trim().toLowerCase();
   return ["true", "1", "test", "stage", "staging"].includes(normalized);
+}
+
+function normalizeChoosePayment(value: string | undefined | null): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "ALL";
+  const normalized = raw.toUpperCase() === "ALL" ? "ALL" : raw;
+  if (SUPPORTED_CHOOSE_PAYMENTS.has(normalized)) return normalized;
+  throw new Error(`Invalid ECPAY_CHECKOUT_CHOOSE_PAYMENT: ${raw}`);
+}
+
+function normalizeNeedExtraPaidInfo(value: string | undefined | null): "Y" | "N" {
+  const normalized = String(value || "Y").trim().toUpperCase();
+  return normalized === "N" ? "N" : "Y";
+}
+
+function cleanOptionalAlphaNumeric(value: string, maxLength: number): string | undefined {
+  const cleaned = String(value || "").replace(/[^A-Za-z0-9]/g, "").slice(0, maxLength);
+  return cleaned || undefined;
+}
+
+function cleanIgnorePayment(value: string): string | undefined {
+  const cleaned = String(value || "")
+    .split("#")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join("#")
+    .slice(0, 100);
+  return cleaned || undefined;
 }
 
 export function getEcpayConfig(): EcpayConfig {
@@ -41,6 +95,32 @@ export function getEcpayConfig(): EcpayConfig {
     queryUrl: stage
       ? "https://payment-stage.ecpay.com.tw/Cashier/QueryTradeInfo/V5"
       : "https://payment.ecpay.com.tw/Cashier/QueryTradeInfo/V5",
+  };
+}
+
+export function getOneTimeCheckoutPaymentConfig(): EcpayCheckoutPayment {
+  const choosePayment = normalizeChoosePayment(
+    process.env.ECPAY_CHECKOUT_CHOOSE_PAYMENT || process.env.ECPAY_FORCE_CHOOSE_PAYMENT || "ALL",
+  );
+  const ignorePayment = choosePayment === "ALL" ? cleanIgnorePayment(optionalEnv("ECPAY_CHECKOUT_IGNORE_PAYMENT")) : undefined;
+  const chooseSubPayment = cleanOptionalAlphaNumeric(optionalEnv("ECPAY_CHECKOUT_CHOOSE_SUB_PAYMENT"), 20);
+  const storeId = cleanOptionalAlphaNumeric(optionalEnv("ECPAY_STORE_ID"), 10);
+
+  return {
+    choosePayment,
+    chooseSubPayment,
+    ignorePayment,
+    storeId,
+    needExtraPaidInfo: normalizeNeedExtraPaidInfo(process.env.ECPAY_NEED_EXTRA_PAID_INFO),
+    paymentMode: choosePayment === "ALL" ? "all_enabled_methods" : "single_method",
+  };
+}
+
+export function getRecurringCheckoutPaymentConfig(): Pick<EcpayCheckoutPayment, "choosePayment" | "storeId" | "needExtraPaidInfo"> {
+  return {
+    choosePayment: "Credit",
+    storeId: cleanOptionalAlphaNumeric(optionalEnv("ECPAY_STORE_ID"), 10),
+    needExtraPaidInfo: normalizeNeedExtraPaidInfo(process.env.ECPAY_NEED_EXTRA_PAID_INFO),
   };
 }
 
@@ -131,6 +211,10 @@ export function parseFormEncodedPayload(raw: string): Record<string, string> {
     record[key] = value;
   }
   return record;
+}
+
+export function redactEcpayFields(fields: Record<string, string>): Record<string, string> {
+  return { ...fields, CheckMacValue: fields.CheckMacValue ? "[redacted]" : "" };
 }
 
 export async function queryEcpayTradeInfo(
