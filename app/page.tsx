@@ -12,12 +12,12 @@ const philosophy = [
   ["低壓力相遇", "不用自我介紹、不用表演，也可以慢慢來。"],
   ["尊重每個人的節奏", "你可以專注、可以聊天，也可以只是靜靜待著。"],
   ["隱私與安全優先", "公開規則、房間邊界與支援機制，讓你安心出現。"],
-  ["AI Companion 靜靜在旁", "需要時提供引導，不需要時保持安靜。"],
+  ["有人在場的安心", "需要協助時回到客服與規則，不用靠模糊承諾解決問題。"],
 ] as const;
 
 export default function HomePage() {
   return (
-    <main className="i20-root i20-dark" data-image20-dom-page="homepage-v8-v2-style">
+    <main className="i20-root i20-dark" data-image20-dom-page="homepage-v118-ecpay-review-safe">
       <section className="i20-hero i20-home-hero">
         <div className="i20-hero-media" style={{ backgroundImage: "url(/site-assets/image20/hero/brand-hero-evening-shared-presence.png)" }} />
         <Image20TopNav dark />

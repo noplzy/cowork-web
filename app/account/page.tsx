@@ -81,7 +81,7 @@ export default function AccountPage() {
   const vipUntil = useMemo(() => formatVipUntil(status?.vip_until), [status?.vip_until]);
 
   return (
-    <main className={styles.accountDashboard} data-image20-dom-page="account-center-v114-admin-aware">
+    <main className={styles.accountDashboard} data-image20-dom-page="account-center-v118-ecpay-review-safe">
       <aside className={styles.accountSidebar}>
         <Image20Logo />
         <nav aria-label="帳號中心導覽" className={styles.accountSideNav}>
@@ -136,7 +136,7 @@ export default function AccountPage() {
 
         <section className={styles.accountContentGrid}>
           <article className={styles.accountContentCard}><div className={styles.accountContentHead}><div><span className="i20-kicker">Profile</span><h3>公開名片與互動邊界</h3></div><Link href="/account/profile">管理</Link></div><div className={styles.accountPreferenceList}><div><b>顯示名稱與個人代號</b><span>讓房間、Buddies、好友與排程都使用一致身份。</span></div><div><b>公開範圍</b><span>可設定公開、會員可見或好友可見。</span></div></div></article>
-          <article className={styles.accountContentCard}><div className={styles.accountContentHead}><div><span className="i20-kicker">AI Companion</span><h3>AI 夥伴偏好</h3></div></div><div className={styles.accountPreferenceList}><div><b>全站 AI 夥伴</b><span>入口與建議會在正式功能開放後集中管理。</span></div><div><b>房內 AI 模式</b><span>Shared Host AI / Personal Room AI 的偏好位置先保留。</span></div></div></article>
+          <article className={styles.accountContentCard}><div className={styles.accountContentHead}><div><span className="i20-kicker">Service</span><h3>服務設定與通知</h3></div></div><div className={styles.accountPreferenceList}><div><b>通知偏好</b><span>付款、客服、排程與房間提醒會集中管理。</span></div><div><b>服務紀錄</b><span>帳務、退款與客服處理會保留正式紀錄。</span></div></div></article>
           <aside className={styles.accountSupportStack}>{isAdmin ? <article><span className="i20-kicker">Admin</span><h3>管理員入口</h3><p>此入口只因目前登入帳號通過 ADMIN_EMAILS / ADMIN_USER_IDS 後端驗證而顯示。</p><Link href="/admin">進入 Admin 系統 →</Link></article> : null}<article><span className="i20-kicker">Help</span><h3>需要協助？</h3><p>客服頁會整理表單、官方信箱與安全支援入口。</p><Link href="/contact">聯絡客服 →</Link></article></aside>
         </section>
       </section>
