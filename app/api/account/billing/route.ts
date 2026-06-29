@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const [orders, ledger, refunds, invoices, invoiceTasks, refundTasks, subscriptions, subscriptionEvents, entitlements, entitlementEvents] = await Promise.all([
       supabaseAdmin
         .from("payment_orders")
-        .select("id,merchant_trade_no,provider,plan_code,amount,currency,status,item_name,trade_desc,vip_days,provider_trade_no,paid_at,last_error,created_at,updated_at")
+        .select("id,merchant_trade_no,provider,plan_code,amount,currency,status,item_name,trade_desc,vip_days,provider_trade_no,paid_at,last_error,invoice_preference,created_at,updated_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit),
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         .limit(limit),
       supabaseAdmin
         .from("subscription_profiles")
-        .select("id,provider,plan_code,status,period_amount,period_type,frequency,next_charge_at,current_period_start,current_period_end,cancel_requested_at,cancelled_at,last_provider_error,created_at,updated_at")
+        .select("id,provider,plan_code,status,period_amount,period_type,frequency,next_charge_at,current_period_start,current_period_end,cancel_requested_at,cancelled_at,last_provider_error,invoice_preference,created_at,updated_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(limit),

@@ -2,6 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import {
+  buildInvoicePreferenceFromForm,
+  defaultInvoiceFormState,
+  describeInvoicePreference,
+  InvoicePreferenceFields,
+  invoicePreferenceToFormState,
+  type InvoiceFormState,
+} from "@/components/billing/InvoicePreferenceFields";
+import type { InvoicePreference } from "@/lib/invoicePreferences";
 import { FormalOpsShell, accountOpsNav } from "@/components/formalOps/FormalOpsShell";
 import { formatDateTime, formatTwd, useAuthedJson } from "@/components/formalOps/useAuthedJson";
 import styles from "@/components/image20/Image20Auxiliary.module.css";
@@ -62,19 +71,98 @@ function StatusList({ title, rows, emptyText }: { title: string; rows: any[]; em
   );
 }
 
+function InvoicePreferenceCard({
+  email,
+  authedFetch,
+}: {
+  email: string;
+  authedFetch: (path: string, init?: RequestInit) => Promise<any>;
+}) {
+  const [form, setForm] = useState<InvoiceFormState>(defaultInvoiceFormState(email));
+  const [savedPreference, setSavedPreference] = useState<InvoicePreference | null>(null);
+  const [source, setSource] = useState("default_account_email");
+  const [message, setMessage] = useState("正在讀取預設發票資料…");
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const payload = await authedFetch("/api/account/invoice-preference");
+    setSavedPreference(payload.preference || null);
+    setSource(payload.source || "default_account_email");
+    setForm(invoicePreferenceToFormState(payload.preference, email));
+    setMessage("");
+  }
+
+  useEffect(() => {
+    load().catch((error) => setMessage(error.message || "讀取預設發票資料失敗。"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
+
+  async function save() {
+    setSaving(true);
+    setMessage("正在驗證並儲存發票資料…");
+    try {
+      const invoicePreference = buildInvoicePreferenceFromForm(form, email, "account_billing_default_v120");
+      const validation = await authedFetch("/api/invoices/validate-preference", {
+        method: "POST",
+        body: JSON.stringify({ invoicePreference }),
+      });
+      const normalized = validation.invoicePreference || invoicePreference;
+      const saved = await authedFetch("/api/account/invoice-preference", {
+        method: "PUT",
+        body: JSON.stringify({ invoicePreference: normalized }),
+      });
+      setSavedPreference(saved.preference || normalized);
+      setForm(invoicePreferenceToFormState(saved.preference || normalized, email));
+      setSource("saved");
+      setMessage("已儲存。之後付款會先帶入這份預設資料，付款前仍可針對單筆訂單調整。 ");
+    } catch (error: any) {
+      setMessage(error?.message || "儲存發票資料失敗。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <article className={styles.accountContentCard}>
+      <div className={styles.accountContentHead}>
+        <div>
+          <span className="i20-kicker">Invoice Preference</span>
+          <h3>預設發票資料</h3>
+        </div>
+        <button type="button" onClick={() => load().catch((error) => setMessage(error.message))}>重新讀取</button>
+      </div>
+      <div className={styles.accountPreferenceList}>
+        <div>
+          <b>{source === "saved" ? "目前已儲存預設" : "目前使用帳號 Email 預設"}</b>
+          <span>{describeInvoicePreference(savedPreference)}</span>
+        </div>
+      </div>
+      <InvoicePreferenceFields state={form} onChange={setForm} compact />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14 }}>
+        <button type="button" onClick={save} disabled={saving}>{saving ? "儲存中…" : "儲存預設發票資料"}</button>
+        <Link href="/pricing">回方案頁付款</Link>
+      </div>
+      {message ? <p className={styles.accountHint}>{message}</p> : null}
+      <p className={styles.accountHint}>已付款訂單不會被之後修改的預設資料覆蓋；每筆訂單會保留當下的發票快照，方便客服與退款作廢 / 折讓追蹤。</p>
+    </article>
+  );
+}
+
 export default function Page() {
-  const { accessToken, authedFetch } = useAuthedJson("/account/billing");
+  const { accessToken, email, authedFetch } = useAuthedJson("/account/billing");
   const [payload, setPayload] = useState<any>(null);
   const [message, setMessage] = useState("正在讀取帳務資料…");
 
+  async function loadBilling() {
+    const data = await authedFetch("/api/account/billing");
+    setPayload(data);
+    setMessage("");
+  }
+
   useEffect(() => {
     if (!accessToken) return;
-    authedFetch("/api/account/billing")
-      .then((data) => {
-        setPayload(data);
-        setMessage("");
-      })
-      .catch((error) => setMessage(error.message));
+    loadBilling().catch((error) => setMessage(error.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
   const orders = payload?.payment_orders || [];
@@ -91,7 +179,7 @@ export default function Page() {
       orders.map((order: any) => ({
         id: `invoice-${order.id}`,
         title: `${order.item_name || order.plan_code || "付款訂單"}｜${invoiceLabel(order, invoices, invoiceTasks)}`,
-        body: `${order.merchant_trade_no}｜付款 ${order.status}｜${formatDateTime(order.paid_at || order.created_at)}`,
+        body: `${order.merchant_trade_no}｜付款 ${order.status}｜${formatDateTime(order.paid_at || order.created_at)}｜${describeInvoicePreference(order.invoice_preference)}`,
       })),
     [orders, invoices, invoiceTasks],
   );
@@ -124,9 +212,37 @@ export default function Page() {
           <Link href="/account/subscriptions">訂閱管理</Link>
         </>
       }
-      dataPage="account-billing-v114"
+      dataPage="account-billing-v120-invoice-preference"
     >
       {message ? <div className={styles.accountLoading}>{message}</div> : null}
+
+      {accessToken ? (
+        <section className={styles.accountContentGrid}>
+          <InvoicePreferenceCard email={email} authedFetch={authedFetch} />
+          <article className={styles.accountContentCard}>
+            <div className={styles.accountContentHead}>
+              <div>
+                <span className="i20-kicker">How it works</span>
+                <h3>發票資料怎麼被記住</h3>
+              </div>
+            </div>
+            <div className={styles.accountPreferenceList}>
+              <div>
+                <b>帳務中心保存預設</b>
+                <span>儲存在 user_invoice_preferences，之後付款會自動帶入。</span>
+              </div>
+              <div>
+                <b>結帳前可單次調整</b>
+                <span>修改後可選擇是否保存為下次預設。</span>
+              </div>
+              <div>
+                <b>訂單保存快照</b>
+                <span>付款建立時會寫入 payment_orders.invoice_preference；後續改預設不會影響舊訂單。</span>
+              </div>
+            </div>
+          </article>
+        </section>
+      ) : null}
 
       <section className={styles.accountMetricGrid}>
         <article className={styles.accountMetricCard}>
@@ -156,6 +272,7 @@ export default function Page() {
               <span className="i20-kicker">Payment Orders</span>
               <h3>付款紀錄</h3>
             </div>
+            <button type="button" onClick={() => loadBilling().catch((error) => setMessage(error.message))}>重新整理</button>
           </div>
           <div className={styles.accountPreferenceList}>
             {orders.map((order: any) => (
@@ -163,6 +280,7 @@ export default function Page() {
                 <b>{order.item_name || order.plan_code || "付款訂單"}｜{formatTwd(order.amount)}</b>
                 <span>{order.status}｜{order.merchant_trade_no}｜{formatDateTime(order.created_at)}</span>
                 <span>發票：{invoiceLabel(order, invoices, invoiceTasks)}｜退款：{refundLabel(order, refunds, refundTasks)}</span>
+                <span>發票資料：{describeInvoicePreference(order.invoice_preference)}</span>
               </div>
             ))}
             {orders.length === 0 ? (
@@ -217,6 +335,7 @@ export default function Page() {
               <div key={subscription.id}>
                 <b>{subscription.plan_code}｜{subscription.status}｜{formatTwd(subscription.period_amount)}</b>
                 <span>本期：{formatDateTime(subscription.current_period_start)} → {formatDateTime(subscription.current_period_end)}｜下次扣款：{formatDateTime(subscription.next_charge_at)}</span>
+                <span>發票資料：{describeInvoicePreference(subscription.invoice_preference)}</span>
                 {subscription.last_provider_error ? <span>Provider error：{subscription.last_provider_error}</span> : null}
               </div>
             ))}

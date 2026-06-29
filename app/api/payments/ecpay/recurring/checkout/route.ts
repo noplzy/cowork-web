@@ -7,12 +7,12 @@ import {
   getEcpayConfig,
   getRecurringCheckoutPaymentConfig,
 } from "@/lib/ecpay";
-import { normalizeInvoicePreference } from "@/lib/invoicePreferences";
+import { buildDefaultInvoicePreference, normalizeInvoicePreference } from "@/lib/invoicePreferences";
 import { getProductPlan } from "@/lib/productCatalog";
 
 export const runtime = "nodejs";
 
-const RECURRING_CHECKOUT_BUILD_TAG = "ecpay-recurring-checkout-v119-2026-06-27";
+const RECURRING_CHECKOUT_BUILD_TAG = "ecpay-recurring-checkout-v120-2026-06-27";
 
 type RecurringProductPlan = {
   code: string;
@@ -62,6 +62,20 @@ function canUseRecurringPlan(plan: RecurringProductPlan) {
   return envFlag("ECPAY_RECURRING_ALLOW_NEXT_SPEC");
 }
 
+async function resolveInvoicePreference(input: unknown, userId: string, email: string) {
+  if (input !== undefined && input !== null) return normalizeInvoicePreference(input, email);
+
+  const saved = await supabaseAdmin
+    .from("user_invoice_preferences")
+    .select("preference")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (saved.error) throw saved.error;
+  if (saved.data?.preference) return normalizeInvoicePreference(saved.data.preference, email);
+  return buildDefaultInvoicePreference(email);
+}
+
 export async function POST(req: Request) {
   try {
     if (!envFlag("ECPAY_RECURRING_ENABLED")) {
@@ -101,7 +115,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const invoicePreference = normalizeInvoicePreference(body.invoicePreference, user.email || "");
+    const invoicePreference = await resolveInvoicePreference(body.invoicePreference, userId, user.email || "");
     const config = getEcpayConfig();
     const paymentConfig = getRecurringCheckoutPaymentConfig();
     const origin = getOrigin(req);
@@ -122,7 +136,7 @@ export async function POST(req: Request) {
         frequency: 1,
         exec_times: 999,
         auto_renew: true,
-        raw_payload: { plan, source: "recurring_checkout_v119", invoice_preference: invoicePreference, build_tag: RECURRING_CHECKOUT_BUILD_TAG },
+        raw_payload: { plan, source: "recurring_checkout_v120", invoice_preference: invoicePreference, build_tag: RECURRING_CHECKOUT_BUILD_TAG },
         invoice_preference: invoicePreference,
       })
       .select("*")
@@ -157,7 +171,7 @@ export async function POST(req: Request) {
       PeriodType: "M",
       Frequency: "1",
       ExecTimes: "999",
-      Remark: "SUBSCRIPTION_PROFILE_V119",
+      Remark: "SUBSCRIPTION_PROFILE_V120",
     };
 
     if (paymentConfig.storeId) ecpayFields.StoreID = paymentConfig.storeId;

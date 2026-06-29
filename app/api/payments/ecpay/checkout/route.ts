@@ -8,12 +8,12 @@ import {
   getOneTimeCheckoutPaymentConfig,
   redactEcpayFields,
 } from "@/lib/ecpay";
-import { normalizeInvoicePreference } from "@/lib/invoicePreferences";
+import { buildDefaultInvoicePreference, normalizeInvoicePreference } from "@/lib/invoicePreferences";
 import { resolvePurchasableBillingPlan } from "@/lib/billingPlans";
 
 export const runtime = "nodejs";
 
-const CHECKOUT_BUILD_TAG = "ecpay-checkout-v119-2026-06-27";
+const CHECKOUT_BUILD_TAG = "ecpay-checkout-v120-2026-06-27";
 
 type CheckoutRequestBody = { planCode?: string; invoicePreference?: unknown };
 
@@ -66,6 +66,20 @@ async function recordCheckoutEvent(input: {
   }
 }
 
+async function resolveInvoicePreference(input: unknown, userId: string, email: string) {
+  if (input !== undefined && input !== null) return normalizeInvoicePreference(input, email);
+
+  const saved = await supabaseAdmin
+    .from("user_invoice_preferences")
+    .select("preference")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (saved.error) throw saved.error;
+  if (saved.data?.preference) return normalizeInvoicePreference(saved.data.preference, email);
+  return buildDefaultInvoicePreference(email);
+}
+
 export async function POST(req: Request) {
   try {
     const userJwt = extractBearer(req);
@@ -81,7 +95,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "此方案不是一次性付款方案，請改用訂閱付款流程。" }, { status: 400 });
     }
 
-    const invoicePreference = normalizeInvoicePreference(body.invoicePreference, user.email || "");
+    const invoicePreference = await resolveInvoicePreference(body.invoicePreference, userId, user.email || "");
     const config = getEcpayConfig();
     const paymentConfig = getOneTimeCheckoutPaymentConfig();
     const origin = getFixedOrigin() || getDynamicOrigin(req);
@@ -95,7 +109,7 @@ export async function POST(req: Request) {
     const itemName = plan.invoiceItemName;
 
     const providerPayload = {
-      source: "pricing_page",
+      source: "pricing_checkout_confirmation_v120",
       choose_payment: paymentConfig.choosePayment,
       choose_sub_payment: paymentConfig.chooseSubPayment || null,
       ignore_payment: paymentConfig.ignorePayment || null,
@@ -108,7 +122,7 @@ export async function POST(req: Request) {
       value_metric: plan.valueMetric,
       invoice_preference: invoicePreference,
       invoice_preference_build_tag: CHECKOUT_BUILD_TAG,
-      product_catalog_version: "v119",
+      product_catalog_version: "v120",
       checkout_build_tag: CHECKOUT_BUILD_TAG,
     };
 
@@ -146,7 +160,7 @@ export async function POST(req: Request) {
       CustomField2: merchantTradeNo,
       CustomField3: invoicePreference.buyerEmail || user.email || "",
       ItemURL: `${origin}/pricing`,
-      Remark: "VIP_MONTH_ONE_TIME_V119",
+      Remark: "VIP_MONTH_ONE_TIME_V120",
     };
 
     if (paymentConfig.chooseSubPayment) ecpayFields.ChooseSubPayment = paymentConfig.chooseSubPayment;
