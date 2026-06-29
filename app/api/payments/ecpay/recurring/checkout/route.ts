@@ -7,11 +7,12 @@ import {
   getEcpayConfig,
   getRecurringCheckoutPaymentConfig,
 } from "@/lib/ecpay";
+import { normalizeInvoicePreference } from "@/lib/invoicePreferences";
 import { getProductPlan } from "@/lib/productCatalog";
 
 export const runtime = "nodejs";
 
-const RECURRING_CHECKOUT_BUILD_TAG = "ecpay-recurring-checkout-v117-2026-06-15";
+const RECURRING_CHECKOUT_BUILD_TAG = "ecpay-recurring-checkout-v119-2026-06-27";
 
 type RecurringProductPlan = {
   code: string;
@@ -50,11 +51,9 @@ async function getSupabaseUser(userJwt: string) {
 function getOrigin(req: Request) {
   const configured = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim().replace(/\/$/, "");
   if (configured) return configured;
-
   const proto = req.headers.get("x-forwarded-proto");
   const host = req.headers.get("x-forwarded-host");
   if (proto && host) return `${proto}://${host}`;
-
   return new URL(req.url).origin;
 }
 
@@ -68,8 +67,7 @@ export async function POST(req: Request) {
     if (!envFlag("ECPAY_RECURRING_ENABLED")) {
       return NextResponse.json(
         {
-          error:
-            "自動扣款尚未啟用。請確認綠界商店已開通信用卡定期定額 / 自動扣款服務後，才設定 ECPAY_RECURRING_ENABLED=true。",
+          error: "自動扣款尚未啟用。請確認綠界商店已開通信用卡定期定額 / 自動扣款服務後，才設定 ECPAY_RECURRING_ENABLED=true。",
           code: "RECURRING_DISABLED",
           build_tag: RECURRING_CHECKOUT_BUILD_TAG,
         },
@@ -84,7 +82,7 @@ export async function POST(req: Request) {
     const userId = user?.id as string | undefined;
     if (!userId) return NextResponse.json({ error: "登入狀態已過期。" }, { status: 401 });
 
-    const body = (await req.json().catch(() => ({}))) as { planCode?: string };
+    const body = (await req.json().catch(() => ({}))) as { planCode?: string; invoicePreference?: unknown };
     const planCode = String(body.planCode || "companion_basic_299").trim();
     const plan = getProductPlan(planCode) as RecurringProductPlan | undefined;
 
@@ -103,6 +101,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const invoicePreference = normalizeInvoicePreference(body.invoicePreference, user.email || "");
     const config = getEcpayConfig();
     const paymentConfig = getRecurringCheckoutPaymentConfig();
     const origin = getOrigin(req);
@@ -123,7 +122,8 @@ export async function POST(req: Request) {
         frequency: 1,
         exec_times: 999,
         auto_renew: true,
-        raw_payload: { plan, source: "recurring_checkout_v117", build_tag: RECURRING_CHECKOUT_BUILD_TAG },
+        raw_payload: { plan, source: "recurring_checkout_v119", invoice_preference: invoicePreference, build_tag: RECURRING_CHECKOUT_BUILD_TAG },
+        invoice_preference: invoicePreference,
       })
       .select("*")
       .single();
@@ -151,13 +151,13 @@ export async function POST(req: Request) {
       NeedExtraPaidInfo: paymentConfig.needExtraPaidInfo,
       CustomField1: plan.code,
       CustomField2: profile.data.id,
-      CustomField3: user.email || "",
+      CustomField3: invoicePreference.buyerEmail || user.email || "",
       MerchantMemberID: merchantMemberId,
       PeriodAmount: String(plan.amountTwd),
       PeriodType: "M",
       Frequency: "1",
       ExecTimes: "999",
-      Remark: "SUBSCRIPTION_PROFILE_V117",
+      Remark: "SUBSCRIPTION_PROFILE_V119",
     };
 
     if (paymentConfig.storeId) ecpayFields.StoreID = paymentConfig.storeId;
@@ -170,6 +170,7 @@ export async function POST(req: Request) {
       merchant_trade_no: merchantTradeNo,
       provider_payload: {
         fields_without_checkmac: { ...ecpayFields, CheckMacValue: "[redacted]" },
+        invoice_preference: invoicePreference,
         build_tag: RECURRING_CHECKOUT_BUILD_TAG,
       },
     });
@@ -179,7 +180,7 @@ export async function POST(req: Request) {
       method: "POST",
       merchantTradeNo,
       fields: ecpayFields,
-      diagnostic: { build_tag: RECURRING_CHECKOUT_BUILD_TAG, choose_payment: paymentConfig.choosePayment },
+      diagnostic: { build_tag: RECURRING_CHECKOUT_BUILD_TAG, choose_payment: paymentConfig.choosePayment, invoice_preference_kind: invoicePreference.kind },
     });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "建立自動扣款流程失敗。", build_tag: RECURRING_CHECKOUT_BUILD_TAG }, { status: 500 });

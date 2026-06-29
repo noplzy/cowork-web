@@ -1,22 +1,14 @@
 import crypto from "node:crypto";
 import { createCheckMacValue, parseFormEncodedPayload } from "@/lib/ecpay";
 
-export const ECPAY_OFFICIAL_CLIENT_BUILD_TAG = "ecpay-official-client-v116-2026-06-13";
+export const ECPAY_OFFICIAL_CLIENT_BUILD_TAG = "ecpay-official-client-v119-2026-06-27";
 
 type Scope = "INVOICE" | "REFUND" | "SUBSCRIPTION" | "PAYMENT";
 
-type OfficialConfig = {
-  merchantId: string;
-  hashKey: string;
-  hashIV: string;
-  stage: boolean;
-};
+type OfficialConfig = { merchantId: string; hashKey: string; hashIV: string; stage: boolean };
+type InvoicePath = "Issue" | "Invalid" | "Allowance" | "CheckBarcode" | "CheckLoveCode" | "GetCompanyNameByTaxID";
 
-type InvoiceEnvelope = {
-  MerchantID: string;
-  RqHeader: { Timestamp: number };
-  Data: string;
-};
+type InvoiceEnvelope = { MerchantID: string; RqHeader: { Timestamp: number }; Data: string };
 
 export type EcpayInvoiceIssueInput = {
   relateNumber: string;
@@ -45,17 +37,8 @@ export type EcpayInvoiceFollowupInput = {
   itemName?: string;
 };
 
-export type EcpayRefundInput = {
-  merchantTradeNo: string;
-  tradeNo: string;
-  amount: number;
-  action?: "R" | "N" | "E" | "C";
-};
-
-export type EcpaySubscriptionActionInput = {
-  merchantTradeNo: string;
-  action: "Cancel" | "ReAuth";
-};
+export type EcpayRefundInput = { merchantTradeNo: string; tradeNo: string; amount: number; action?: "R" | "N" | "E" | "C" };
+export type EcpaySubscriptionActionInput = { merchantTradeNo: string; action: "Cancel" | "ReAuth" };
 
 function parseStageFlag(value: string | undefined): boolean {
   return ["true", "1", "test", "stage", "staging"].includes(String(value || "").trim().toLowerCase());
@@ -99,13 +82,13 @@ function assertAesKeyMaterial(config: OfficialConfig) {
   if (Buffer.byteLength(config.hashIV, "utf8") !== 16) throw new Error("ECPAY invoice HashIV must be 16 bytes for AES-128-CBC");
 }
 
-function invoiceUrl(path: "Issue" | "Invalid" | "Allowance", config: OfficialConfig) {
+function invoiceUrl(path: InvoicePath, config: OfficialConfig) {
   const base = config.stage ? "https://einvoice-stage.ecpay.com.tw" : "https://einvoice.ecpay.com.tw";
   return `${base}/B2CInvoice/${path}`;
 }
 
 function paymentUrl(path: "CreditDetail/DoAction" | "Cashier/CreditCardPeriodAction", config: OfficialConfig) {
-  if (path === "CreditDetail/DoAction") return "https://payment.ecpay.com.tw/CreditDetail/DoAction";
+  if (path === "CreditDetail/DoAction") return config.stage ? "https://payment-stage.ecpay.com.tw/CreditDetail/DoAction" : "https://payment.ecpay.com.tw/CreditDetail/DoAction";
   const base = config.stage ? "https://payment-stage.ecpay.com.tw" : "https://payment.ecpay.com.tw";
   return `${base}/Cashier/CreditCardPeriodAction`;
 }
@@ -127,18 +110,10 @@ function decryptInvoiceData(data: string, config: OfficialConfig) {
   return JSON.parse(decodeURIComponent(encoded));
 }
 
-async function postInvoice(path: "Issue" | "Invalid" | "Allowance", data: Record<string, unknown>) {
+async function postInvoice(path: InvoicePath, data: Record<string, unknown>) {
   const config = getOfficialEcpayConfig("INVOICE");
-  const envelope: InvoiceEnvelope = {
-    MerchantID: config.merchantId,
-    RqHeader: { Timestamp: Math.floor(Date.now() / 1000) },
-    Data: encryptInvoiceData({ MerchantID: config.merchantId, ...data }, config),
-  };
-  const response = await fetch(invoiceUrl(path, config), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(envelope),
-  });
+  const envelope: InvoiceEnvelope = { MerchantID: config.merchantId, RqHeader: { Timestamp: Math.floor(Date.now() / 1000) }, Data: encryptInvoiceData({ MerchantID: config.merchantId, ...data }, config) };
+  const response = await fetch(invoiceUrl(path, config), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(envelope) });
   const text = await response.text();
   if (!response.ok) throw new Error(`ecpay_invoice_http_${response.status}: ${text}`);
   const json = JSON.parse(text || "{}");
@@ -149,6 +124,17 @@ async function postInvoice(path: "Issue" | "Invalid" | "Allowance", data: Record
     throw new Error(`ecpay_invoice_${path.toLowerCase()}_failed: TransCode=${json.TransCode ?? ""}; TransMsg=${json.TransMsg ?? ""}; RtnCode=${decrypted?.RtnCode ?? ""}; RtnMsg=${decrypted?.RtnMsg ?? ""}`);
   }
   return { transport: json, data: decrypted };
+}
+
+async function postInvoiceValidation(path: "CheckBarcode" | "CheckLoveCode" | "GetCompanyNameByTaxID", data: Record<string, unknown>) {
+  const config = getOfficialEcpayConfig("INVOICE");
+  const envelope: InvoiceEnvelope = { MerchantID: config.merchantId, RqHeader: { Timestamp: Math.floor(Date.now() / 1000) }, Data: encryptInvoiceData({ MerchantID: config.merchantId, ...data }, config) };
+  const response = await fetch(invoiceUrl(path, config), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(envelope) });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`ecpay_invoice_validation_http_${response.status}: ${text}`);
+  const json = JSON.parse(text || "{}");
+  const decrypted = json.Data ? decryptInvoiceData(String(json.Data), config) : null;
+  return { transport: json, data: decrypted, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
 }
 
 function normalizeRelateNumber(value: string) {
@@ -164,6 +150,21 @@ function normalizeInvoiceDate(value: string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+export async function checkMobileBarcode(barCode: string) {
+  const result = await postInvoiceValidation("CheckBarcode", { BarCode: barCode });
+  return { ok: result.data?.IsExist === "Y", is_exist: result.data?.IsExist || "", provider_result: result, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
+}
+
+export async function checkLoveCode(loveCode: string) {
+  const result = await postInvoiceValidation("CheckLoveCode", { LoveCode: loveCode });
+  return { ok: result.data?.IsExist === "Y", is_exist: result.data?.IsExist || "", organ_name: result.data?.OrganName || "", provider_result: result, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
+}
+
+export async function lookupBusinessIdentifier(unifiedBusinessNo: string) {
+  const result = await postInvoiceValidation("GetCompanyNameByTaxID", { UnifiedBusinessNo: unifiedBusinessNo });
+  return { ok: Number(result.data?.RtnCode ?? 0) === 1, company_name: result.data?.CompanyName || "", provider_result: result, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
+}
+
 export async function issueB2CInvoice(input: EcpayInvoiceIssueInput) {
   const amount = Math.round(Number(input.amount || 0));
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("invalid_invoice_amount");
@@ -177,13 +178,13 @@ export async function issueB2CInvoice(input: EcpayInvoiceIssueInput) {
   const data: Record<string, unknown> = {
     RelateNumber: normalizeRelateNumber(input.relateNumber),
     CustomerID: "",
-    CustomerIdentifier: customerIdentifier,
+    CustomerIdentifier: donation === "1" ? "" : customerIdentifier,
     CustomerName: input.customerName || "",
     CustomerAddr: input.customerAddr || "",
     CustomerPhone: input.customerPhone || "",
     CustomerEmail: input.customerEmail || "",
     ClearanceMark: "",
-    Print: print,
+    Print: donation === "1" ? "0" : print,
     Donation: donation,
     LoveCode: donation === "1" ? input.loveCode || "" : "",
     CarrierType: donation === "1" ? "" : carrierType,
@@ -193,154 +194,49 @@ export async function issueB2CInvoice(input: EcpayInvoiceIssueInput) {
     InvType: "07",
     vat: "1",
     InvoiceRemark: input.remark || "",
-    Items: [
-      {
-        ItemSeq: 1,
-        ItemName: String(input.itemName || "安感島服務費").slice(0, 500),
-        ItemCount: 1,
-        ItemWord: "式",
-        ItemPrice: amount,
-        ItemTaxType: "1",
-        ItemAmount: amount,
-        ItemRemark: "",
-      },
-    ],
+    Items: [{ ItemSeq: 1, ItemName: String(input.itemName || "安感島服務費").slice(0, 500), ItemCount: 1, ItemWord: "式", ItemPrice: amount, ItemTaxType: "1", ItemAmount: amount, ItemRemark: "" }],
   };
 
   const result = await postInvoice("Issue", data);
-  return {
-    status: "issued",
-    invoice_event_type: "issued",
-    invoice_number: result.data.InvoiceNo,
-    random_number: result.data.RandomNumber,
-    issued_at: result.data.InvoiceDate,
-    RtnCode: result.data.RtnCode,
-    RtnMsg: result.data.RtnMsg,
-    provider_result: result,
-    build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG,
-  };
+  return { status: "issued", invoice_event_type: "issued", invoice_number: result.data.InvoiceNo, random_number: result.data.RandomNumber, issued_at: result.data.InvoiceDate, RtnCode: result.data.RtnCode, RtnMsg: result.data.RtnMsg, provider_result: result, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
 }
 
 export async function invalidB2CInvoice(input: EcpayInvoiceFollowupInput) {
   if (!input.invoiceNo) throw new Error("missing_invoice_number_for_invalid");
-  const result = await postInvoice("Invalid", {
-    InvoiceNo: input.invoiceNo,
-    InvoiceDate: normalizeInvoiceDate(input.invoiceDate),
-    Reason: (input.reason || "退款作廢").slice(0, 20),
-  });
-  return {
-    status: "voided",
-    invoice_event_type: "voided",
-    invoice_number: input.invoiceNo,
-    processed_at: new Date().toISOString(),
-    RtnCode: result.data.RtnCode,
-    RtnMsg: result.data.RtnMsg,
-    provider_result: result,
-    build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG,
-  };
+  const result = await postInvoice("Invalid", { InvoiceNo: input.invoiceNo, InvoiceDate: normalizeInvoiceDate(input.invoiceDate), Reason: (input.reason || "退款作廢").slice(0, 20) });
+  return { status: "voided", invoice_event_type: "voided", invoice_number: input.invoiceNo, processed_at: new Date().toISOString(), RtnCode: result.data.RtnCode, RtnMsg: result.data.RtnMsg, provider_result: result, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
 }
 
 export async function allowanceB2CInvoice(input: EcpayInvoiceFollowupInput) {
   if (!input.invoiceNo) throw new Error("missing_invoice_number_for_allowance");
   const amount = Math.round(Number(input.allowanceAmount || 0));
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("invalid_allowance_amount");
-  const result = await postInvoice("Allowance", {
-    InvoiceNo: input.invoiceNo,
-    InvoiceDate: normalizeInvoiceDate(input.invoiceDate),
-    AllowanceNotify: input.notifyMail ? "E" : "N",
-    CustomerName: input.customerName || "",
-    NotifyMail: input.notifyMail || "",
-    NotifyPhone: "",
-    AllowanceAmount: amount,
-    Reason: (input.reason || "退款折讓").slice(0, 50),
-    Items: [
-      {
-        ItemSeq: 1,
-        ItemName: String(input.itemName || "安感島服務費退款").slice(0, 500),
-        ItemCount: 1,
-        ItemWord: "式",
-        ItemPrice: amount,
-        ItemTaxType: "1",
-        ItemAmount: amount,
-      },
-    ],
-  });
-  return {
-    status: "allowance_issued",
-    invoice_event_type: "allowance_issued",
-    invoice_number: result.data.IA_Invoice_No || input.invoiceNo,
-    allowance_number: result.data.IA_Allow_No,
-    processed_at: result.data.IA_Date || new Date().toISOString(),
-    RtnCode: result.data.RtnCode,
-    RtnMsg: result.data.RtnMsg,
-    provider_result: result,
-    build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG,
-  };
+  const result = await postInvoice("Allowance", { InvoiceNo: input.invoiceNo, InvoiceDate: normalizeInvoiceDate(input.invoiceDate), AllowanceNotify: input.notifyMail ? "E" : "N", CustomerName: input.customerName || "", NotifyMail: input.notifyMail || "", NotifyPhone: "", AllowanceAmount: amount, Reason: (input.reason || "退款折讓").slice(0, 50), Items: [{ ItemSeq: 1, ItemName: String(input.itemName || "安感島服務費退款").slice(0, 500), ItemCount: 1, ItemWord: "式", ItemPrice: amount, ItemTaxType: "1", ItemAmount: amount }] });
+  return { status: "allowance_issued", invoice_event_type: "allowance_issued", invoice_number: result.data.IA_Invoice_No || input.invoiceNo, allowance_number: result.data.IA_Allow_No, processed_at: result.data.IA_Date || new Date().toISOString(), RtnCode: result.data.RtnCode, RtnMsg: result.data.RtnMsg, provider_result: result, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
 }
 
 export async function refundCreditCard(input: EcpayRefundInput) {
   const config = getOfficialEcpayConfig("REFUND");
-  const payload: Record<string, string> = {
-    MerchantID: config.merchantId,
-    MerchantTradeNo: input.merchantTradeNo,
-    TradeNo: input.tradeNo,
-    Action: input.action || "R",
-    TotalAmount: String(Math.round(Number(input.amount || 0))),
-  };
+  const payload: Record<string, string> = { MerchantID: config.merchantId, MerchantTradeNo: input.merchantTradeNo, TradeNo: input.tradeNo, Action: input.action || "R", TotalAmount: String(Math.round(Number(input.amount || 0))) };
   if (!payload.MerchantTradeNo || !payload.TradeNo) throw new Error("missing_merchant_trade_no_or_trade_no_for_refund");
   if (Number(payload.TotalAmount) <= 0) throw new Error("invalid_refund_amount");
   payload.CheckMacValue = createCheckMacValue(payload, config.hashKey, config.hashIV);
-
-  const response = await fetch(paymentUrl("CreditDetail/DoAction", config), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(payload).toString(),
-  });
+  const response = await fetch(paymentUrl("CreditDetail/DoAction", config), { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(payload).toString() });
   const text = await response.text();
   if (!response.ok) throw new Error(`ecpay_refund_http_${response.status}: ${text}`);
   const parsed = parseFormEncodedPayload(text);
   if (String(parsed.RtnCode || "") !== "1") throw new Error(`ecpay_refund_failed: RtnCode=${parsed.RtnCode || ""}; RtnMsg=${parsed.RtnMsg || text}`);
-  return {
-    status: "refunded",
-    refund_id: `${parsed.MerchantTradeNo || input.merchantTradeNo}:${parsed.TradeNo || input.tradeNo}:${payload.Action}:${payload.TotalAmount}`,
-    provider_refund_id: `${parsed.TradeNo || input.tradeNo}:${payload.Action}:${payload.TotalAmount}`,
-    TradeNo: parsed.TradeNo || input.tradeNo,
-    MerchantTradeNo: parsed.MerchantTradeNo || input.merchantTradeNo,
-    RtnCode: parsed.RtnCode,
-    RtnMsg: parsed.RtnMsg,
-    action: payload.Action,
-    raw_payload: parsed,
-    build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG,
-  };
+  return { status: "refunded", refund_id: `${parsed.MerchantTradeNo || input.merchantTradeNo}:${parsed.TradeNo || input.tradeNo}:${payload.Action}:${payload.TotalAmount}`, provider_refund_id: `${parsed.TradeNo || input.tradeNo}:${payload.Action}:${payload.TotalAmount}`, TradeNo: parsed.TradeNo || input.tradeNo, MerchantTradeNo: parsed.MerchantTradeNo || input.merchantTradeNo, RtnCode: parsed.RtnCode, RtnMsg: parsed.RtnMsg, action: payload.Action, raw_payload: parsed, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
 }
 
 export async function runSubscriptionAction(input: EcpaySubscriptionActionInput) {
   const config = getOfficialEcpayConfig("SUBSCRIPTION");
-  const payload: Record<string, string> = {
-    MerchantID: config.merchantId,
-    MerchantTradeNo: input.merchantTradeNo,
-    Action: input.action,
-    TimeStamp: String(Math.floor(Date.now() / 1000)),
-  };
+  const payload: Record<string, string> = { MerchantID: config.merchantId, MerchantTradeNo: input.merchantTradeNo, Action: input.action, TimeStamp: String(Math.floor(Date.now() / 1000)) };
   payload.CheckMacValue = createCheckMacValue(payload, config.hashKey, config.hashIV);
-  const response = await fetch(paymentUrl("Cashier/CreditCardPeriodAction", config), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(payload).toString(),
-  });
+  const response = await fetch(paymentUrl("Cashier/CreditCardPeriodAction", config), { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(payload).toString() });
   const text = await response.text();
   if (!response.ok) throw new Error(`ecpay_subscription_http_${response.status}: ${text}`);
   const parsed = parseFormEncodedPayload(text);
   if (String(parsed.RtnCode || "") !== "1") throw new Error(`ecpay_subscription_action_failed: RtnCode=${parsed.RtnCode || ""}; RtnMsg=${parsed.RtnMsg || text}`);
-  return {
-    status: "completed",
-    task_id: `${parsed.MerchantTradeNo || input.merchantTradeNo}:${input.action}`,
-    provider_task_id: `${parsed.MerchantTradeNo || input.merchantTradeNo}:${input.action}`,
-    MerchantTradeNo: parsed.MerchantTradeNo || input.merchantTradeNo,
-    RtnCode: parsed.RtnCode,
-    RtnMsg: parsed.RtnMsg,
-    action: input.action,
-    raw_payload: parsed,
-    build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG,
-  };
+  return { status: "completed", task_id: `${parsed.MerchantTradeNo || input.merchantTradeNo}:${input.action}`, provider_task_id: `${parsed.MerchantTradeNo || input.merchantTradeNo}:${input.action}`, MerchantTradeNo: parsed.MerchantTradeNo || input.merchantTradeNo, RtnCode: parsed.RtnCode, RtnMsg: parsed.RtnMsg, action: input.action, raw_payload: parsed, build_tag: ECPAY_OFFICIAL_CLIENT_BUILD_TAG };
 }
