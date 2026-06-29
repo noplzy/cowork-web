@@ -8,13 +8,14 @@ import {
   getOneTimeCheckoutPaymentConfig,
   redactEcpayFields,
 } from "@/lib/ecpay";
+import { normalizeInvoicePreference } from "@/lib/invoicePreferences";
 import { resolvePurchasableBillingPlan } from "@/lib/billingPlans";
 
 export const runtime = "nodejs";
 
-const CHECKOUT_BUILD_TAG = "ecpay-checkout-v117-2026-06-15";
+const CHECKOUT_BUILD_TAG = "ecpay-checkout-v119-2026-06-27";
 
-type CheckoutRequestBody = { planCode?: string };
+type CheckoutRequestBody = { planCode?: string; invoicePreference?: unknown };
 
 function extractBearer(req: Request): string | null {
   const header = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "此方案不是一次性付款方案，請改用訂閱付款流程。" }, { status: 400 });
     }
 
+    const invoicePreference = normalizeInvoicePreference(body.invoicePreference, user.email || "");
     const config = getEcpayConfig();
     const paymentConfig = getOneTimeCheckoutPaymentConfig();
     const origin = getFixedOrigin() || getDynamicOrigin(req);
@@ -104,7 +106,9 @@ export async function POST(req: Request) {
       auto_renew: plan.autoRenew,
       support_summary: plan.supportSummary,
       value_metric: plan.valueMetric,
-      product_catalog_version: "v117",
+      invoice_preference: invoicePreference,
+      invoice_preference_build_tag: CHECKOUT_BUILD_TAG,
+      product_catalog_version: "v119",
       checkout_build_tag: CHECKOUT_BUILD_TAG,
     };
 
@@ -120,6 +124,7 @@ export async function POST(req: Request) {
       trade_desc: tradeDesc,
       vip_days: Number(plan.entitlementDays || 0),
       provider_payload: providerPayload,
+      invoice_preference: invoicePreference,
     });
     if (insertError) return NextResponse.json({ error: `建立付款訂單失敗：${insertError.message}` }, { status: 500 });
 
@@ -139,9 +144,9 @@ export async function POST(req: Request) {
       NeedExtraPaidInfo: paymentConfig.needExtraPaidInfo,
       CustomField1: plan.code,
       CustomField2: merchantTradeNo,
-      CustomField3: user.email || "",
+      CustomField3: invoicePreference.buyerEmail || user.email || "",
       ItemURL: `${origin}/pricing`,
-      Remark: "VIP_MONTH_ONE_TIME_V117",
+      Remark: "VIP_MONTH_ONE_TIME_V119",
     };
 
     if (paymentConfig.chooseSubPayment) ecpayFields.ChooseSubPayment = paymentConfig.chooseSubPayment;
@@ -157,29 +162,15 @@ export async function POST(req: Request) {
         action: config.checkoutUrl,
         checkout_build_tag: CHECKOUT_BUILD_TAG,
         fields_without_checkmac: redactEcpayFields(ecpayFields),
+        invoice_preference: invoicePreference,
         diagnostic: {
           stage: config.stage,
           choose_payment: paymentConfig.choosePayment,
           payment_mode: paymentConfig.paymentMode,
           has_store_id: Boolean(paymentConfig.storeId),
           using_all_enabled_methods: paymentConfig.choosePayment === "ALL",
-          note:
-            paymentConfig.choosePayment === "ALL"
-              ? "綠界會依商店已開通的付款方式顯示付款選擇頁。若仍回 10300023，代表 MerchantID 對應商店沒有可用收款方式或權限未生效。"
-              : "指定單一付款方式。若該付款方式未開通，綠界可能回 10300023。",
         },
       },
-    });
-
-    console.info("[ECPAY_CHECKOUT_FIELDS]", {
-      merchantTradeNo,
-      planCode: plan.code,
-      stage: config.stage,
-      action: config.checkoutUrl,
-      choosePayment: paymentConfig.choosePayment,
-      chooseSubPayment: paymentConfig.chooseSubPayment || null,
-      ignorePayment: paymentConfig.ignorePayment || null,
-      buildTag: CHECKOUT_BUILD_TAG,
     });
 
     return NextResponse.json({
@@ -191,6 +182,8 @@ export async function POST(req: Request) {
         build_tag: CHECKOUT_BUILD_TAG,
         choose_payment: paymentConfig.choosePayment,
         payment_mode: paymentConfig.paymentMode,
+        invoice_preference_kind: invoicePreference.kind,
+        invoice_carrier_kind: invoicePreference.carrierKind,
       },
     });
   } catch (error: any) {

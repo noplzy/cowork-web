@@ -3,7 +3,7 @@ import { getEcpayConfig, parseFormEncodedPayload, verifyCheckMacValue } from "@/
 
 export const runtime = "nodejs";
 
-const RECURRING_NOTIFY_BUILD_TAG = "ecpay-recurring-notify-v115-2026-06-10";
+const RECURRING_NOTIFY_BUILD_TAG = "ecpay-recurring-notify-v119-2026-06-27";
 
 function textResponse(body: string, status = 200) {
   return new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
@@ -56,24 +56,13 @@ async function findExistingRecurringOrder(input: { merchantTradeNo: string; prov
 async function upsertVipEntitlement(input: { userId: string; validUntil: string }) {
   const { error } = await supabaseAdmin
     .from("user_entitlements")
-    .upsert({
-      user_id: input.userId,
-      plan: "vip",
-      vip_until: input.validUntil,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
+    .upsert({ user_id: input.userId, plan: "vip", vip_until: input.validUntil, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
   if (error) throw error;
 }
 
-async function insertLedgerIfMissing(input: { userId: string; paymentOrderId: string | null; amount: number; paidAt: string; profileId: string; providerTradeNo: string | null }) {
+async function insertLedgerIfMissing(input: { userId: string; paymentOrderId: string | null; amount: number; paidAt: string; profileId: string; providerTradeNo: string | null; invoicePreference: unknown }) {
   if (!input.paymentOrderId) return;
-  const existing = await supabaseAdmin
-    .from("billing_ledger")
-    .select("id")
-    .eq("payment_order_id", input.paymentOrderId)
-    .eq("ledger_type", "payment")
-    .limit(1)
-    .maybeSingle();
+  const existing = await supabaseAdmin.from("billing_ledger").select("id").eq("payment_order_id", input.paymentOrderId).eq("ledger_type", "payment").limit(1).maybeSingle();
   if (existing.error) throw existing.error;
   if (existing.data) return;
 
@@ -87,23 +76,13 @@ async function insertLedgerIfMissing(input: { userId: string; paymentOrderId: st
     payment_order_id: input.paymentOrderId,
     description: "訂閱自動扣款成功",
     occurred_at: input.paidAt,
-    metadata: {
-      subscription_profile_id: input.profileId,
-      provider_trade_no: input.providerTradeNo,
-      build_tag: RECURRING_NOTIFY_BUILD_TAG,
-    },
+    metadata: { subscription_profile_id: input.profileId, provider_trade_no: input.providerTradeNo, invoice_preference: input.invoicePreference, build_tag: RECURRING_NOTIFY_BUILD_TAG },
   });
 }
 
 async function insertEntitlementEventIfMissing(input: { userId: string; paymentOrderId: string | null; profileId: string; planCode: string; paidAt: string; validUntil: string }) {
   if (!input.paymentOrderId) return;
-  const existing = await supabaseAdmin
-    .from("entitlement_events")
-    .select("id")
-    .eq("payment_order_id", input.paymentOrderId)
-    .eq("event_type", "extend")
-    .limit(1)
-    .maybeSingle();
+  const existing = await supabaseAdmin.from("entitlement_events").select("id").eq("payment_order_id", input.paymentOrderId).eq("event_type", "extend").limit(1).maybeSingle();
   if (existing.error) throw existing.error;
   if (existing.data) return;
 
@@ -116,22 +95,13 @@ async function insertEntitlementEventIfMissing(input: { userId: string; paymentO
     valid_from: input.paidAt,
     valid_until: input.validUntil,
     payment_order_id: input.paymentOrderId,
-    metadata: {
-      subscription_profile_id: input.profileId,
-      build_tag: RECURRING_NOTIFY_BUILD_TAG,
-    },
+    metadata: { subscription_profile_id: input.profileId, build_tag: RECURRING_NOTIFY_BUILD_TAG },
   });
 }
 
-async function insertInvoiceRequestIfMissing(input: { userId: string; paymentOrderId: string | null; profileId: string; itemName: string; amount: number }) {
+async function insertInvoiceRequestIfMissing(input: { userId: string; paymentOrderId: string | null; profileId: string; itemName: string; amount: number; invoicePreference: unknown }) {
   if (!input.paymentOrderId) return;
-  const existing = await supabaseAdmin
-    .from("invoice_events")
-    .select("id")
-    .eq("payment_order_id", input.paymentOrderId)
-    .eq("event_type", "requested")
-    .limit(1)
-    .maybeSingle();
+  const existing = await supabaseAdmin.from("invoice_events").select("id").eq("payment_order_id", input.paymentOrderId).eq("event_type", "requested").limit(1).maybeSingle();
   if (existing.error) throw existing.error;
   if (existing.data) return;
 
@@ -140,13 +110,7 @@ async function insertInvoiceRequestIfMissing(input: { userId: string; paymentOrd
     payment_order_id: input.paymentOrderId,
     provider: "ecpay_invoice",
     event_type: "requested",
-    metadata: {
-      source: "recurring_payment",
-      subscription_profile_id: input.profileId,
-      item_name: input.itemName,
-      amount: input.amount,
-      build_tag: RECURRING_NOTIFY_BUILD_TAG,
-    },
+    metadata: { source: "recurring_payment", subscription_profile_id: input.profileId, item_name: input.itemName, amount: input.amount, invoice_preference: input.invoicePreference, build_tag: RECURRING_NOTIFY_BUILD_TAG },
   });
 }
 
@@ -176,6 +140,7 @@ export async function POST(req: Request) {
       return textResponse("0|PROFILE_NOT_FOUND", 404);
     }
 
+    const invoicePreference = profile.data.raw_payload?.invoice_preference || null;
     const rtnCode = String(payload.RtnCode || payload.TradeStatus || "");
     const amount = Number(payload.TradeAmt || payload.Amount || profile.data.period_amount || 0);
     const paidAt = parsePaidAt(payload.PaymentDate) || new Date().toISOString();
@@ -200,7 +165,8 @@ export async function POST(req: Request) {
         vip_days: 30,
         provider_trade_no: providerTradeNo,
         paid_at: success ? paidAt : null,
-        provider_payload: { ...payload, original_merchant_trade_no: merchantTradeNo, build_tag: RECURRING_NOTIFY_BUILD_TAG },
+        provider_payload: { ...payload, original_merchant_trade_no: merchantTradeNo, invoice_preference: invoicePreference, build_tag: RECURRING_NOTIFY_BUILD_TAG },
+        invoice_preference: invoicePreference,
         last_error: success ? null : JSON.stringify(payload),
       }).select("*").single();
 
@@ -208,14 +174,7 @@ export async function POST(req: Request) {
       order = inserted.data;
     }
 
-    const eventExists = await supabaseAdmin
-      .from("subscription_events")
-      .select("id")
-      .eq("subscription_profile_id", profile.data.id)
-      .eq("event_type", success ? "recurring_payment_paid" : "recurring_payment_failed")
-      .eq("payment_order_id", order.id)
-      .limit(1)
-      .maybeSingle();
+    const eventExists = await supabaseAdmin.from("subscription_events").select("id").eq("subscription_profile_id", profile.data.id).eq("event_type", success ? "recurring_payment_paid" : "recurring_payment_failed").eq("payment_order_id", order.id).limit(1).maybeSingle();
     if (eventExists.error) throw eventExists.error;
 
     if (!eventExists.data) {
@@ -225,7 +184,7 @@ export async function POST(req: Request) {
         event_type: success ? "recurring_payment_paid" : "recurring_payment_failed",
         merchant_trade_no: merchantTradeNo,
         payment_order_id: order.id,
-        provider_payload: { ...payload, build_tag: RECURRING_NOTIFY_BUILD_TAG },
+        provider_payload: { ...payload, invoice_preference: invoicePreference, build_tag: RECURRING_NOTIFY_BUILD_TAG },
       });
     }
 
@@ -236,25 +195,19 @@ export async function POST(req: Request) {
         current_period_start: paidAt,
         current_period_end: validUntil,
         next_charge_at: validUntil,
-        raw_payload: { ...payload, build_tag: RECURRING_NOTIFY_BUILD_TAG },
+        raw_payload: { ...profile.data.raw_payload, last_notify_payload: payload, build_tag: RECURRING_NOTIFY_BUILD_TAG },
         last_provider_error: null,
         updated_at: new Date().toISOString(),
       }).eq("id", profile.data.id);
 
       await upsertVipEntitlement({ userId: profile.data.user_id, validUntil });
-      await insertLedgerIfMissing({ userId: profile.data.user_id, paymentOrderId: order.id, amount, paidAt, profileId: profile.data.id, providerTradeNo });
+      await insertLedgerIfMissing({ userId: profile.data.user_id, paymentOrderId: order.id, amount, paidAt, profileId: profile.data.id, providerTradeNo, invoicePreference });
       await insertEntitlementEventIfMissing({ userId: profile.data.user_id, paymentOrderId: order.id, profileId: profile.data.id, planCode: profile.data.plan_code, paidAt, validUntil });
-      await insertInvoiceRequestIfMissing({
-        userId: profile.data.user_id,
-        paymentOrderId: order.id,
-        profileId: profile.data.id,
-        itemName: order.item_name,
-        amount,
-      });
+      await insertInvoiceRequestIfMissing({ userId: profile.data.user_id, paymentOrderId: order.id, profileId: profile.data.id, itemName: order.item_name, amount, invoicePreference });
     } else {
       await supabaseAdmin.from("subscription_profiles").update({
         status: "past_due",
-        raw_payload: { ...payload, build_tag: RECURRING_NOTIFY_BUILD_TAG },
+        raw_payload: { ...profile.data.raw_payload, last_notify_payload: payload, build_tag: RECURRING_NOTIFY_BUILD_TAG },
         last_provider_error: payload.RtnMsg || JSON.stringify(payload),
         updated_at: new Date().toISOString(),
       }).eq("id", profile.data.id);
