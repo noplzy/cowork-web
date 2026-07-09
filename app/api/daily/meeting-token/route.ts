@@ -1,414 +1,58 @@
 // app/api/daily/meeting-token/route.ts
-// P0 Rooms infra: idempotent room access sessions + Daily meeting token issuance.
+// v118 adds phone gate before any room access session charge or Daily token issuance.
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import {
-  ROOM_INFRA_BUILD_TAG,
-  buildBillingSessionKey,
-  creditCostByDuration,
-  getMonthStartTaipeiISO,
-  getVipStatus,
-  isRoomEndedOrExpired,
-  parseDailyRoomNameFromUrl,
-} from "@/lib/server/roomInfra";
+import { ROOM_INFRA_BUILD_TAG, buildBillingSessionKey, creditCostByDuration, getMonthStartTaipeiISO, getVipStatus, isRoomEndedOrExpired, parseDailyRoomNameFromUrl } from "@/lib/server/roomInfra";
+import { identityAccessErrorResponse, requirePhoneVerifiedFromAccessToken } from "@/lib/server/identityAccess";
 
 export const runtime = "nodejs";
-
 type ReqBody = { roomId?: string };
-
 const FREE_MONTHLY_CREDITS = 4;
 const ACCESS_SESSION_PENDING_RETRY_MS = 90_000;
-
-function extractBearer(req: Request): string | null {
-  const h = req.headers.get("authorization") || req.headers.get("Authorization");
-  if (!h) return null;
-  const m = h.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1].trim() : null;
-}
-
-async function getSupabaseUser(userJwt: string) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnon) {
-    throw new Error("Missing Supabase env (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY)");
-  }
-
-  const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      apikey: supabaseAnon,
-      Authorization: `Bearer ${userJwt}`,
-    },
-  });
-
-  if (!authResp.ok) {
-    const raw = await authResp.text().catch(() => "");
-    const error = new Error("Invalid Supabase session token") as Error & { raw?: string; status?: number };
-    error.raw = raw;
-    error.status = 401;
-    throw error;
-  }
-
-  return (await authResp.json().catch(() => null)) as any;
-}
-
-async function getRoomAccessSession(input: {
-  roomId: string;
-  userId: string;
-  dailyRoomName: string;
-  billingSessionKey: string;
-  durationMinutes: number;
-  costCredits: number;
-  entitlementSource: string;
-  allowedByPairVipCarry: boolean;
-}) {
-  const nowIso = new Date().toISOString();
-  const insertResult = await supabaseAdmin
-    .from("room_access_sessions")
-    .insert({
-      room_id: input.roomId,
-      user_id: input.userId,
-      daily_room_name: input.dailyRoomName,
-      billing_session_key: input.billingSessionKey,
-      duration_minutes: input.durationMinutes,
-      cost_credits: input.costCredits,
-      charge_status: "pending",
-      entitlement_source: input.entitlementSource,
-      allowed_by_pair_vip_carry: input.allowedByPairVipCarry,
-      status: "active",
-      provider_payload: {},
-      created_at: nowIso,
-      updated_at: nowIso,
-    })
-    .select("*")
-    .single();
-
-  if (!insertResult.error && insertResult.data) {
-    return { session: insertResult.data as any, created: true };
-  }
-
-  const duplicate =
-    insertResult.error?.code === "23505" ||
-    /duplicate key|unique/i.test(insertResult.error?.message ?? "");
-
-  if (!duplicate) {
-    throw new Error(insertResult.error?.message || "建立 room access session 失敗。");
-  }
-
-  const existingResult = await supabaseAdmin
-    .from("room_access_sessions")
-    .select("*")
-    .eq("room_id", input.roomId)
-    .eq("user_id", input.userId)
-    .eq("billing_session_key", input.billingSessionKey)
-    .maybeSingle();
-
-  if (existingResult.error || !existingResult.data) {
-    throw new Error(existingResult.error?.message || "讀取既有 room access session 失敗。");
-  }
-
-  return { session: existingResult.data as any, created: false };
-}
-
-async function markAccessSession(id: string, patch: Record<string, any>) {
-  const { data, error } = await supabaseAdmin
-    .from("room_access_sessions")
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select("*")
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data as any;
-}
+function extractBearer(req: Request): string | null { const h = req.headers.get("authorization") || req.headers.get("Authorization"); if (!h) return null; const m = h.match(/^Bearer\s+(.+)$/i); return m ? m[1].trim() : null; }
+async function getSupabaseUser(userJwt: string) { const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL; const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; if (!supabaseUrl || !supabaseAnon) throw new Error("Missing Supabase env (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY)"); const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: { apikey: supabaseAnon, Authorization: `Bearer ${userJwt}` } }); if (!authResp.ok) { const raw = await authResp.text().catch(() => ""); const error = new Error("Invalid Supabase session token") as Error & { raw?: string; status?: number }; error.raw = raw; error.status = 401; throw error; } return (await authResp.json().catch(() => null)) as any; }
+async function getRoomAccessSession(input: { roomId: string; userId: string; dailyRoomName: string; billingSessionKey: string; durationMinutes: number; costCredits: number; entitlementSource: string; allowedByPairVipCarry: boolean }) { const nowIso = new Date().toISOString(); const insertResult = await supabaseAdmin.from("room_access_sessions").insert({ room_id: input.roomId, user_id: input.userId, daily_room_name: input.dailyRoomName, billing_session_key: input.billingSessionKey, duration_minutes: input.durationMinutes, cost_credits: input.costCredits, charge_status: "pending", entitlement_source: input.entitlementSource, allowed_by_pair_vip_carry: input.allowedByPairVipCarry, status: "active", provider_payload: {}, created_at: nowIso, updated_at: nowIso }).select("*").single(); if (!insertResult.error && insertResult.data) return { session: insertResult.data as any, created: true }; const duplicate = insertResult.error?.code === "23505" || /duplicate key|unique/i.test(insertResult.error?.message ?? ""); if (!duplicate) throw new Error(insertResult.error?.message || "建立 room access session 失敗。"); const existingResult = await supabaseAdmin.from("room_access_sessions").select("*").eq("room_id", input.roomId).eq("user_id", input.userId).eq("billing_session_key", input.billingSessionKey).maybeSingle(); if (existingResult.error || !existingResult.data) throw new Error(existingResult.error?.message || "讀取既有 room access session 失敗。"); return { session: existingResult.data as any, created: false }; }
+async function markAccessSession(id: string, patch: Record<string, any>) { const { data, error } = await supabaseAdmin.from("room_access_sessions").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).select("*").single(); if (error) throw new Error(error.message); return data as any; }
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as ReqBody;
-    const roomId = (body?.roomId || "").trim();
-
-    if (!roomId) {
-      return NextResponse.json({ error: "Missing roomId", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 400 });
-    }
-
-    const dailyKey = process.env.DAILY_API_KEY;
-    const dailyApiBase = process.env.DAILY_API_BASE || "https://api.daily.co/v1";
-    if (!dailyKey) {
-      return NextResponse.json({ error: "Missing DAILY_API_KEY", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
-    }
-
-    const userJwt = extractBearer(req);
-    if (!userJwt) {
-      return NextResponse.json({ error: "Missing Authorization Bearer <supabase_access_token>", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 401 });
-    }
-
-    const user = await getSupabaseUser(userJwt);
-    const userId: string | undefined = user?.id;
-    const email: string | undefined = user?.email;
-    if (!userId) {
-      return NextResponse.json({ error: "Supabase user missing id", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 401 });
-    }
-
-    const { data: room, error: roomErr } = await supabaseAdmin
-      .from("rooms")
-      .select("id,created_by,created_at,duration_minutes,mode,max_size,daily_room_url,status,scheduled_end_at,ended_at")
-      .eq("id", roomId)
-      .single();
-
-    if (roomErr || !room) {
-      return NextResponse.json({ error: roomErr?.message || "Room not found", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 404 });
-    }
-
-    if (isRoomEndedOrExpired(room as any, 3)) {
-      return NextResponse.json({ error: "Room has ended", code: "ROOM_ENDED", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 410 });
-    }
-
-    if (!room.daily_room_url) {
-      return NextResponse.json({ error: "Daily room not created yet", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 409 });
-    }
-
+    const body = (await req.json()) as ReqBody; const roomId = (body?.roomId || "").trim();
+    if (!roomId) return NextResponse.json({ error: "Missing roomId", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 400 });
+    const dailyKey = process.env.DAILY_API_KEY; const dailyApiBase = process.env.DAILY_API_BASE || "https://api.daily.co/v1";
+    if (!dailyKey) return NextResponse.json({ error: "Missing DAILY_API_KEY", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
+    const userJwt = extractBearer(req); if (!userJwt) return NextResponse.json({ error: "Missing Authorization Bearer <supabase_access_token>", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 401 });
+    const user = await getSupabaseUser(userJwt); const userId: string | undefined = user?.id; const email: string | undefined = user?.email;
+    if (!userId) return NextResponse.json({ error: "Supabase user missing id", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 401 });
+    await requirePhoneVerifiedFromAccessToken(userJwt);
+    const { data: room, error: roomErr } = await supabaseAdmin.from("rooms").select("id,created_by,created_at,duration_minutes,mode,max_size,daily_room_url,status,scheduled_end_at,ended_at").eq("id", roomId).single();
+    if (roomErr || !room) return NextResponse.json({ error: roomErr?.message || "Room not found", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 404 });
+    if (isRoomEndedOrExpired(room as any, 3)) return NextResponse.json({ error: "Room has ended", code: "ROOM_ENDED", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 410 });
+    if (!room.daily_room_url) return NextResponse.json({ error: "Daily room not created yet", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 409 });
     const isOwner = room.created_by === userId;
-
-    const { data: mem, error: memErr } = await supabaseAdmin
-      .from("room_members")
-      .select("room_id,user_id")
-      .eq("room_id", roomId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (memErr) {
-      return NextResponse.json({ error: memErr.message, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
-    }
-
-    if (!mem && !isOwner) {
-      return NextResponse.json({ error: "Not a room member", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 403 });
-    }
-
-    const durationMin = Number(room.duration_minutes || 25);
-    const costCredits = creditCostByDuration(durationMin);
-    const selfEnt = await getVipStatus(userId);
-    const selfIsVip = selfEnt.isVip;
-
+    const { data: mem, error: memErr } = await supabaseAdmin.from("room_members").select("room_id,user_id").eq("room_id", roomId).eq("user_id", userId).maybeSingle();
+    if (memErr) return NextResponse.json({ error: memErr.message, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
+    if (!mem && !isOwner) return NextResponse.json({ error: "Not a room member", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 403 });
+    const durationMin = Number(room.duration_minutes || 25); const costCredits = creditCostByDuration(durationMin); const selfEnt = await getVipStatus(userId); const selfIsVip = selfEnt.isVip;
     let allowedByPairVipCarry = false;
-
-    if (!selfIsVip && room.mode === "pair") {
-      const { data: members, error: m2err } = await supabaseAdmin
-        .from("room_members")
-        .select("user_id")
-        .eq("room_id", roomId);
-
-      if (!m2err && Array.isArray(members)) {
-        for (const item of members) {
-          const otherUserId = String((item as any).user_id || "");
-          if (!otherUserId || otherUserId === userId) continue;
-          const otherEnt = await getVipStatus(otherUserId);
-          if (otherEnt.isVip) {
-            allowedByPairVipCarry = true;
-            break;
-          }
-        }
-      }
-    }
-
-    const entitlementSource = selfIsVip
-      ? "vip"
-      : allowedByPairVipCarry
-        ? "pair_vip_carry"
-        : "free_credits";
-
-    const dailyRoomName = parseDailyRoomNameFromUrl(room.daily_room_url);
-    if (!dailyRoomName) {
-      return NextResponse.json({ error: "Invalid Daily room URL", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
-    }
-
+    if (!selfIsVip && room.mode === "pair") { const { data: members, error: m2err } = await supabaseAdmin.from("room_members").select("user_id").eq("room_id", roomId); if (!m2err && Array.isArray(members)) { for (const item of members) { const otherUserId = String((item as any).user_id || ""); if (!otherUserId || otherUserId === userId) continue; const otherEnt = await getVipStatus(otherUserId); if (otherEnt.isVip) { allowedByPairVipCarry = true; break; } } } }
+    const entitlementSource = selfIsVip ? "vip" : allowedByPairVipCarry ? "pair_vip_carry" : "free_credits";
+    const dailyRoomName = parseDailyRoomNameFromUrl(room.daily_room_url); if (!dailyRoomName) return NextResponse.json({ error: "Invalid Daily room URL", build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
     const billingSessionKey = buildBillingSessionKey(room as any);
-    let { session: accessSession, created: createdAccessSession } = await getRoomAccessSession({
-      roomId,
-      userId,
-      dailyRoomName,
-      billingSessionKey,
-      durationMinutes: durationMin,
-      costCredits,
-      entitlementSource,
-      allowedByPairVipCarry,
-    });
-
-    const pendingAgeMs = Date.now() - new Date(accessSession.updated_at || accessSession.created_at).getTime();
-    const stalePending = accessSession.charge_status === "pending" && pendingAgeMs > ACCESS_SESSION_PENDING_RETRY_MS;
-
-    if (!createdAccessSession && accessSession.charge_status === "pending" && !stalePending) {
-      return NextResponse.json(
-        {
-          error: "Room access session is still being prepared. Please retry shortly.",
-          code: "ACCESS_SESSION_PENDING_RETRY",
-          access_session_id: accessSession.id,
-          build_tag: ROOM_INFRA_BUILD_TAG,
-        },
-        { status: 409 }
-      );
-    }
-
-    let remainingCredits: number | null = null;
-    let chargedThisCall = false;
-
-    if (createdAccessSession || stalePending) {
-      try {
-        if (!selfIsVip && !allowedByPairVipCarry) {
-          const monthStart = getMonthStartTaipeiISO(new Date());
-          const { data: remaining, error: rpcErr } = await supabaseAdmin.rpc("cowork_try_consume_credits", {
-            p_user_id: userId,
-            p_month_start: monthStart,
-            p_cost: costCredits,
-            p_allowance: FREE_MONTHLY_CREDITS,
-          });
-
-          if (rpcErr) throw new Error(`Credit RPC error: ${rpcErr.message}`);
-
-          const rem = Number(remaining);
-          if (!Number.isFinite(rem) || rem < 0) {
-            await markAccessSession(accessSession.id, {
-              charge_status: "failed",
-              status: "credit_failed",
-              last_error: "Free monthly credits exhausted",
-            });
-
-            return NextResponse.json(
-              {
-                error: "Free monthly credits exhausted",
-                code: "CREDITS_EXHAUSTED",
-                allowance: FREE_MONTHLY_CREDITS,
-                cost: costCredits,
-                access_session_id: accessSession.id,
-                build_tag: ROOM_INFRA_BUILD_TAG,
-              },
-              { status: 402 }
-            );
-          }
-
-          remainingCredits = rem;
-          chargedThisCall = true;
-          accessSession = await markAccessSession(accessSession.id, {
-            charge_status: "charged",
-            charged_at: new Date().toISOString(),
-            entitlement_source: entitlementSource,
-            allowed_by_pair_vip_carry: false,
-            cost_credits: costCredits,
-            status: "active",
-            last_error: null,
-          });
-        } else {
-          accessSession = await markAccessSession(accessSession.id, {
-            charge_status: "waived",
-            charged_at: new Date().toISOString(),
-            entitlement_source: entitlementSource,
-            allowed_by_pair_vip_carry: allowedByPairVipCarry,
-            cost_credits: 0,
-            status: "active",
-            last_error: null,
-          });
-        }
-      } catch (error: any) {
-        await markAccessSession(accessSession.id, {
-          charge_status: "failed",
-          status: "credit_failed",
-          last_error: error?.message || "Credit consume failed",
-        }).catch(() => null);
-        throw error;
-      }
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    const durationSec = Math.max(15 * 60, durationMin * 60 + 90);
-    const exp = now + durationSec;
-    const userName = (email && email.split("@")[0]) || `u_${userId.slice(0, 8)}`;
-
-    const tokenPayload: any = {
-      properties: {
-        room_name: dailyRoomName,
-        exp,
-        eject_at_token_exp: true,
-        user_name: userName,
-        is_owner: Boolean(isOwner),
-        enable_screenshare: true,
-      },
-    };
-
-    const dailyResp = await fetch(`${dailyApiBase}/meeting-tokens`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${dailyKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(tokenPayload),
-    });
-
+    let { session: accessSession, created: createdAccessSession } = await getRoomAccessSession({ roomId, userId, dailyRoomName, billingSessionKey, durationMinutes: durationMin, costCredits, entitlementSource, allowedByPairVipCarry });
+    const pendingAgeMs = Date.now() - new Date(accessSession.updated_at || accessSession.created_at).getTime(); const stalePending = accessSession.charge_status === "pending" && pendingAgeMs > ACCESS_SESSION_PENDING_RETRY_MS;
+    if (!createdAccessSession && accessSession.charge_status === "pending" && !stalePending) return NextResponse.json({ error: "Room access session is still being prepared. Please retry shortly.", code: "ACCESS_SESSION_PENDING_RETRY", access_session_id: accessSession.id, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 409 });
+    let remainingCredits: number | null = null; let chargedThisCall = false;
+    if (createdAccessSession || stalePending) { try { if (!selfIsVip && !allowedByPairVipCarry) { const monthStart = getMonthStartTaipeiISO(new Date()); const { data: remaining, error: rpcErr } = await supabaseAdmin.rpc("cowork_try_consume_credits", { p_user_id: userId, p_month_start: monthStart, p_cost: costCredits, p_allowance: FREE_MONTHLY_CREDITS }); if (rpcErr) throw new Error(`Credit RPC error: ${rpcErr.message}`); const rem = Number(remaining); if (!Number.isFinite(rem) || rem < 0) { await markAccessSession(accessSession.id, { charge_status: "failed", status: "credit_failed", last_error: "Free monthly credits exhausted" }); return NextResponse.json({ error: "Free monthly credits exhausted", code: "CREDITS_EXHAUSTED", allowance: FREE_MONTHLY_CREDITS, cost: costCredits, access_session_id: accessSession.id, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 402 }); } remainingCredits = rem; chargedThisCall = true; accessSession = await markAccessSession(accessSession.id, { charge_status: "charged", charged_at: new Date().toISOString(), entitlement_source: entitlementSource, allowed_by_pair_vip_carry: false, cost_credits: costCredits, status: "active", last_error: null }); } else { accessSession = await markAccessSession(accessSession.id, { charge_status: "waived", charged_at: new Date().toISOString(), entitlement_source: entitlementSource, allowed_by_pair_vip_carry: allowedByPairVipCarry, cost_credits: 0, status: "active", last_error: null }); } } catch (error: any) { await markAccessSession(accessSession.id, { charge_status: "failed", status: "credit_failed", last_error: error?.message || "Credit consume failed" }).catch(() => null); throw error; } }
+    const now = Math.floor(Date.now() / 1000); const durationSec = Math.max(15 * 60, durationMin * 60 + 90); const exp = now + durationSec; const userName = (email && email.split("@")[0]) || `u_${userId.slice(0, 8)}`;
+    const dailyResp = await fetch(`${dailyApiBase}/meeting-tokens`, { method: "POST", headers: { Authorization: `Bearer ${dailyKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ properties: { room_name: dailyRoomName, exp, eject_at_token_exp: true, user_name: userName, is_owner: Boolean(isOwner), enable_screenshare: true } }) });
     const dailyJson = await dailyResp.json().catch(() => ({}));
-    if (!dailyResp.ok) {
-      await markAccessSession(accessSession.id, {
-        status: "token_failed",
-        last_error: dailyJson?.info || dailyJson?.error || "Daily create token failed",
-        provider_payload: { daily_error: dailyJson },
-      }).catch(() => null);
-
-      return NextResponse.json(
-        {
-          error: dailyJson?.info || dailyJson?.error || "Daily create token failed",
-          raw: dailyJson,
-          access_session_id: accessSession.id,
-          build_tag: ROOM_INFRA_BUILD_TAG,
-        },
-        { status: dailyResp.status }
-      );
-    }
-
-    const token = dailyJson?.token;
-    if (!token) {
-      await markAccessSession(accessSession.id, {
-        status: "token_failed",
-        last_error: "Daily token missing in response",
-        provider_payload: { daily_response: dailyJson },
-      }).catch(() => null);
-      return NextResponse.json({ error: "Daily token missing in response", raw: dailyJson, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 });
-    }
-
-    accessSession = await markAccessSession(accessSession.id, {
-      last_token_issued_at: new Date().toISOString(),
-      token_exp: new Date(exp * 1000).toISOString(),
-      status: "active",
-      provider_payload: {
-        room_name: dailyRoomName,
-        token_exp: exp,
-        token_refreshed_without_recharge: !createdAccessSession && !stalePending,
-      },
-      last_error: null,
-    });
-
-    return NextResponse.json({
-      token,
-      exp,
-      room_name: dailyRoomName,
-      is_owner: Boolean(isOwner),
-      duration_minutes: durationMin,
-      cost_credits: Number(accessSession.cost_credits ?? costCredits),
-      free_monthly_allowance: FREE_MONTHLY_CREDITS,
-      remaining_credits: remainingCredits,
-      is_vip: selfIsVip,
-      allowed_by_pair_vip_carry: allowedByPairVipCarry,
-      plan: selfEnt.plan,
-      vip_until: selfEnt.vipUntil,
-      access_session_id: accessSession.id,
-      charge_status: accessSession.charge_status,
-      entitlement_source: accessSession.entitlement_source,
-      charged_this_call: chargedThisCall,
-      token_refreshed_without_recharge: !createdAccessSession && !stalePending,
-      billing_session_key: billingSessionKey,
-      build_tag: ROOM_INFRA_BUILD_TAG,
-    });
+    if (!dailyResp.ok) { await markAccessSession(accessSession.id, { status: "token_failed", last_error: dailyJson?.info || dailyJson?.error || "Daily create token failed", provider_payload: { daily_error: dailyJson } }).catch(() => null); return NextResponse.json({ error: dailyJson?.info || dailyJson?.error || "Daily create token failed", raw: dailyJson, access_session_id: accessSession.id, build_tag: ROOM_INFRA_BUILD_TAG }, { status: dailyResp.status }); }
+    const token = dailyJson?.token; if (!token) { await markAccessSession(accessSession.id, { status: "token_failed", last_error: "Daily token missing in response", provider_payload: { daily_response: dailyJson } }).catch(() => null); return NextResponse.json({ error: "Daily token missing in response", raw: dailyJson, build_tag: ROOM_INFRA_BUILD_TAG }, { status: 500 }); }
+    accessSession = await markAccessSession(accessSession.id, { last_token_issued_at: new Date().toISOString(), token_exp: new Date(exp * 1000).toISOString(), status: "active", provider_payload: { room_name: dailyRoomName, token_exp: exp, token_refreshed_without_recharge: !createdAccessSession && !stalePending }, last_error: null });
+    return NextResponse.json({ token, exp, room_name: dailyRoomName, is_owner: Boolean(isOwner), duration_minutes: durationMin, cost_credits: Number(accessSession.cost_credits ?? costCredits), free_monthly_allowance: FREE_MONTHLY_CREDITS, remaining_credits: remainingCredits, is_vip: selfIsVip, allowed_by_pair_vip_carry: allowedByPairVipCarry, plan: selfEnt.plan, vip_until: selfEnt.vipUntil, access_session_id: accessSession.id, charge_status: accessSession.charge_status, entitlement_source: accessSession.entitlement_source, charged_this_call: chargedThisCall, token_refreshed_without_recharge: !createdAccessSession && !stalePending, billing_session_key: billingSessionKey, build_tag: ROOM_INFRA_BUILD_TAG });
   } catch (e: any) {
-    const status = Number(e?.status || 500);
-    return NextResponse.json(
-      { error: e?.message || "Unexpected server error", raw: e?.raw, build_tag: ROOM_INFRA_BUILD_TAG },
-      { status: status >= 400 && status < 600 ? status : 500 }
-    );
+    const mapped = identityAccessErrorResponse(e, ROOM_INFRA_BUILD_TAG); if (mapped) return mapped;
+    const status = Number(e?.status || 500); return NextResponse.json({ error: e?.message || "Unexpected server error", raw: e?.raw, build_tag: ROOM_INFRA_BUILD_TAG }, { status: status >= 400 && status < 600 ? status : 500 });
   }
 }
