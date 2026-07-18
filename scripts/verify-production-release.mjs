@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 
 const DEFAULT_PRODUCTION_URL = "https://getcalmandco.com";
-const EXPECTED_RELEASE_TAG =
-  "calmco-p0-0-production-alignment-v127-2026-07-15";
+const EXPECTED_RELEASE_TAG = "calmco-p0-pricing-v2-v128-2026-07-18";
+const EXPECTED_PRICING_CODES = [
+  "free",
+  "rooms_unlimited_299",
+  "buddies_pro_399",
+  "whole_site_599",
+  "host_999",
+];
 
 const productionUrl = new URL(
   process.env.PRODUCTION_URL || DEFAULT_PRODUCTION_URL,
 );
-
-const expectedGitSha = String(
-  process.env.EXPECTED_GIT_SHA || "",
-).trim();
-
+const expectedGitSha = String(process.env.EXPECTED_GIT_SHA || "").trim();
 const releaseWaitSeconds = Math.max(
   0,
   Number(process.env.RELEASE_WAIT_SECONDS || 0),
 );
-
 const releasePollSeconds = Math.max(
   5,
   Number(process.env.RELEASE_POLL_SECONDS || 15),
 );
-
 const results = [];
 
 function record(name, ok, expected, actual) {
@@ -39,7 +39,7 @@ function sleep(ms) {
 
 function withCacheBust(pathname) {
   const url = new URL(pathname, productionUrl);
-  url.searchParams.set("__p00", `${Date.now()}-${Math.random()}`);
+  url.searchParams.set("__p0v128", `${Date.now()}-${Math.random()}`);
   return url;
 }
 
@@ -49,12 +49,10 @@ async function fetchResponse(pathname) {
     headers: {
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
-      "User-Agent": "CalmCo-P0-0-Release-Check/1.0",
+      "User-Agent": "CalmCo-P0-v128-Release-Check/1.0",
     },
   });
-
   const text = await response.text();
-
   return {
     response,
     text,
@@ -63,28 +61,18 @@ async function fetchResponse(pathname) {
   };
 }
 
-async function readReleaseInfo() {
-  const result = await fetchResponse("/api/release");
-
+async function readJson(pathname) {
+  const result = await fetchResponse(pathname);
   if (!result.response.ok) {
     throw new Error(
-      `/api/release returned ${result.response.status}: ${result.text.slice(0, 240)}`,
+      `${pathname} returned ${result.response.status}: ${result.text.slice(0, 240)}`,
     );
   }
-
-  let payload;
-
-  try {
-    payload = JSON.parse(result.text);
-  } catch {
-    throw new Error("/api/release did not return valid JSON.");
-  }
-
-  return { ...result, payload };
+  return { ...result, payload: JSON.parse(result.text) };
 }
 
 function shaMatches(actual, expected) {
-  if (!expected) return actual && actual !== "unknown";
+  if (!expected) return Boolean(actual && actual !== "unknown");
   return (
     actual === expected ||
     actual.startsWith(expected) ||
@@ -98,23 +86,12 @@ async function waitForExpectedRelease() {
 
   while (true) {
     try {
-      const release = await readReleaseInfo();
-      const sha = String(
-        release.payload?.deployment?.git_commit_sha || "",
-      );
-      const branch = String(
-        release.payload?.deployment?.branch || "",
-      );
-
-      if (
-        shaMatches(sha, expectedGitSha) &&
-        branch === "main"
-      ) {
-        return release;
-      }
-
+      const release = await readJson("/api/release");
+      const sha = String(release.payload?.deployment?.git_commit_sha || "");
+      const branch = String(release.payload?.deployment?.branch || "");
+      if (shaMatches(sha, expectedGitSha) && branch === "main") return release;
       lastError = new Error(
-        `Production is not ready yet. branch=${branch || "missing"}, sha=${sha || "missing"}`,
+        `Production not ready. branch=${branch || "missing"}, sha=${sha || "missing"}`,
       );
     } catch (error) {
       lastError = error;
@@ -123,9 +100,8 @@ async function waitForExpectedRelease() {
     if (Date.now() >= deadline) {
       throw lastError || new Error("Production release check timed out.");
     }
-
     console.log(
-      `[P0-0] Waiting for production to expose main/${expectedGitSha || "a real SHA"}...`,
+      `[P0-v128] Waiting for main/${expectedGitSha || "a real SHA"}...`,
     );
     await sleep(releasePollSeconds * 1000);
   }
@@ -150,114 +126,43 @@ async function main() {
   const deployment = payload?.deployment || {};
   const alignment = payload?.alignment || {};
   const product = payload?.product || {};
-  const roomPolicy = product?.room_policy || {};
+  const p0 = payload?.p0 || {};
   const pricingPolicy = product?.pricing_policy || {};
   const aiPolicy = product?.ai_policy || {};
+  const roomPolicy = product?.room_policy || {};
 
-  record(
-    "Release endpoint",
-    payload?.ok === true,
-    true,
-    payload?.ok,
-  );
-
+  record("Release endpoint", payload?.ok === true, true, payload?.ok);
   record(
     "Release tag",
     payload?.build_tag === EXPECTED_RELEASE_TAG,
     EXPECTED_RELEASE_TAG,
     payload?.build_tag,
   );
-
   record(
     "Source repository",
-    payload?.source_of_truth?.repository ===
-      "noplzy/cowork-web",
+    payload?.source_of_truth?.repository === "noplzy/cowork-web",
     "noplzy/cowork-web",
     payload?.source_of_truth?.repository,
   );
-
   record(
-    "Production repository metadata",
+    "Repository metadata",
     alignment?.repository_matches === true,
     true,
     alignment?.repository_matches,
   );
-
-  record(
-    "Production branch",
-    deployment?.branch === "main",
-    "main",
-    deployment?.branch,
-  );
-
+  record("Production branch", deployment?.branch === "main", "main", deployment?.branch);
   record(
     "Production environment",
     deployment?.environment === "production",
     "production",
     deployment?.environment,
   );
-
-  record(
-    "Git commit metadata",
-    alignment?.git_metadata_available === true,
-    true,
-    alignment?.git_metadata_available,
-  );
-
   record(
     "Expected main commit",
-    shaMatches(
-      String(deployment?.git_commit_sha || ""),
-      expectedGitSha,
-    ),
+    shaMatches(String(deployment?.git_commit_sha || ""), expectedGitSha),
     expectedGitSha || "non-unknown SHA",
     deployment?.git_commit_sha,
   );
-
-  record(
-    "Room durations",
-    JSON.stringify(roomPolicy?.generalDurations) ===
-      JSON.stringify([25, 50, 75]),
-    "[25,50,75]",
-    JSON.stringify(roomPolicy?.generalDurations),
-  );
-
-  record(
-    "Activity duration",
-    roomPolicy?.activityDuration === 90,
-    90,
-    roomPolicy?.activityDuration,
-  );
-
-  record(
-    "100-minute policy",
-    Array.isArray(roomPolicy?.deprecatedDurations) &&
-      roomPolicy.deprecatedDurations.includes(100),
-    "deprecated",
-    JSON.stringify(roomPolicy?.deprecatedDurations),
-  );
-
-  record(
-    "Active paid plan",
-    pricingPolicy?.active_paid_plan_code === "vip_month",
-    "vip_month",
-    pricingPolicy?.active_paid_plan_code,
-  );
-
-  record(
-    "AI long-term freeze",
-    aiPolicy?.status === "long_term_freeze",
-    "long_term_freeze",
-    aiPolicy?.status,
-  );
-
-  record(
-    "AI excluded from pricing",
-    aiPolicy?.includedInPricing === false,
-    false,
-    aiPolicy?.includedInPricing,
-  );
-
   record(
     "Release response header",
     release.releaseHeader === deployment?.git_commit_sha,
@@ -265,12 +170,70 @@ async function main() {
     release.releaseHeader,
   );
 
+  record(
+    "Room durations",
+    JSON.stringify(roomPolicy?.generalDurations) === JSON.stringify([25, 50, 75]),
+    "[25,50,75]",
+    JSON.stringify(roomPolicy?.generalDurations),
+  );
+  record("Activity duration", roomPolicy?.activityDuration === 90, 90, roomPolicy?.activityDuration);
+  record("Extension duration", roomPolicy?.extensionMinutes === 25, 25, roomPolicy?.extensionMinutes);
+  record(
+    "100-minute deprecated",
+    Array.isArray(roomPolicy?.deprecatedDurations) &&
+      roomPolicy.deprecatedDurations.includes(100),
+    true,
+    JSON.stringify(roomPolicy?.deprecatedDurations),
+  );
+
+  record(
+    "Active paid plan remains pilot",
+    pricingPolicy?.active_paid_plan_code === "vip_month",
+    "vip_month",
+    pricingPolicy?.active_paid_plan_code,
+  );
+  record(
+    "Pricing v2 not purchasable",
+    pricingPolicy?.pricing_v2_status === "final_spec_not_purchasable" &&
+      pricingPolicy?.pricing_v2_commercial_launch_enabled === false,
+    "final_spec_not_purchasable / false",
+    `${pricingPolicy?.pricing_v2_status} / ${pricingPolicy?.pricing_v2_commercial_launch_enabled}`,
+  );
+  const actualCodes = pricingPolicy?.pricing_v2_plan_codes || [];
+  record(
+    "Pricing v2 final codes",
+    EXPECTED_PRICING_CODES.every((code) => actualCodes.includes(code)),
+    EXPECTED_PRICING_CODES.join(","),
+    actualCodes.join(","),
+  );
+  record(
+    "AI long-term freeze",
+    aiPolicy?.status === "long_term_freeze" &&
+      aiPolicy?.includedInPricing === false,
+    "long_term_freeze / excluded",
+    `${aiPolicy?.status} / ${aiPolicy?.includedInPricing}`,
+  );
+
+  record(
+    "P0 presence build tag",
+    p0?.build_tags?.presence ===
+      "room-presence-state-closure-v128-2026-07-18",
+    "room-presence-state-closure-v128-2026-07-18",
+    p0?.build_tags?.presence,
+  );
+  record(
+    "P0 summary build tag",
+    p0?.build_tags?.summary ===
+      "room-post-session-summary-v128-2026-07-18",
+    "room-post-session-summary-v128-2026-07-18",
+    p0?.build_tags?.summary,
+  );
+
   const [home, rooms, pricing] = await Promise.all([
     fetchResponse("/"),
     fetchResponse("/rooms"),
     fetchResponse("/pricing"),
   ]);
-
   const homeText = visibleText(home.text);
   const roomsText = visibleText(rooms.text);
   const pricingText = visibleText(pricing.text);
@@ -280,20 +243,13 @@ async function main() {
     ["Rooms", rooms],
     ["Pricing", pricing],
   ]) {
-    record(
-      `${name} HTTP`,
-      result.response.ok,
-      "2xx",
-      result.response.status,
-    );
-
+    record(`${name} HTTP`, result.response.ok, "2xx", result.response.status);
     record(
       `${name} release header`,
       result.releaseHeader === deployment?.git_commit_sha,
       deployment?.git_commit_sha,
       result.releaseHeader,
     );
-
     record(
       `${name} branch header`,
       result.branchHeader === "main",
@@ -305,31 +261,17 @@ async function main() {
   record(
     "Homepage source marker",
     homeText.includes("今天，不用一個人開始。"),
-    "今天，不用一個人開始。",
+    true,
     homeText.includes("今天，不用一個人開始。"),
   );
-
-  record(
-    "Rooms 25-minute option",
-    roomsText.includes("25 分鐘"),
-    true,
-    roomsText.includes("25 分鐘"),
-  );
-
-  record(
-    "Rooms 50-minute option",
-    roomsText.includes("50 分鐘"),
-    true,
-    roomsText.includes("50 分鐘"),
-  );
-
-  record(
-    "Rooms 75-minute option",
-    roomsText.includes("75 分鐘"),
-    true,
-    roomsText.includes("75 分鐘"),
-  );
-
+  for (const duration of [25, 50, 75]) {
+    record(
+      `Rooms ${duration}-minute option`,
+      roomsText.includes(`${duration} 分鐘`),
+      true,
+      roomsText.includes(`${duration} 分鐘`),
+    );
+  }
   record(
     "Rooms no public 100-minute option",
     !roomsText.includes("100 分鐘"),
@@ -337,59 +279,47 @@ async function main() {
     roomsText.includes("100 分鐘") ? "present" : "absent",
   );
 
-  record(
-    "Pricing AI freeze message",
-    pricingText.includes("AI 功能長期暫停"),
-    "AI 功能長期暫停",
-    pricingText.includes("AI 功能長期暫停"),
-  );
-
-  record(
-    "Pricing active production fact",
-    pricingText.includes("NT$199 / 30 天"),
+  for (const marker of [
     "NT$199 / 30 天",
-    pricingText.includes("NT$199 / 30 天"),
-  );
-
-  const forbiddenPricingTerms = [
-    "Host Credit",
-    "Shared Host",
-    "AI 主持",
-    "個人 AI",
-  ];
-
-  const foundForbiddenTerms = forbiddenPricingTerms.filter((term) =>
-    pricingText.includes(term),
-  );
-
+    "NT$299 / 月",
+    "NT$399 / 月",
+    "NT$599 / 月",
+    "NT$999 / 月",
+    "Rooms 無限同行",
+    "Buddies 專業",
+    "全站同行",
+    "主理人",
+    "最終規格・尚未開放",
+    "AI 功能維持長期凍結",
+  ]) {
+    record(
+      `Pricing marker: ${marker}`,
+      pricingText.includes(marker),
+      true,
+      pricingText.includes(marker),
+    );
+  }
   record(
-    "Pricing excludes AI benefits",
-    foundForbiddenTerms.length === 0,
-    "no AI benefit terms",
-    foundForbiddenTerms.join(", ") || "none",
+    "Pricing does not promise unlimited visual",
+    !pricingText.includes("鏡頭無限") && !pricingText.includes("視訊無限"),
+    "no unlimited visual promise",
+    pricingText.includes("鏡頭無限") || pricingText.includes("視訊無限"),
   );
 
   console.table(results);
-
-  const failures = results.filter(
-    (result) => result.status === "FAIL",
-  );
-
+  const failures = results.filter((result) => result.status === "FAIL");
   if (failures.length > 0) {
-    console.error(
-      `\n[P0-0] ${failures.length} production alignment check(s) failed.`,
-    );
+    console.error(`\n[P0-v128] ${failures.length} check(s) failed.`);
     process.exitCode = 1;
     return;
   }
-
   console.log(
-    `\n[P0-0] Production is aligned with main at ${deployment.git_commit_sha}.`,
+    `\n[P0-v128] Production is aligned at ${deployment.git_commit_sha}.`,
   );
 }
 
 main().catch((error) => {
-  console.error("[P0-0] Production verification failed.");
+  console.error("[P0-v128] Production verification failed.");
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

@@ -1,29 +1,36 @@
 export const PRODUCT_CATALOG_BUILD_TAG =
-  "product-catalog-pricing-v127-ai-freeze-2026-07-15";
+  "product-catalog-pricing-v128-final-no-ai-p0-2026-07-18";
 
 export type ProductStage =
   | "production_pilot"
-  | "pricing_v2_next_spec"
+  | "pricing_v2_final_spec"
   | "future_extension";
 
 export type PurchaseStatus = "active" | "planned" | "blocked";
 export type BillingMode = "free" | "one_time" | "subscription" | "add_on";
+export type ProductModule = "rooms" | "buddies" | "host";
 
 export type AudienceSegment =
   | "curious_free"
-  | "low_pressure_regular"
-  | "habit_builder"
-  | "host_creator"
+  | "rooms_regular"
+  | "buddies_professional"
+  | "whole_site_regular"
+  | "host_operator"
   | "operator_manual";
 
 export type PlanCode =
   | "free"
   | "vip_month"
-  | "companion_basic_299"
-  | "companion_regular_599"
-  | "host_islander_1299";
+  | "rooms_unlimited_299"
+  | "buddies_pro_399"
+  | "whole_site_599"
+  | "host_999";
 
-export type AddOnCode = "whole_room_extension";
+export type AddOnCode =
+  | "extension_points_30"
+  | "extension_points_60"
+  | "extension_points_120"
+  | "visual_minutes_future";
 
 export type PresenceModeCode = "quiet" | "audio" | "mosaic" | "camera";
 export type RoomCategoryCode = "focus" | "life" | "share" | "hobby";
@@ -33,6 +40,7 @@ export type RoomDurationPolicy = {
   generalDurations: number[];
   activityDuration: number;
   deprecatedDurations: number[];
+  extensionMinutes: number;
   durationLabels: Record<number, string>;
   roomCategoryLabels: Record<RoomCategoryCode, string>;
   presenceModeLabels: Record<PresenceModeCode, string>;
@@ -51,15 +59,13 @@ export type ProductPlan = {
   autoRenew: boolean;
   checkoutPlanCode: string | null;
   purchaseEnabled: boolean;
-  /** Compatibility alias for older billing/UI mapping. Prefer positioning. */
   description: string;
-  /** Compatibility alias for older billing/UI mapping. Prefer highlights. */
   benefits: string[];
-  /** Compatibility alias for older billing/UI mapping. Prefer amountTwd. */
   amount: number | null;
   invoiceItemName: string;
   tradeDescription: string;
   audience: AudienceSegment;
+  modules: ProductModule[];
   positioning: string;
   jobToBeDone: string;
   primaryValue: string;
@@ -70,8 +76,19 @@ export type ProductPlan = {
   userFriendlyNotice: string;
   allowedGeneralDurations: number[];
   allowedActivityDurations: number[];
+  canCreateGeneralRooms: boolean;
+  canCreateActivityRooms: boolean;
   presenceModes: PresenceModeCode[];
   roomVisibility: Array<"public" | "members" | "friends" | "invited">;
+  personalRoomTimeUnlimited: boolean;
+  quietAudioUnlimited: boolean;
+  visualMinutesIncluded: number | null;
+  extensionPointsIncluded: number;
+  priorityWaitlistUses: number;
+  trackedBuddies: number;
+  maxBuddyServices: number;
+  exposureCredits: number;
+  buddyAnalyticsWindowDays: number | null;
   roomExtensionPolicy: string;
   highlights: string[];
   supportSummary: string;
@@ -86,6 +103,7 @@ export type ProductAddOn = {
   amountTwd: number | null;
   invoiceItemName: string;
   positioning: string;
+  extensionPoints?: number;
   disabledReason?: string;
 };
 
@@ -96,19 +114,35 @@ export const AI_PRICING_POLICY = {
   includedInAddOns: false,
   commercialReleaseEnabled: false,
   publicMessage:
-    "AI 功能長期暫停，不納入任何目前或 Pricing v2 方案權益；未來若解凍，另開獨立產品決策，不回填既有方案承諾。",
+    "AI 功能維持長期凍結，不納入 Free、Rooms、Buddies、全站同行、主理人或任何加購商品。",
+} as const;
+
+export const PRICING_V2_POLICY = {
+  status: "final_spec_not_purchasable",
+  commercialLaunchEnabled: false,
+  sourceDocument: "CALMCO_PRICING_V2_FINAL_HANDOFF_2026-07-18",
+  productionPaidPlanCode: "vip_month" as const,
+  finalPlanCodes: [
+    "rooms_unlimited_299",
+    "buddies_pro_399",
+    "whole_site_599",
+    "host_999",
+  ] as const,
+  launchRule:
+    "Pricing v2 必須等 P0 Presence／Summary、訂閱、entitlement、Buddies settlement、發票與退款 E2E 對齊後才可把 purchaseStatus 改為 active。",
 } as const;
 
 export const ROOM_DURATION_POLICY: RoomDurationPolicy = {
   generalDurations: [25, 50, 75],
   activityDuration: 90,
   deprecatedDurations: [100],
+  extensionMinutes: 25,
   durationLabels: {
     25: "25 分鐘｜開始場 / 短場",
     50: "50 分鐘｜標準場 / 主力場",
     75: "75 分鐘｜長場 / 深度場",
-    90: "90 分鐘｜活動場 / Studio",
-    100: "100 分鐘｜舊版，不再主推",
+    90: "90 分鐘｜活動房",
+    100: "100 分鐘｜舊版，不再提供",
   },
   roomCategoryLabels: {
     focus: "專注任務",
@@ -124,11 +158,6 @@ export const ROOM_DURATION_POLICY: RoomDurationPolicy = {
   },
 };
 
-/**
- * Backward-compatible exports.
- * Existing pages/routes may import these names while the pricing/catalog migration
- * is being rolled out. Keep them here to avoid brittle cross-file build failures.
- */
 export const ROOM_CATEGORIES = [
   {
     code: "focus",
@@ -166,36 +195,32 @@ export const PRESENCE_MODES = [
     code: "quiet",
     value: "quiet",
     label: "安靜在場",
-    description: "不說話也能一起待著",
+    description: "鏡頭與麥克風都可關閉，仍保有 connected presence。",
   },
   {
     code: "audio",
     value: "audio",
     label: "音訊在場",
-    description: "用聲音保持輕連結",
+    description: "不送出視訊軌，保留低壓力聲音連結。",
   },
   {
     code: "mosaic",
     value: "mosaic",
     label: "柔焦在場",
-    description: "保留在場感，但降低鏡頭壓力",
+    description: "以柔焦／馬賽克降低鏡頭壓力，屬視覺同行額度。",
   },
   {
     code: "camera",
     value: "camera",
     label: "開鏡頭在場",
-    description: "需要更明確在場時使用",
+    description: "一般視訊在場，屬視覺同行額度。",
   },
 ] as const;
 
 export const PRESENCE_MODE_OPTIONS = PRESENCE_MODES;
-
-export const GENERAL_ROOM_DURATIONS =
-  ROOM_DURATION_POLICY.generalDurations;
-export const ACTIVITY_ROOM_DURATION =
-  ROOM_DURATION_POLICY.activityDuration;
-export const DEPRECATED_ROOM_DURATIONS =
-  ROOM_DURATION_POLICY.deprecatedDurations;
+export const GENERAL_ROOM_DURATIONS = ROOM_DURATION_POLICY.generalDurations;
+export const ACTIVITY_ROOM_DURATION = ROOM_DURATION_POLICY.activityDuration;
+export const DEPRECATED_ROOM_DURATIONS = ROOM_DURATION_POLICY.deprecatedDurations;
 export const ROOM_DURATIONS = [
   ...GENERAL_ROOM_DURATIONS,
   ACTIVITY_ROOM_DURATION,
@@ -203,17 +228,25 @@ export const ROOM_DURATIONS = [
 export const GROUP_SIZE_OPTIONS = [2, 4, 6] as const;
 
 export const VALUE_BASED_PRICING_PRINCIPLES = [
-  "不靠限制基本陪伴製造焦慮，而是用使用深度、房主能力、活動房權限與客服保障做分層。",
-  "Free 讓使用者理解「有人一起」；NT$299 賣安全可控的常用權益；NT$599 賣習慣建立與更完整的房間工具；NT$1,299 賣房主、活動與帶朋友能力。",
-  "高成本能力走房主贊助 / 活動包，不塞進低價月費無限使用。",
-  "所有可收費能力都必須能被 billing_ledger、entitlement_events、invoice_events、refund_events 與 admin_audit_logs 追蹤。",
+  "Rooms 與 Buddies 分開販售；NT$599 是 NT$299 Rooms＋NT$399 Buddies 的組合，不是單純堆高 Rooms 分鐘。",
+  "Rooms 方案的『無限』只包含會員自己的總使用時間、安靜在場與純音訊；鏡頭、柔焦及螢幕分享使用獨立視覺額度。",
+  "1 點同行延長點，只替 1 位沒有 Rooms 權益的使用者延長 25 分鐘；付費會員自己的延長不扣點。",
+  "收藏、再次預約、標準候補、預約保障、真實評價、檢舉與退款入口是平台基礎功能，不拿來製造付費焦慮。",
+  "所有新方案目前都是 Pricing v2 最終規格，尚未開放付款；production 仍只允許 NT$199／30 天一次性 VIP 試營運。",
   AI_PRICING_POLICY.publicMessage,
 ] as const;
+
+const commonRoomVisibility: ProductPlan["roomVisibility"] = [
+  "public",
+  "members",
+  "friends",
+  "invited",
+];
 
 export const PRODUCT_PLANS: ProductPlan[] = [
   {
     code: "free",
-    stage: "pricing_v2_next_spec",
+    stage: "pricing_v2_final_spec",
     purchaseStatus: "planned",
     billingMode: "free",
     title: "免費體驗",
@@ -224,41 +257,49 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     autoRenew: false,
     checkoutPlanCode: null,
     purchaseEnabled: false,
-    description: "先感受「有人一起開始」的氛圍。",
+    description: "先正常體驗 Rooms 與 Buddies 的基礎價值。",
     benefits: [
-      "公開房體驗",
-      "短場入門",
-      "基本 Presence Mode",
-      "客服與規則入口",
+      "加入公開 25 分鐘房",
+      "安靜／音訊在場",
+      "標準 Buddies 搜尋、收藏、候補與評價",
+      "安全、檢舉、封鎖、退款與爭議入口",
     ],
     amount: 0,
     invoiceItemName: "安感島免費體驗",
-    tradeDescription: "ANGANDAO Free Trial",
+    tradeDescription: "ANGANDAO Free",
     audience: "curious_free",
-    positioning: "先感受「有人一起開始」的氛圍。",
-    jobToBeDone: "我還不確定會不會常用，但想低壓力試一次。",
-    primaryValue: "基本進房與短場體驗。",
-    valueMetric: "低成本體驗與公開房參與。",
-    upgradeTrigger:
-      "想建立好友房 / 邀請制房，或需要更穩定的同行節奏。",
-    antiCannibalizationFence:
-      "不給高成本活動房、完整邀請制與大量房主贊助額度。",
-    disabledReason: "免費體驗規則會在正式 Pricing v2 上線時公告。",
-    userFriendlyNotice:
-      "目前可先使用試營運 VIP 或一般同行空間；正式免費額度會另行公告。",
+    modules: ["rooms", "buddies"],
+    positioning: "不把平台本來就該提供的信任與基礎功能鎖成付費權益。",
+    jobToBeDone: "我想先確認這裡真的適合我，再決定是否固定使用。",
+    primaryValue: "完成第一次正常 Rooms／Buddies 體驗。",
+    valueMetric: "首次進房、首次收藏、首次完成預約。",
+    upgradeTrigger: "需要私人房、更多房型、無限安靜／音訊或專業 Buddies 工具。",
+    antiCannibalizationFence: "不含私人建房、活動房建立、專業曝光與經營數據。",
+    disabledReason: "Free 的每月 Rooms 上限仍需依 P0 真實 participant-minute 資料封板。",
+    userFriendlyNotice: "免費方案規格已定義，實際每月 Rooms 上限會在正式切換前公告。",
     allowedGeneralDurations: [25],
     allowedActivityDurations: [],
+    canCreateGeneralRooms: false,
+    canCreateActivityRooms: false,
     presenceModes: ["quiet", "audio"],
     roomVisibility: ["public"],
-    roomExtensionPolicy:
-      "延長限制較嚴，避免免費額度長時間占用 RTC 成本。",
+    personalRoomTimeUnlimited: false,
+    quietAudioUnlimited: false,
+    visualMinutesIncluded: null,
+    extensionPointsIncluded: 0,
+    priorityWaitlistUses: 0,
+    trackedBuddies: 0,
+    maxBuddyServices: 2,
+    exposureCredits: 0,
+    buddyAnalyticsWindowDays: null,
+    roomExtensionPolicy: "可接受其他 Rooms 會員贊助，但 Free 本身不含延長點。",
     highlights: [
-      "公開房體驗",
-      "短場入門",
-      "基本 Presence Mode",
-      "客服與規則入口",
+      "公開 25 分鐘房",
+      "安靜／音訊在場",
+      "Buddies 基礎服務",
+      "信任與客服底線",
     ],
-    supportSummary: "免費體驗以低摩擦進站為主，付款與退款不適用。",
+    supportSummary: "免費使用者仍有正常安全、退款、爭議與客服入口。",
   },
   {
     code: "vip_month",
@@ -273,220 +314,326 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     autoRenew: false,
     checkoutPlanCode: "vip_month",
     purchaseEnabled: true,
-    description:
-      "先完成一次性付款、權益入帳、客服與退款可追蹤閉環。",
+    description: "目前唯一正式可付款商品；一次性付款，不自動續扣。",
     benefits: [
       "一次性信用卡付款",
       "付款成功後開通 30 天 VIP",
       "不自動續扣",
-      "人工退款審核",
+      "人工退款與帳務追蹤",
     ],
     amount: 199,
     invoiceItemName: "安感島 VIP 月方案（試營運）",
     tradeDescription: "ANGANDAO VIP Pilot Monthly",
     audience: "operator_manual",
-    positioning:
-      "先完成一次性付款、權益入帳、客服與退款可追蹤閉環。",
-    jobToBeDone:
-      "我想先支持或測試安感島的完整付款與 VIP 權益流程。",
-    primaryValue: "30 天 VIP 權益與試營運客服保障。",
-    valueMetric: "付款成功、權益入帳、帳務可稽核。",
-    upgradeTrigger:
-      "正式 Pricing v2 上線後，可依使用深度轉入 299 / 599 / 1299。",
-    antiCannibalizationFence:
-      "不承諾正式房主贊助、活動包或自動續扣。",
-    userFriendlyNotice:
-      "目前唯一正式開放付款的方案；一次性付款，不自動續扣。",
+    modules: ["rooms"],
+    positioning: "維持既有付款閉環，直到 Pricing v2 全鏈路準備完成。",
+    jobToBeDone: "我想先支持或測試目前已完成的 VIP 付款與權益流程。",
+    primaryValue: "30 天既有 VIP 權益與人工客服保障。",
+    valueMetric: "付款成功、權益入帳、發票／退款可追蹤。",
+    upgradeTrigger: "Pricing v2 正式開放後再選擇 Rooms、Buddies 或組合方案。",
+    antiCannibalizationFence: "不承諾 Pricing v2 的視覺額度、延長點、Buddies 專業或主理人工具。",
+    userFriendlyNotice: "目前唯一可付款方案；Pricing v2 卡片僅供理解下一版方向。",
     allowedGeneralDurations: [25, 50, 75],
     allowedActivityDurations: [],
+    canCreateGeneralRooms: true,
+    canCreateActivityRooms: false,
     presenceModes: ["quiet", "audio", "mosaic", "camera"],
-    roomVisibility: ["public", "members", "friends", "invited"],
-    roomExtensionPolicy:
-      "依目前 VIP 權益與 room lifecycle 規則處理；不宣稱正式房主贊助。",
+    roomVisibility: commonRoomVisibility,
+    personalRoomTimeUnlimited: false,
+    quietAudioUnlimited: false,
+    visualMinutesIncluded: null,
+    extensionPointsIncluded: 0,
+    priorityWaitlistUses: 0,
+    trackedBuddies: 0,
+    maxBuddyServices: 2,
+    exposureCredits: 0,
+    buddyAnalyticsWindowDays: null,
+    roomExtensionPolicy: "沿用目前 VIP／room lifecycle 規則，不提前承諾 Pricing v2 延長點。",
     highlights: [
-      "一次性信用卡付款",
-      "付款成功後開通 30 天 VIP",
+      "目前正式可付款",
+      "30 天 VIP",
       "不自動續扣",
-      "人工退款審核",
+      "帳務與退款可追蹤",
     ],
-    supportSummary:
-      "若發生權益未生效、重複扣款或首次購買後未使用主要權益，可走人工退款審核。",
+    supportSummary: "權益未生效、重複扣款或退款問題由既有 Billing Center 與人工流程承接。",
   },
   {
-    code: "companion_basic_299",
-    stage: "pricing_v2_next_spec",
+    code: "rooms_unlimited_299",
+    stage: "pricing_v2_final_spec",
     purchaseStatus: "planned",
     billingMode: "subscription",
-    title: "安心同行",
-    shortTitle: "安心同行",
+    title: "Rooms 無限同行",
+    shortTitle: "Rooms 299",
     priceLabel: "NT$299 / 月",
     amountTwd: 299,
     entitlementDays: 30,
     autoRenew: true,
     checkoutPlanCode: null,
     purchaseEnabled: false,
-    description: "入門 VIP，重點是安全可控的低壓力陪伴。",
+    description: "會員自己的 Rooms 總時間、安靜在場與純音訊無限。",
     benefits: [
-      "好友房 / 邀請制房",
-      "25 / 50 / 75 一般房",
-      "基本 Presence 偏好",
-      "客服與帳務紀錄",
+      "個人 Rooms 總時間無限",
+      "安靜／純音訊無限",
+      "每月 1,200 分鐘視覺同行",
+      "每月 12 點同行延長點",
     ],
     amount: 299,
-    invoiceItemName: "安感島 安心同行月方案",
-    tradeDescription: "ANGANDAO Companion Basic Monthly",
-    audience: "low_pressure_regular",
-    positioning: "入門 VIP，重點是安全可控的低壓力陪伴。",
-    jobToBeDone:
-      "我想比較自在地開好友房、邀請熟人、穩定有人一起開始。",
-    primaryValue: "好友房 / 邀請制房與 25 / 50 / 75 一般房。",
-    valueMetric: "可控房間可見性與日常同行權益。",
-    upgradeTrigger:
-      "開始規律每週使用，並希望有更多房間工具、摘要和更高延長彈性。",
-    antiCannibalizationFence:
-      "不提供活動房 / 主持控制台，避免吃掉 599 / 1299。",
-    disabledReason:
-      "需等訂閱、取消、退款、發票與 entitlement events 完整對齊後開放。",
-    userFriendlyNotice:
-      "正式 Pricing v2 規劃方案；目前尚未開放付款。",
+    invoiceItemName: "安感島 Rooms 無限同行月方案",
+    tradeDescription: "ANGANDAO Rooms Unlimited Monthly",
+    audience: "rooms_regular",
+    modules: ["rooms"],
+    positioning: "給固定讀書、工作、body doubling 與日常陪伴使用者。",
+    jobToBeDone: "我想長時間待在 Rooms，不希望安靜或純音訊被月時數切斷。",
+    primaryValue: "無限低成本 presence＋可控視覺額度。",
+    valueMetric: "個人 Rooms 使用時間、視覺分鐘、成功完成場次。",
+    upgradeTrigger: "同時需要 Buddies 專業，或需要建立活動房與房主經營工具。",
+    antiCannibalizationFence: "不能建立 90 分鐘活動房，不含 Buddies 專業與全房無限贊助。",
+    disabledReason: "需等 P0 Presence／Summary、視覺 usage ledger、訂閱與 entitlement E2E 完成。",
+    userFriendlyNotice: "Pricing v2 最終規格，尚未開放付款。",
     allowedGeneralDurations: [25, 50, 75],
-    allowedActivityDurations: [],
+    allowedActivityDurations: [90],
+    canCreateGeneralRooms: true,
+    canCreateActivityRooms: false,
     presenceModes: ["quiet", "audio", "mosaic", "camera"],
-    roomVisibility: ["public", "members", "friends", "invited"],
-    roomExtensionPolicy:
-      "2 人房可有較友善延長；4 / 6 人房需每人 VIP 或房主贊助。",
+    roomVisibility: commonRoomVisibility,
+    personalRoomTimeUnlimited: true,
+    quietAudioUnlimited: true,
+    visualMinutesIncluded: 1200,
+    extensionPointsIncluded: 12,
+    priorityWaitlistUses: 0,
+    trackedBuddies: 0,
+    maxBuddyServices: 2,
+    exposureCredits: 0,
+    buddyAnalyticsWindowDays: null,
+    roomExtensionPolicy: "會員本人延長不扣點；每 1 點替 1 位非 Rooms 會員延長 25 分鐘。",
     highlights: [
-      "好友房 / 邀請制房",
-      "25 / 50 / 75 一般房",
-      "基本 Presence 偏好",
-      "客服與帳務紀錄",
+      "個人時間無限",
+      "安靜／音訊無限",
+      "1,200 分鐘視覺額度",
+      "12 點同行延長點",
     ],
-    supportSummary:
-      "這層主要處理入門會員權益、可見性、一般房使用與付款問題。",
+    supportSummary: "需顯示視覺分鐘、延長點、房間歷史與異常扣用量的可回查紀錄。",
   },
   {
-    code: "companion_regular_599",
-    stage: "pricing_v2_next_spec",
+    code: "buddies_pro_399",
+    stage: "pricing_v2_final_spec",
     purchaseStatus: "planned",
     billingMode: "subscription",
-    title: "常駐同行",
-    shortTitle: "常駐同行",
+    title: "Buddies 專業",
+    shortTitle: "Buddies 399",
+    priceLabel: "NT$399 / 月",
+    amountTwd: 399,
+    entitlementDays: 30,
+    autoRenew: true,
+    checkoutPlanCode: null,
+    purchaseEnabled: false,
+    description: "給重度預約者與在平台經營服務的 Buddy。",
+    benefits: [
+      "每月 5 次優先候補",
+      "追蹤 3 位重點 Buddy",
+      "最多上架 10 項服務",
+      "90 天經營數據＋每月 1 枚曝光點數",
+    ],
+    amount: 399,
+    invoiceItemName: "安感島 Buddies 專業月方案",
+    tradeDescription: "ANGANDAO Buddies Pro Monthly",
+    audience: "buddies_professional",
+    modules: ["buddies"],
+    positioning: "不要求服務提供者替不需要的 Rooms 權益付費。",
+    jobToBeDone: "我想提高熱門時段預約成功率，或更有效率經營自己的服務。",
+    primaryValue: "有限優先候補、服務上架、真實數據與透明推薦曝光。",
+    valueMetric: "候補使用、服務轉換、回購、完成率與收入趨勢。",
+    upgradeTrigger: "同時需要 Rooms 無限，或需要年度數據、活動房與主理人工具。",
+    antiCannibalizationFence: "Rooms 僅維持 Free 等級；不含活動房、主持控制台或年度商業報表。",
+    disabledReason: "需等 Buddies payment／payout／settlement、通知排序與曝光標示規則閉環。",
+    userFriendlyNotice: "Pricing v2 最終規格，尚未開放付款。",
+    allowedGeneralDurations: [25],
+    allowedActivityDurations: [],
+    canCreateGeneralRooms: false,
+    canCreateActivityRooms: false,
+    presenceModes: ["quiet", "audio"],
+    roomVisibility: ["public"],
+    personalRoomTimeUnlimited: false,
+    quietAudioUnlimited: false,
+    visualMinutesIncluded: null,
+    extensionPointsIncluded: 0,
+    priorityWaitlistUses: 5,
+    trackedBuddies: 3,
+    maxBuddyServices: 10,
+    exposureCredits: 1,
+    buddyAnalyticsWindowDays: 90,
+    roomExtensionPolicy: "維持 Free Rooms 等級。",
+    highlights: [
+      "5 次優先候補",
+      "追蹤 3 位 Buddy",
+      "10 項服務",
+      "90 天數據＋1 枚曝光",
+    ],
+    supportSummary: "優先候補不保證成交；曝光必須標示推薦／贊助，不能偽裝自然排序。",
+  },
+  {
+    code: "whole_site_599",
+    stage: "pricing_v2_final_spec",
+    purchaseStatus: "planned",
+    billingMode: "subscription",
+    title: "全站同行",
+    shortTitle: "全站 599",
     priceLabel: "NT$599 / 月",
     amountTwd: 599,
     entitlementDays: 30,
     autoRenew: true,
     checkoutPlanCode: null,
     purchaseEnabled: false,
-    description:
-      "主推方案，重點是規律陪伴、更多房間工具與回顧流程。",
+    description: "Rooms 299＋Buddies 399 的組合方案，每月比拆買省 NT$99。",
     benefits: [
-      "包含安心同行主要權益",
-      "更多房間工具規劃",
-      "房後摘要 / 回顧規劃",
-      "較高延長彈性",
+      "Rooms 無限同行完整權益",
+      "Buddies 專業完整權益",
+      "每月 1,800 分鐘視覺同行",
+      "24 點延長、6 次候補、追蹤 5 位 Buddy",
     ],
     amount: 599,
-    invoiceItemName: "安感島 常駐同行月方案",
-    tradeDescription: "ANGANDAO Companion Regular Monthly",
-    audience: "habit_builder",
-    positioning:
-      "主推方案，重點是規律陪伴、更多房間工具與回顧流程。",
-    jobToBeDone:
-      "我每週都會用，希望房間工具能幫我更容易開始、維持節奏並完成收尾。",
-    primaryValue: "更多房間工具、摘要 / 回顧與延長彈性。",
-    valueMetric: "習慣建立、房間狀態工具與回顧價值。",
-    upgradeTrigger: "想帶朋友、開活動、或提高全房延長彈性。",
-    antiCannibalizationFence:
-      "不給完整主持控制台、不給大量活動房 / 90 分鐘權限。",
-    disabledReason:
-      "需等進階房間工具、成本上限與發票 / 退款閉環完成。",
-    userFriendlyNotice:
-      "正式 Pricing v2 主推方案；目前尚未開放付款。",
+    invoiceItemName: "安感島 全站同行月方案",
+    tradeDescription: "ANGANDAO Whole Site Monthly",
+    audience: "whole_site_regular",
+    modules: ["rooms", "buddies"],
+    positioning: "組合優惠，不把只需要 Rooms 的人強迫推向高價方案。",
+    jobToBeDone: "我同時固定使用 Rooms，也經常預約或經營 Buddies。",
+    primaryValue: "兩條產品線完整組合＋較高額度。",
+    valueMetric: "Rooms 留存＋Buddies 預約／經營轉換。",
+    upgradeTrigger: "需要建立活動房、全房贊助、主持控制台與完整年度商業數據。",
+    antiCannibalizationFence: "不能建立 90 分鐘活動房，不含房主控制台與大量贊助。",
+    disabledReason: "需同時通過 Rooms P0、Buddies settlement、訂閱、發票、退款與 entitlement E2E。",
+    userFriendlyNotice: "Pricing v2 最終規格，尚未開放付款。",
     allowedGeneralDurations: [25, 50, 75],
-    allowedActivityDurations: [],
+    allowedActivityDurations: [90],
+    canCreateGeneralRooms: true,
+    canCreateActivityRooms: false,
     presenceModes: ["quiet", "audio", "mosaic", "camera"],
-    roomVisibility: ["public", "members", "friends", "invited"],
-    roomExtensionPolicy:
-      "可有更高延長彈性，但 extension confirmation 與 presence gate 必須生效。",
+    roomVisibility: commonRoomVisibility,
+    personalRoomTimeUnlimited: true,
+    quietAudioUnlimited: true,
+    visualMinutesIncluded: 1800,
+    extensionPointsIncluded: 24,
+    priorityWaitlistUses: 6,
+    trackedBuddies: 5,
+    maxBuddyServices: 10,
+    exposureCredits: 1,
+    buddyAnalyticsWindowDays: 90,
+    roomExtensionPolicy: "會員本人延長不扣點；每月 24 點可贊助非 Rooms 會員。",
     highlights: [
-      "包含安心同行主要權益",
-      "更多房間工具規劃",
-      "房後摘要 / 回顧規劃",
-      "較高延長彈性",
+      "299＋399 完整組合",
+      "每月省 NT$99",
+      "1,800 分鐘視覺額度",
+      "24 點延長＋6 次候補",
     ],
-    supportSummary:
-      "這層會有最多日常使用、房間工具與帳務客服問題，必須接 usage ledger 和 provider log。",
+    supportSummary: "客服需同時能看 Rooms 用量、Buddies 權益、訂閱、發票與退款事件。",
   },
   {
-    code: "host_islander_1299",
-    stage: "pricing_v2_next_spec",
+    code: "host_999",
+    stage: "pricing_v2_final_spec",
     purchaseStatus: "planned",
     billingMode: "subscription",
-    title: "主持島民",
-    shortTitle: "主持島民",
-    priceLabel: "NT$1,299 / 月",
-    amountTwd: 1299,
+    title: "主理人",
+    shortTitle: "主理人 999",
+    priceLabel: "NT$999 / 月",
+    amountTwd: 999,
     entitlementDays: 30,
     autoRenew: true,
     checkoutPlanCode: null,
     purchaseEnabled: false,
-    description:
-      "給房主、活動、帶朋友的人；重點是主持工具、贊助能力與活動房。",
+    description: "販售帶人、辦活動與經營服務的能力，不只是堆高分鐘。",
     benefits: [
-      "90 分鐘活動房規劃",
-      "每月活動支援額度規劃",
-      "主持控制台規劃",
-      "房主贊助 / 延長通行證",
+      "可建立 90 分鐘活動房",
+      "每月 3,000 分鐘視覺同行＋120 點延長",
+      "房主控制台與使用量紀錄",
+      "25 項服務、年度數據、3 枚曝光點數",
     ],
-    amount: 1299,
-    invoiceItemName: "安感島 主持島民月方案",
-    tradeDescription: "ANGANDAO Host Islander Monthly",
-    audience: "host_creator",
-    positioning:
-      "給房主、活動、帶朋友的人；重點是主持工具、贊助能力與活動房。",
-    jobToBeDone:
-      "我要帶朋友、開活動，並用清楚的房間工具維持整房節奏。",
-    primaryValue:
-      "90 分鐘活動房、主持控制台、房主贊助與活動支援額度。",
-    valueMetric: "房主能力、活動房、贊助通行證與多人房成本控制。",
-    upgradeTrigger:
-      "需要 Buddies 專業交易、商業活動、團隊 / 社群管理或 payout。",
-    antiCannibalizationFence:
-      "仍不可全房無限延長；所有贊助需 ledger、usage cap 與成本上限。",
-    disabledReason:
-      "需等房主贊助、extension pass、usage ledger、admin audit 完整落地。",
-    userFriendlyNotice:
-      "正式 Pricing v2 高階方案；目前尚未開放付款。",
+    amount: 999,
+    invoiceItemName: "安感島 主理人月方案",
+    tradeDescription: "ANGANDAO Host Operator Monthly",
+    audience: "host_operator",
+    modules: ["rooms", "buddies", "host"],
+    positioning: "給社群、讀書會、活動房主與重度 Buddies 經營者。",
+    jobToBeDone: "我要固定帶人、辦活動，並能看懂房間與服務經營結果。",
+    primaryValue: "活動房、全房贊助、主持控制台與完整商業資料。",
+    valueMetric: "活動完成率、贊助成本、回購、客單與服務收入。",
+    upgradeTrigger: "未來需要團隊成員、服務套票、團體銷售與進階 CRM。",
+    antiCannibalizationFence: "仍不提供全房無限贊助；所有延長與視覺使用都必須有 server ledger。",
+    disabledReason: "需等活動房、全房贊助 ledger、主持控制台、Buddies settlement 與風控完成。",
+    userFriendlyNotice: "Pricing v2 最終規格，尚未開放付款。",
     allowedGeneralDurations: [25, 50, 75],
     allowedActivityDurations: [90],
+    canCreateGeneralRooms: true,
+    canCreateActivityRooms: true,
     presenceModes: ["quiet", "audio", "mosaic", "camera"],
-    roomVisibility: ["public", "members", "friends", "invited"],
-    roomExtensionPolicy:
-      "房主可贊助全房延長，但需依 2 / 4 / 6 人、延長長度與 connected presence 計費。",
+    roomVisibility: commonRoomVisibility,
+    personalRoomTimeUnlimited: true,
+    quietAudioUnlimited: true,
+    visualMinutesIncluded: 3000,
+    extensionPointsIncluded: 120,
+    priorityWaitlistUses: 10,
+    trackedBuddies: 10,
+    maxBuddyServices: 25,
+    exposureCredits: 3,
+    buddyAnalyticsWindowDays: 365,
+    roomExtensionPolicy: "可贊助 2／4／6 人房，但每位非 Rooms 會員每 25 分鐘仍需 1 點。",
     highlights: [
-      "90 分鐘活動房規劃",
-      "每月活動支援額度規劃",
-      "主持控制台規劃",
-      "房主贊助 / 延長通行證",
+      "建立 90 分鐘活動房",
+      "3,000 分鐘視覺額度",
+      "120 點同行延長",
+      "房主＋Buddies 年度工具",
     ],
-    supportSummary:
-      "這層涉及活動房、房主贊助、多人權益與較高成本能力，必須有 admin audit 與風控。",
+    supportSummary: "高風險多人與交易能力必須有 admin audit、成本上限、停權與人工修正。",
   },
 ];
 
 export const PRODUCT_ADD_ONS: ProductAddOn[] = [
   {
-    code: "whole_room_extension",
+    code: "extension_points_30",
+    stage: "pricing_v2_final_spec",
+    purchaseStatus: "blocked",
+    title: "30 點同行延長點",
+    priceLabel: "NT$119",
+    amountTwd: 119,
+    invoiceItemName: "安感島 30 點同行延長點",
+    positioning: "偶爾帶朋友或小房延長。",
+    extensionPoints: 30,
+    disabledReason: "需等 extension confirmation、wallet、ledger、refund 與 idempotency 完成。",
+  },
+  {
+    code: "extension_points_60",
+    stage: "pricing_v2_final_spec",
+    purchaseStatus: "blocked",
+    title: "60 點同行延長點",
+    priceLabel: "NT$219",
+    amountTwd: 219,
+    invoiceItemName: "安感島 60 點同行延長點",
+    positioning: "規律替多人房延長。",
+    extensionPoints: 60,
+    disabledReason: "需等 extension confirmation、wallet、ledger、refund 與 idempotency 完成。",
+  },
+  {
+    code: "extension_points_120",
+    stage: "pricing_v2_final_spec",
+    purchaseStatus: "blocked",
+    title: "120 點同行延長點",
+    priceLabel: "NT$429",
+    amountTwd: 429,
+    invoiceItemName: "安感島 120 點同行延長點",
+    positioning: "活動或重度房主使用。",
+    extensionPoints: 120,
+    disabledReason: "需等 extension confirmation、wallet、ledger、refund 與 idempotency 完成。",
+  },
+  {
+    code: "visual_minutes_future",
     stage: "future_extension",
     purchaseStatus: "blocked",
-    title: "全房延長通行證",
-    priceLabel: "依人數與延長長度計算",
+    title: "視覺同行額度",
+    priceLabel: "尚未定價",
     amountTwd: null,
-    invoiceItemName: "安感島 全房延長通行證",
-    positioning:
-      "房主幫整房延長，必須依 2 / 4 / 6 人和 presence 計費。",
-    disabledReason:
-      "不能硬寫死在前端；需 server 依 entitlement、connected participants、billing ledger 計算。",
+    invoiceItemName: "安感島 視覺同行額度",
+    positioning: "額度用完後仍可無限使用安靜／純音訊；視覺加購待真實成本資料封板。",
+    disabledReason: "分鐘數、售價、效期與退款規則尚未定案。",
   },
 ];
 
@@ -504,6 +651,7 @@ export function getPurchasablePlan(code: string | null | undefined) {
   if (
     !plan ||
     plan.purchaseStatus !== "active" ||
+    !plan.purchaseEnabled ||
     !plan.checkoutPlanCode ||
     plan.amountTwd === null
   ) {
@@ -513,10 +661,6 @@ export function getPurchasablePlan(code: string | null | undefined) {
   return plan;
 }
 
-/**
- * Alias kept for lib/billingPlans.ts versions that still import
- * resolveCheckoutProductPlan from productCatalog.
- */
 export function resolveCheckoutProductPlan(
   code: string | null | undefined,
 ) {
@@ -527,10 +671,6 @@ export function isGeneralRoomDuration(duration: number) {
   return ROOM_DURATION_POLICY.generalDurations.includes(duration);
 }
 
-/**
- * Alias kept for app/api/rooms/create/route.ts versions that import
- * isAllowedGeneralRoomDuration.
- */
 export function isAllowedGeneralRoomDuration(duration: number) {
   return isGeneralRoomDuration(Number(duration));
 }
@@ -566,8 +706,9 @@ export function publicProductCatalogPayload() {
       active_paid_plan_code: ACTIVE_PURCHASABLE_PLAN.code,
       active_paid_plan_label: ACTIVE_PURCHASABLE_PLAN.priceLabel,
       warning:
-        "目前 production 只開放 NT$199 / 30 天一次性 VIP 試營運；NT$299 / 599 / 1299 是 Pricing v2 next-spec。",
+        "目前 production 只開放 NT$199／30 天一次性 VIP；NT$299／399／599／999 與延長點商品是 Pricing v2 最終規格，尚未開放付款。",
     },
+    pricing_v2_policy: PRICING_V2_POLICY,
     ai_policy: AI_PRICING_POLICY,
     pricing_principles: VALUE_BASED_PRICING_PRINCIPLES,
     room_policy: ROOM_DURATION_POLICY,

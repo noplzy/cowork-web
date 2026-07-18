@@ -7,29 +7,39 @@ import {
   getEcpayConfig,
   getRecurringCheckoutPaymentConfig,
 } from "@/lib/ecpay";
-import { buildDefaultInvoicePreference, normalizeInvoicePreference } from "@/lib/invoicePreferences";
+import {
+  buildDefaultInvoicePreference,
+  normalizeInvoicePreference,
+} from "@/lib/invoicePreferences";
 import { getProductPlan } from "@/lib/productCatalog";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const RECURRING_CHECKOUT_BUILD_TAG = "ecpay-recurring-checkout-v120-2026-06-27";
+const RECURRING_CHECKOUT_BUILD_TAG =
+  "ecpay-recurring-checkout-v128-pricing-v2-guard-2026-07-18";
 
 type RecurringProductPlan = {
   code: string;
   billingMode: string;
   amountTwd: number | null;
   purchaseStatus?: string;
+  purchaseEnabled?: boolean;
+  checkoutPlanCode?: string | null;
   title?: string;
   invoiceItemName: string;
   tradeDescription: string;
 };
 
 function envFlag(name: string) {
-  return ["1", "true", "yes", "enabled"].includes(String(process.env[name] || "").trim().toLowerCase());
+  return ["1", "true", "yes", "enabled"].includes(
+    String(process.env[name] || "").trim().toLowerCase(),
+  );
 }
 
 function extractBearer(req: Request): string | null {
-  const header = req.headers.get("authorization") || req.headers.get("Authorization");
+  const header =
+    req.headers.get("authorization") || req.headers.get("Authorization");
   if (!header) return null;
   const matched = header.match(/^Bearer\s+(.+)$/i);
   return matched ? matched[1].trim() : null;
@@ -40,39 +50,62 @@ async function getSupabaseUser(userJwt: string) {
   const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnon) throw new Error("Missing Supabase auth env");
 
-  const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+  const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: { apikey: supabaseAnon, Authorization: `Bearer ${userJwt}` },
   });
-
-  if (!authResp.ok) return null;
-  return (await authResp.json().catch(() => null)) as any;
+  if (!authResponse.ok) return null;
+  return (await authResponse.json().catch(() => null)) as any;
 }
 
 function getOrigin(req: Request) {
-  const configured = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim().replace(/\/$/, "");
+  const configured = String(
+    process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "",
+  )
+    .trim()
+    .replace(/\/$/, "");
   if (configured) return configured;
-  const proto = req.headers.get("x-forwarded-proto");
+  const protocol = req.headers.get("x-forwarded-proto");
   const host = req.headers.get("x-forwarded-host");
-  if (proto && host) return `${proto}://${host}`;
+  if (protocol && host) return `${protocol}://${host}`;
   return new URL(req.url).origin;
 }
 
-function canUseRecurringPlan(plan: RecurringProductPlan) {
-  if (plan.purchaseStatus === "active") return true;
-  return envFlag("ECPAY_RECURRING_ALLOW_NEXT_SPEC");
+function recurringAllowlist() {
+  return String(process.env.ECPAY_RECURRING_PLAN_ALLOWLIST || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
-async function resolveInvoicePreference(input: unknown, userId: string, email: string) {
-  if (input !== undefined && input !== null) return normalizeInvoicePreference(input, email);
+function canUseRecurringPlan(plan: RecurringProductPlan) {
+  return (
+    envFlag("ECPAY_RECURRING_ENABLED") &&
+    envFlag("PRICING_V2_COMMERCIAL_ENABLED") &&
+    plan.purchaseStatus === "active" &&
+    plan.purchaseEnabled === true &&
+    Boolean(plan.checkoutPlanCode) &&
+    recurringAllowlist().includes(plan.code)
+  );
+}
+
+async function resolveInvoicePreference(
+  input: unknown,
+  userId: string,
+  email: string,
+) {
+  if (input !== undefined && input !== null) {
+    return normalizeInvoicePreference(input, email);
+  }
 
   const saved = await supabaseAdmin
     .from("user_invoice_preferences")
     .select("preference")
     .eq("user_id", userId)
     .maybeSingle();
-
   if (saved.error) throw saved.error;
-  if (saved.data?.preference) return normalizeInvoicePreference(saved.data.preference, email);
+  if (saved.data?.preference) {
+    return normalizeInvoicePreference(saved.data.preference, email);
+  }
   return buildDefaultInvoicePreference(email);
 }
 
@@ -81,7 +114,8 @@ export async function POST(req: Request) {
     if (!envFlag("ECPAY_RECURRING_ENABLED")) {
       return NextResponse.json(
         {
-          error: "自動扣款尚未啟用。請確認綠界商店已開通信用卡定期定額 / 自動扣款服務後，才設定 ECPAY_RECURRING_ENABLED=true。",
+          error:
+            "自動扣款尚未啟用。請先確認綠界定期定額服務、訂閱取消、退款、發票與 entitlement E2E。",
           code: "RECURRING_DISABLED",
           build_tag: RECURRING_CHECKOUT_BUILD_TAG,
         },
@@ -90,32 +124,59 @@ export async function POST(req: Request) {
     }
 
     const userJwt = extractBearer(req);
-    if (!userJwt) return NextResponse.json({ error: "缺少登入憑證。" }, { status: 401 });
+    if (!userJwt) {
+      return NextResponse.json({ error: "缺少登入憑證。" }, { status: 401 });
+    }
 
     const user = await getSupabaseUser(userJwt);
     const userId = user?.id as string | undefined;
-    if (!userId) return NextResponse.json({ error: "登入狀態已過期。" }, { status: 401 });
+    if (!userId) {
+      return NextResponse.json({ error: "登入狀態已過期。" }, { status: 401 });
+    }
 
-    const body = (await req.json().catch(() => ({}))) as { planCode?: string; invoicePreference?: unknown };
-    const planCode = String(body.planCode || "companion_basic_299").trim();
+    const body = (await req.json().catch(() => ({}))) as {
+      planCode?: string;
+      invoicePreference?: unknown;
+    };
+    const planCode = String(body.planCode || "").trim();
     const plan = getProductPlan(planCode) as RecurringProductPlan | undefined;
 
     if (!plan || plan.billingMode !== "subscription" || plan.amountTwd === null) {
-      return NextResponse.json({ error: "這不是可建立自動扣款的訂閱方案。" }, { status: 400 });
-    }
-
-    if (!canUseRecurringPlan(plan)) {
       return NextResponse.json(
         {
-          error: "此訂閱方案目前仍是 next-spec，尚未開放自動扣款。",
-          code: "RECURRING_PLAN_NOT_OPEN",
+          error: "這不是可建立自動扣款的訂閱方案。",
+          code: "INVALID_RECURRING_PLAN",
           build_tag: RECURRING_CHECKOUT_BUILD_TAG,
         },
         { status: 400 },
       );
     }
 
-    const invoicePreference = await resolveInvoicePreference(body.invoicePreference, userId, user.email || "");
+    if (!canUseRecurringPlan(plan)) {
+      return NextResponse.json(
+        {
+          error:
+            "此方案仍是 Pricing v2 最終規格，尚未開放自動扣款。不能只靠舊的 ALLOW_NEXT_SPEC 開關繞過商業 gate。",
+          code: "RECURRING_PLAN_NOT_OPEN",
+          diagnostic: {
+            pricing_v2_commercial_enabled: envFlag(
+              "PRICING_V2_COMMERCIAL_ENABLED",
+            ),
+            plan_purchase_status: plan.purchaseStatus || null,
+            plan_purchase_enabled: plan.purchaseEnabled === true,
+            plan_in_allowlist: recurringAllowlist().includes(plan.code),
+          },
+          build_tag: RECURRING_CHECKOUT_BUILD_TAG,
+        },
+        { status: 400 },
+      );
+    }
+
+    const invoicePreference = await resolveInvoicePreference(
+      body.invoicePreference,
+      userId,
+      user.email || "",
+    );
     const config = getEcpayConfig();
     const paymentConfig = getRecurringCheckoutPaymentConfig();
     const origin = getOrigin(req);
@@ -136,19 +197,26 @@ export async function POST(req: Request) {
         frequency: 1,
         exec_times: 999,
         auto_renew: true,
-        raw_payload: { plan, source: "recurring_checkout_v120", invoice_preference: invoicePreference, build_tag: RECURRING_CHECKOUT_BUILD_TAG },
+        raw_payload: {
+          plan,
+          source: "recurring_checkout_v128",
+          invoice_preference: invoicePreference,
+          build_tag: RECURRING_CHECKOUT_BUILD_TAG,
+        },
         invoice_preference: invoicePreference,
       })
       .select("*")
       .single();
 
     if (profile.error || !profile.data) {
-      return NextResponse.json({ error: profile.error?.message || "建立訂閱 profile 失敗。" }, { status: 400 });
+      return NextResponse.json(
+        { error: profile.error?.message || "建立訂閱 profile 失敗。" },
+        { status: 400 },
+      );
     }
 
     const returnUrl = `${origin}/api/payments/ecpay/recurring/notify`;
     const clientBackUrl = `${origin}/account/billing`;
-
     const ecpayFields: Record<string, string> = {
       MerchantID: config.merchantId,
       MerchantTradeNo: merchantTradeNo,
@@ -171,11 +239,14 @@ export async function POST(req: Request) {
       PeriodType: "M",
       Frequency: "1",
       ExecTimes: "999",
-      Remark: "SUBSCRIPTION_PROFILE_V120",
+      Remark: "SUBSCRIPTION_PROFILE_V128",
     };
-
     if (paymentConfig.storeId) ecpayFields.StoreID = paymentConfig.storeId;
-    ecpayFields.CheckMacValue = createCheckMacValue(ecpayFields, config.hashKey, config.hashIV);
+    ecpayFields.CheckMacValue = createCheckMacValue(
+      ecpayFields,
+      config.hashKey,
+      config.hashIV,
+    );
 
     await supabaseAdmin.from("subscription_events").insert({
       subscription_profile_id: profile.data.id,
@@ -183,7 +254,10 @@ export async function POST(req: Request) {
       event_type: "recurring_checkout_created",
       merchant_trade_no: merchantTradeNo,
       provider_payload: {
-        fields_without_checkmac: { ...ecpayFields, CheckMacValue: "[redacted]" },
+        fields_without_checkmac: {
+          ...ecpayFields,
+          CheckMacValue: "[redacted]",
+        },
         invoice_preference: invoicePreference,
         build_tag: RECURRING_CHECKOUT_BUILD_TAG,
       },
@@ -194,9 +268,19 @@ export async function POST(req: Request) {
       method: "POST",
       merchantTradeNo,
       fields: ecpayFields,
-      diagnostic: { build_tag: RECURRING_CHECKOUT_BUILD_TAG, choose_payment: paymentConfig.choosePayment, invoice_preference_kind: invoicePreference.kind },
+      diagnostic: {
+        build_tag: RECURRING_CHECKOUT_BUILD_TAG,
+        choose_payment: paymentConfig.choosePayment,
+        invoice_preference_kind: invoicePreference.kind,
+      },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "建立自動扣款流程失敗。", build_tag: RECURRING_CHECKOUT_BUILD_TAG }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "建立自動扣款流程失敗。",
+        build_tag: RECURRING_CHECKOUT_BUILD_TAG,
+      },
+      { status: 500 },
+    );
   }
 }
