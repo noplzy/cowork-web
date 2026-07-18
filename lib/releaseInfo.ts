@@ -1,12 +1,15 @@
 import {
   ACTIVE_PURCHASABLE_PLAN,
   AI_PRICING_POLICY,
+  PRICING_V2_POLICY,
   PRODUCT_CATALOG_BUILD_TAG,
+  PRODUCT_PLANS,
   ROOM_DURATION_POLICY,
 } from "@/lib/productCatalog";
+import { P0_BUILD_TAGS, P0_IMPLEMENTATION_STATUS } from "@/lib/p0Status";
 
 export const RELEASE_BUILD_TAG =
-  "calmco-p0-0-production-alignment-v127-2026-07-15";
+  "calmco-p0-pricing-v2-v128-2026-07-18";
 
 const SOURCE_REPOSITORY = "noplzy/cowork-web";
 const EXPECTED_PRODUCTION_BRANCH = "main";
@@ -16,7 +19,6 @@ function readEnv(...names: string[]) {
     const value = process.env[name]?.trim();
     if (value) return value;
   }
-
   return null;
 }
 
@@ -28,25 +30,17 @@ export function getPublicReleaseInfo() {
   const gitCommitSha =
     readEnv("VERCEL_GIT_COMMIT_SHA", "GIT_COMMIT_SHA", "SOURCE_VERSION") ??
     "unknown";
-
   const gitBranch =
     readEnv("VERCEL_GIT_COMMIT_REF", "GIT_BRANCH") ?? "unknown";
-
   const environment =
     readEnv("VERCEL_ENV", "NODE_ENV") ?? "development";
-
-  const targetEnvironment =
-    readEnv("VERCEL_TARGET_ENV") ?? environment;
-
+  const targetEnvironment = readEnv("VERCEL_TARGET_ENV") ?? environment;
   const deploymentUrl = httpsUrl(readEnv("VERCEL_URL"));
   const productionUrl =
     httpsUrl(readEnv("VERCEL_PROJECT_PRODUCTION_URL")) ??
     "https://getcalmandco.com";
-
-  const repositoryOwner =
-    readEnv("VERCEL_GIT_REPO_OWNER") ?? "noplzy";
-  const repositorySlug =
-    readEnv("VERCEL_GIT_REPO_SLUG") ?? "cowork-web";
+  const repositoryOwner = readEnv("VERCEL_GIT_REPO_OWNER") ?? "noplzy";
+  const repositorySlug = readEnv("VERCEL_GIT_REPO_SLUG") ?? "cowork-web";
   const deployedRepository = `${repositoryOwner}/${repositorySlug}`;
 
   return {
@@ -78,16 +72,42 @@ export function getPublicReleaseInfo() {
       branch_matches: gitBranch === EXPECTED_PRODUCTION_BRANCH,
       production_environment: environment === "production",
     },
+    p0: {
+      build_tags: P0_BUILD_TAGS,
+      implementation_status: P0_IMPLEMENTATION_STATUS,
+      required_tables: [
+        "room_member_presence_state",
+        "room_extension_confirmations",
+        "room_session_summaries",
+        "room_participant_summaries",
+      ],
+      required_runtime_routes: [
+        "/api/daily/meeting-token",
+        "/api/rooms/presence/event",
+        "/api/rooms/presence/mode",
+        "/api/rooms/presence/brb",
+        "/api/rooms/presence/return",
+        "/api/rooms/[roomId]/presence-state",
+        "/api/internal/rooms/summarize-ended",
+        "/api/account/rooms/history",
+        "/api/admin/rooms/[roomId]/summary",
+      ],
+    },
     product: {
       product_catalog_build_tag: PRODUCT_CATALOG_BUILD_TAG,
       room_policy: ROOM_DURATION_POLICY,
       pricing_policy: {
         active_paid_plan_code: ACTIVE_PURCHASABLE_PLAN.code,
         active_paid_plan_label: ACTIVE_PURCHASABLE_PLAN.priceLabel,
-        pricing_v2_status: "next_spec_not_purchasable",
+        pricing_v2_status: PRICING_V2_POLICY.status,
+        pricing_v2_commercial_launch_enabled:
+          PRICING_V2_POLICY.commercialLaunchEnabled,
+        pricing_v2_plan_codes: PRODUCT_PLANS.filter(
+          (plan) => plan.stage === "pricing_v2_final_spec",
+        ).map((plan) => plan.code),
       },
       ai_policy: AI_PRICING_POLICY,
     },
-    public_pages_checked_by_p0_0: ["/", "/rooms", "/pricing"],
+    public_pages_checked_by_p0: ["/", "/rooms", "/pricing"],
   };
 }

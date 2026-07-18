@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const ROOM_INFRA_BUILD_TAG = "formal-room-lifecycle-2026-05-30";
+export const ROOM_INFRA_BUILD_TAG =
+  "formal-room-lifecycle-p0-v128-2026-07-18";
 
 export type RoomLifecycleStatus = "active" | "ended" | "expired" | "error";
 export type RoomVisibility = "public" | "members" | "friends" | "invited";
@@ -34,11 +35,13 @@ export type DailyRoomListItem = {
   [key: string]: unknown;
 };
 
-export function parseDailyRoomNameFromUrl(roomUrl?: string | null): string | null {
+export function parseDailyRoomNameFromUrl(
+  roomUrl?: string | null,
+): string | null {
   if (!roomUrl) return null;
   try {
-    const u = new URL(roomUrl);
-    const name = u.pathname.replace(/^\/+|\/+$/g, "");
+    const url = new URL(roomUrl);
+    const name = url.pathname.replace(/^\/+|\/+$/g, "");
     return name || null;
   } catch {
     return null;
@@ -46,7 +49,10 @@ export function parseDailyRoomNameFromUrl(roomUrl?: string | null): string | nul
 }
 
 export function isManagedDailyRoomName(roomName?: string | null) {
-  return Boolean(roomName && (roomName.startsWith("cowork_") || roomName.startsWith("buddy_")));
+  return Boolean(
+    roomName &&
+      (roomName.startsWith("cowork_") || roomName.startsWith("buddy_")),
+  );
 }
 
 export function addMinutes(date: Date, minutes: number) {
@@ -58,14 +64,17 @@ export function safeIso(date: Date) {
 }
 
 export function creditCostByDuration(durationMinutes: number): number {
+  if (durationMinutes >= 90) return 4;
   if (durationMinutes >= 75) return 3;
   if (durationMinutes >= 50) return 2;
   return 1;
 }
 
 export function getMonthStartTaipeiISO(now = new Date()): string {
-  const tz = new Date(now.getTime() + 8 * 3600 * 1000);
-  const first = new Date(Date.UTC(tz.getUTCFullYear(), tz.getUTCMonth(), 1));
+  const taipei = new Date(now.getTime() + 8 * 3600 * 1000);
+  const first = new Date(
+    Date.UTC(taipei.getUTCFullYear(), taipei.getUTCMonth(), 1),
+  );
   return first.toISOString().slice(0, 10);
 }
 
@@ -81,10 +90,19 @@ export function getRoomScheduledEndAt(input: {
   if (Number.isNaN(base.getTime())) return null;
 
   const duration = Number(input.durationMinutes || 25);
-  return addMinutes(base, Number.isFinite(duration) ? duration : 25).toISOString();
+  return addMinutes(
+    base,
+    Number.isFinite(duration) ? duration : 25,
+  ).toISOString();
 }
 
-export function isRoomEndedOrExpired(room: Pick<RoomInfraRow, "status" | "ended_at" | "scheduled_end_at" | "created_at" | "duration_minutes">, graceMinutes = 3) {
+export function isRoomEndedOrExpired(
+  room: Pick<
+    RoomInfraRow,
+    "status" | "ended_at" | "scheduled_end_at" | "created_at" | "duration_minutes"
+  >,
+  graceMinutes = 3,
+) {
   if (room.status === "ended" || room.status === "expired") return true;
   if (room.ended_at) return true;
 
@@ -95,10 +113,17 @@ export function isRoomEndedOrExpired(room: Pick<RoomInfraRow, "status" | "ended_
   });
   if (!scheduledEndAt) return false;
 
-  return new Date(scheduledEndAt).getTime() + graceMinutes * 60 * 1000 < Date.now();
+  return (
+    new Date(scheduledEndAt).getTime() + graceMinutes * 60 * 1000 < Date.now()
+  );
 }
 
-export function buildBillingSessionKey(room: Pick<RoomInfraRow, "id" | "created_at" | "scheduled_end_at" | "duration_minutes">) {
+export function buildBillingSessionKey(
+  room: Pick<
+    RoomInfraRow,
+    "id" | "created_at" | "scheduled_end_at" | "duration_minutes"
+  >,
+) {
   const endAt = getRoomScheduledEndAt({
     createdAt: room.created_at,
     scheduledEndAt: room.scheduled_end_at,
@@ -107,7 +132,11 @@ export function buildBillingSessionKey(room: Pick<RoomInfraRow, "id" | "created_
   return `room:${room.id}:end:${endAt || "legacy"}`;
 }
 
-export async function getVipStatus(userId: string): Promise<{ isVip: boolean; vipUntil: string | null; plan: string }> {
+export async function getVipStatus(userId: string): Promise<{
+  isVip: boolean;
+  vipUntil: string | null;
+  plan: string;
+}> {
   const { data, error } = await supabaseAdmin
     .from("user_entitlements")
     .select("plan,vip_until")
@@ -120,7 +149,9 @@ export async function getVipStatus(userId: string): Promise<{ isVip: boolean; vi
 
   const plan = (data?.plan || "free") as string;
   const vipUntil = (data?.vip_until ?? null) as string | null;
-  const isVip = plan === "vip" && (!vipUntil || new Date(vipUntil).getTime() > Date.now());
+  const isVip =
+    plan === "vip" &&
+    (!vipUntil || new Date(vipUntil).getTime() > Date.now());
 
   return { isVip, vipUntil, plan };
 }
@@ -131,68 +162,104 @@ export function maskUserId(userId?: string | null) {
 }
 
 export function getInternalCronSecret() {
-  return process.env.ROOM_CLEANUP_SECRET || process.env.CRON_SECRET || process.env.INTERNAL_API_SECRET || "";
+  return (
+    process.env.ROOM_CLEANUP_SECRET ||
+    process.env.CRON_SECRET ||
+    process.env.INTERNAL_API_SECRET ||
+    ""
+  );
 }
 
 export function isInternalCronRequest(req: Request) {
   const configured = getInternalCronSecret();
   if (!configured) return false;
 
-  const headerSecret = req.headers.get("x-cron-secret") || req.headers.get("x-internal-secret") || "";
-  const auth = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-  const bearer = auth.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || "";
+  const headerSecret =
+    req.headers.get("x-cron-secret") ||
+    req.headers.get("x-internal-secret") ||
+    "";
+  const authorization =
+    req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || "";
 
   return headerSecret === configured || bearer === configured;
 }
 
 export async function tryDeleteDailyRoom(roomName: string) {
   const dailyKey = process.env.DAILY_API_KEY;
-  const dailyApiBase = process.env.DAILY_API_BASE || "https://api.daily.co/v1";
+  const dailyApiBase =
+    process.env.DAILY_API_BASE || "https://api.daily.co/v1";
 
   if (!dailyKey) {
     return { ok: false, skipped: true, reason: "missing_daily_key" };
   }
 
-  const response = await fetch(`${dailyApiBase}/rooms/${encodeURIComponent(roomName)}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${dailyKey}` },
-  });
+  const response = await fetch(
+    `${dailyApiBase}/rooms/${encodeURIComponent(roomName)}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${dailyKey}` },
+    },
+  );
 
   if (response.status === 404) {
-    return { ok: true, skipped: false, deleted: false, reason: "already_missing" };
+    return {
+      ok: true,
+      skipped: false,
+      deleted: false,
+      reason: "already_missing",
+    };
   }
 
   if (!response.ok) {
     const raw = await response.text().catch(() => "");
-    return { ok: false, skipped: false, reason: raw || `daily_delete_${response.status}` };
+    return {
+      ok: false,
+      skipped: false,
+      reason: raw || `daily_delete_${response.status}`,
+    };
   }
 
   return { ok: true, skipped: false, deleted: true };
 }
 
-export async function listManagedDailyRooms(limit = 100): Promise<{ ok: boolean; rooms: DailyRoomListItem[]; error?: string }> {
+export async function listManagedDailyRooms(limit = 100): Promise<{
+  ok: boolean;
+  rooms: DailyRoomListItem[];
+  error?: string;
+}> {
   const dailyKey = process.env.DAILY_API_KEY;
-  const dailyApiBase = process.env.DAILY_API_BASE || "https://api.daily.co/v1";
+  const dailyApiBase =
+    process.env.DAILY_API_BASE || "https://api.daily.co/v1";
 
   if (!dailyKey) {
     return { ok: false, rooms: [], error: "missing_daily_key" };
   }
 
-  const response = await fetch(`${dailyApiBase}/rooms?limit=${Math.max(1, Math.min(limit, 100))}`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${dailyKey}` },
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `${dailyApiBase}/rooms?limit=${Math.max(1, Math.min(limit, 100))}`,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${dailyKey}` },
+      cache: "no-store",
+    },
+  );
 
   if (!response.ok) {
     const raw = await response.text().catch(() => "");
-    return { ok: false, rooms: [], error: raw || `daily_list_${response.status}` };
+    return {
+      ok: false,
+      rooms: [],
+      error: raw || `daily_list_${response.status}`,
+    };
   }
 
   const payload = await response.json().catch(() => ({}));
   const rooms = Array.isArray(payload?.data) ? payload.data : [];
   return {
     ok: true,
-    rooms: rooms.filter((item: DailyRoomListItem) => isManagedDailyRoomName(item?.name)),
+    rooms: rooms.filter((item: DailyRoomListItem) =>
+      isManagedDailyRoomName(item?.name),
+    ),
   };
 }

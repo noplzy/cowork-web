@@ -10,19 +10,15 @@ const releaseSha = safeHeaderValue(
   process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA,
   "unknown",
 );
-
 const releaseBranch = safeHeaderValue(
   process.env.VERCEL_GIT_COMMIT_REF || process.env.GIT_BRANCH,
   "unknown",
 );
-
 const releaseEnvironment = safeHeaderValue(
   process.env.VERCEL_ENV || process.env.NODE_ENV,
   "development",
 );
-
-const releaseTag =
-  "calmco-p0-0-production-alignment-v127-2026-07-15";
+const releaseTag = "calmco-p0-pricing-v2-v128-2026-07-18";
 
 const releaseHeaders = [
   { key: "X-CalmCo-Release", value: releaseSha },
@@ -31,7 +27,7 @@ const releaseHeaders = [
   { key: "X-CalmCo-Environment", value: releaseEnvironment },
 ];
 
-const publicNoStoreHeaders = [
+const noStoreHeaders = [
   ...releaseHeaders,
   {
     key: "Cache-Control",
@@ -49,16 +45,17 @@ const noStorePaths = [
   "/privacy",
   "/terms",
   "/service-delivery",
+  "/account/rooms/:path*",
   "/api/release",
   "/api/product/catalog",
+  "/api/rooms/:path*",
+  "/api/account/rooms/:path*",
+  "/api/internal/rooms/summarize-ended",
 ];
 
 const nextConfig: NextConfig = {
   async headers() {
-    return noStorePaths.map((source) => ({
-      source,
-      headers: publicNoStoreHeaders,
-    }));
+    return noStorePaths.map((source) => ({ source, headers: noStoreHeaders }));
   },
 };
 

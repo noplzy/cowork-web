@@ -43,9 +43,7 @@ function TrackVideo({
 
   useEffect(() => {
     const element = ref.current;
-    if (!element) {
-      return;
-    }
+    if (!element) return;
 
     if (!track) {
       element.srcObject = null;
@@ -78,9 +76,7 @@ function TrackAudio({ track }: { track: MediaStreamTrack | null }) {
 
   useEffect(() => {
     const element = ref.current;
-    if (!element) {
-      return;
-    }
+    if (!element) return;
 
     if (!track) {
       element.srcObject = null;
@@ -115,16 +111,20 @@ export function RoomCallStage({
   onToggleScreenShare,
   onLeave,
 }: RoomCallStageProps) {
-  const visibleTiles = useMemo(() => {
-    if (participants.length === 0) {
-      return [];
-    }
-
-    return participants;
-  }, [participants]);
+  const visibleTiles = useMemo(
+    () => (participants.length === 0 ? [] : participants),
+    [participants],
+  );
 
   return (
-    <section className={`${styles.stage} i20-call-stage`}>
+    <section
+      className={`${styles.stage} i20-call-stage`}
+      data-room-call-stage="true"
+      data-daily-ready={ready ? "true" : "false"}
+      data-local-audio={localAudioEnabled ? "on" : "off"}
+      data-local-video={localVideoEnabled ? "on" : "off"}
+      data-screen-sharing={screenSharing ? "on" : "off"}
+    >
       <div className="i20-call-bg" />
 
       <header className={styles.header}>
@@ -149,6 +149,9 @@ export function RoomCallStage({
               key={participant.id}
               className={styles.tile}
               data-local={participant.isLocal ? "true" : "false"}
+              data-participant-video={participant.videoOn ? "on" : "off"}
+              data-participant-audio={participant.audioOn ? "on" : "off"}
+              data-participant-screen={participant.screenTrack ? "on" : "off"}
             >
               {participant.screenTrack ? (
                 <TrackVideo
@@ -192,6 +195,8 @@ export function RoomCallStage({
       <nav className={styles.controls} aria-label="房內控制">
         <button
           type="button"
+          data-room-control="audio"
+          data-control-state={localAudioEnabled ? "on" : "off"}
           className={localAudioEnabled ? styles.active : ""}
           onClick={() => void onToggleAudio()}
           disabled={!ready}
@@ -200,6 +205,8 @@ export function RoomCallStage({
         </button>
         <button
           type="button"
+          data-room-control="video"
+          data-control-state={localVideoEnabled ? "on" : "off"}
           className={localVideoEnabled ? styles.active : ""}
           onClick={() => void onToggleVideo()}
           disabled={!ready}
@@ -208,6 +215,8 @@ export function RoomCallStage({
         </button>
         <button
           type="button"
+          data-room-control="screen"
+          data-control-state={screenSharing ? "on" : "off"}
           className={screenSharing ? styles.active : ""}
           onClick={() => void onToggleScreenShare()}
           disabled={!ready}
@@ -216,6 +225,7 @@ export function RoomCallStage({
         </button>
         <button
           type="button"
+          data-room-control="leave"
           className={styles.leave}
           onClick={() => void onLeave()}
         >
