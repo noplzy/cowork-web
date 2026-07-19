@@ -7,9 +7,10 @@ import {
   ROOM_DURATION_POLICY,
 } from "@/lib/productCatalog";
 import { P0_BUILD_TAGS, P0_IMPLEMENTATION_STATUS } from "@/lib/p0Status";
+import { P1_BUILD_TAGS, P1_IMPLEMENTATION_STATUS } from "@/lib/p1Status";
 
 export const RELEASE_BUILD_TAG =
-  "calmco-p0-pricing-v2-v128-2026-07-18";
+  "calmco-p1-trust-operations-v129-2026-07-18";
 
 const SOURCE_REPOSITORY = "noplzy/cowork-web";
 const EXPECTED_PRODUCTION_BRANCH = "main";
@@ -91,6 +92,30 @@ export function getPublicReleaseInfo() {
         "/api/internal/rooms/summarize-ended",
         "/api/account/rooms/history",
         "/api/admin/rooms/[roomId]/summary",
+      ],
+    },
+    p1: {
+      build_tags: P1_BUILD_TAGS,
+      implementation_status: P1_IMPLEMENTATION_STATUS,
+      required_tables: ["appeal_messages", "appeal_events"],
+      required_rpcs: [
+        "cowork_create_appeal",
+        "cowork_append_appeal_message",
+        "cowork_close_appeal",
+        "cowork_transition_appeal",
+      ],
+      required_runtime_routes: [
+        "/api/account/moderation/actions",
+        "/api/appeals",
+        "/api/appeals/[appealId]",
+        "/api/appeals/[appealId]/messages",
+        "/api/admin/appeals",
+        "/api/admin/appeals/[appealId]",
+      ],
+      required_admin_permissions: [
+        "support.manage",
+        "safety.manage",
+        "appeals.manage",
       ],
     },
     product: {
