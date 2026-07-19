@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { ADMIN_OPS_BUILD_TAG, adminErrorResponse, getAdminUserFromRequest, writeAdminAudit } from "@/lib/server/adminAuth";
+import {
+  ADMIN_OPS_BUILD_TAG,
+  adminErrorResponse,
+  getAdminUserFromRequest,
+  writeAdminAudit,
+} from "@/lib/server/adminAuth";
 import { cleanText } from "@/lib/server/safety";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   try {
-    const admin = await getAdminUserFromRequest(req);
+    const admin = await getAdminUserFromRequest(req, { permission: "support.manage" });
     const url = new URL(req.url);
     const status = cleanText(url.searchParams.get("status") || "", 40);
     const category = cleanText(url.searchParams.get("category") || "", 40);
@@ -24,7 +29,7 @@ export async function GET(req: Request) {
       adminUserId: admin.userId,
       actionType: "admin_support_tickets_listed",
       targetType: "support_tickets",
-      metadata: { status, category, limit },
+      metadata: { status, category, limit, required_permission: "support.manage" },
     });
 
     return NextResponse.json({ tickets: data ?? [], build_tag: ADMIN_OPS_BUILD_TAG });

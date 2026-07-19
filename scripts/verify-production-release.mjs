@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const DEFAULT_PRODUCTION_URL = "https://getcalmandco.com";
-const EXPECTED_RELEASE_TAG = "calmco-p0-pricing-v2-v128-2026-07-18";
+const EXPECTED_RELEASE_TAG = "calmco-p1-trust-operations-v129-2026-07-18";
 const EXPECTED_PRICING_CODES = [
   "free",
   "rooms_unlimited_299",
@@ -39,7 +39,7 @@ function sleep(ms) {
 
 function withCacheBust(pathname) {
   const url = new URL(pathname, productionUrl);
-  url.searchParams.set("__p0v128", `${Date.now()}-${Math.random()}`);
+  url.searchParams.set("__p1v129", `${Date.now()}-${Math.random()}`);
   return url;
 }
 
@@ -49,7 +49,7 @@ async function fetchResponse(pathname) {
     headers: {
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
-      "User-Agent": "CalmCo-P0-v128-Release-Check/1.0",
+      "User-Agent": "CalmCo-P1-v129-Release-Check/1.0",
     },
   });
   const text = await response.text();
@@ -101,7 +101,7 @@ async function waitForExpectedRelease() {
       throw lastError || new Error("Production release check timed out.");
     }
     console.log(
-      `[P0-v128] Waiting for main/${expectedGitSha || "a real SHA"}...`,
+      `[P1-v129] Waiting for main/${expectedGitSha || "a real SHA"}...`,
     );
     await sleep(releasePollSeconds * 1000);
   }
@@ -128,6 +128,7 @@ async function main() {
   const product = payload?.product || {};
   const p0 = payload?.p0 || {};
   const pricingPolicy = product?.pricing_policy || {};
+  const p1 = payload?.p1 || {};
   const aiPolicy = product?.ai_policy || {};
   const roomPolicy = product?.room_policy || {};
 
@@ -212,6 +213,28 @@ async function main() {
       aiPolicy?.includedInPricing === false,
     "long_term_freeze / excluded",
     `${aiPolicy?.status} / ${aiPolicy?.includedInPricing}`,
+  );
+
+  record(
+    "P1 permission build tag",
+    p1?.build_tags?.permissions ===
+      "admin-rbac-permission-closure-v129-2026-07-18",
+    "admin-rbac-permission-closure-v129-2026-07-18",
+    p1?.build_tags?.permissions,
+  );
+  record(
+    "P1 appeals build tag",
+    p1?.build_tags?.appeals === "appeals-lifecycle-v129-2026-07-18",
+    "appeals-lifecycle-v129-2026-07-18",
+    p1?.build_tags?.appeals,
+  );
+  record(
+    "P1 required permissions",
+    ["support.manage", "safety.manage", "appeals.manage"].every((permission) =>
+      (p1?.required_admin_permissions || []).includes(permission),
+    ),
+    "support.manage,safety.manage,appeals.manage",
+    (p1?.required_admin_permissions || []).join(","),
   );
 
   record(
@@ -309,17 +332,17 @@ async function main() {
   console.table(results);
   const failures = results.filter((result) => result.status === "FAIL");
   if (failures.length > 0) {
-    console.error(`\n[P0-v128] ${failures.length} check(s) failed.`);
+    console.error(`\n[P1-v129] ${failures.length} check(s) failed.`);
     process.exitCode = 1;
     return;
   }
   console.log(
-    `\n[P0-v128] Production is aligned at ${deployment.git_commit_sha}.`,
+    `\n[P1-v129] Production is aligned at ${deployment.git_commit_sha}.`,
   );
 }
 
 main().catch((error) => {
-  console.error("[P0-v128] Production verification failed.");
+  console.error("[P1-v129] Production verification failed.");
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

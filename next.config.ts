@@ -18,7 +18,7 @@ const releaseEnvironment = safeHeaderValue(
   process.env.VERCEL_ENV || process.env.NODE_ENV,
   "development",
 );
-const releaseTag = "calmco-p0-pricing-v2-v128-2026-07-18";
+const releaseTag = "calmco-p1-trust-operations-v129-2026-07-18";
 
 const releaseHeaders = [
   { key: "X-CalmCo-Release", value: releaseSha },
@@ -46,10 +46,15 @@ const noStorePaths = [
   "/terms",
   "/service-delivery",
   "/account/rooms/:path*",
+  "/account/appeals/:path*",
+  "/admin/appeals/:path*",
   "/api/release",
   "/api/product/catalog",
   "/api/rooms/:path*",
   "/api/account/rooms/:path*",
+  "/api/account/moderation/:path*",
+  "/api/appeals/:path*",
+  "/api/admin/appeals/:path*",
   "/api/internal/rooms/summarize-ended",
 ];
 
