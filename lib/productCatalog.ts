@@ -1,5 +1,11 @@
 export const PRODUCT_CATALOG_BUILD_TAG =
-  "product-catalog-pricing-v128-final-no-ai-p0-2026-07-18";
+  "product-catalog-rooms-299-pilot-v130-2026-07-20";
+
+const ROOMS_299_PUBLIC_PILOT_ENABLED = ["1", "true", "yes", "enabled"].includes(
+  String(process.env.NEXT_PUBLIC_PRICING_V2_ROOMS_299_ENABLED || "")
+    .trim()
+    .toLowerCase(),
+);
 
 export type ProductStage =
   | "production_pilot"
@@ -118,10 +124,16 @@ export const AI_PRICING_POLICY = {
 } as const;
 
 export const PRICING_V2_POLICY = {
-  status: "final_spec_not_purchasable",
-  commercialLaunchEnabled: false,
+  status: ROOMS_299_PUBLIC_PILOT_ENABLED
+    ? "rooms_299_controlled_pilot"
+    : "final_spec_not_purchasable",
+  commercialLaunchEnabled: ROOMS_299_PUBLIC_PILOT_ENABLED,
+  rooms299ControlledPilotEnabled: ROOMS_299_PUBLIC_PILOT_ENABLED,
   sourceDocument: "CALMCO_PRICING_V2_FINAL_HANDOFF_2026-07-18",
   productionPaidPlanCode: "vip_month" as const,
+  productionPaidPlanCodes: ROOMS_299_PUBLIC_PILOT_ENABLED
+    ? (["vip_month", "rooms_unlimited_299"] as const)
+    : (["vip_month"] as const),
   finalPlanCodes: [
     "rooms_unlimited_299",
     "buddies_pro_399",
@@ -129,7 +141,7 @@ export const PRICING_V2_POLICY = {
     "host_999",
   ] as const,
   launchRule:
-    "Pricing v2 必須等 P0 Presence／Summary、訂閱、entitlement、Buddies settlement、發票與退款 E2E 對齊後才可把 purchaseStatus 改為 active。",
+    "P2 僅允許 Rooms 299 受控試營運；Buddies 399、全站 599、主理人 999 必須等待 P3 payment／payout／settlement。",
 } as const;
 
 export const ROOM_DURATION_POLICY: RoomDurationPolicy = {
@@ -232,7 +244,9 @@ export const VALUE_BASED_PRICING_PRINCIPLES = [
   "Rooms 方案的『無限』只包含會員自己的總使用時間、安靜在場與純音訊；鏡頭、柔焦及螢幕分享使用獨立視覺額度。",
   "1 點同行延長點，只替 1 位沒有 Rooms 權益的使用者延長 25 分鐘；付費會員自己的延長不扣點。",
   "收藏、再次預約、標準候補、預約保障、真實評價、檢舉與退款入口是平台基礎功能，不拿來製造付費焦慮。",
-  "所有新方案目前都是 Pricing v2 最終規格，尚未開放付款；production 仍只允許 NT$199／30 天一次性 VIP 試營運。",
+  ROOMS_299_PUBLIC_PILOT_ENABLED
+    ? "目前可付款商品為 NT$199 一次性 VIP 與受控 Rooms 299 訂閱；Buddies 399／全站 599／主理人 999 仍鎖住。"
+    : "所有新方案目前都是 Pricing v2 最終規格，尚未開放付款；production 仍只允許 NT$199／30 天一次性 VIP 試營運。",
   AI_PRICING_POLICY.publicMessage,
 ] as const;
 
@@ -360,7 +374,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
   {
     code: "rooms_unlimited_299",
     stage: "pricing_v2_final_spec",
-    purchaseStatus: "planned",
+    purchaseStatus: ROOMS_299_PUBLIC_PILOT_ENABLED ? "active" : "planned",
     billingMode: "subscription",
     title: "Rooms 無限同行",
     shortTitle: "Rooms 299",
@@ -368,8 +382,10 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     amountTwd: 299,
     entitlementDays: 30,
     autoRenew: true,
-    checkoutPlanCode: null,
-    purchaseEnabled: false,
+    checkoutPlanCode: ROOMS_299_PUBLIC_PILOT_ENABLED
+      ? "rooms_unlimited_299"
+      : null,
+    purchaseEnabled: ROOMS_299_PUBLIC_PILOT_ENABLED,
     description: "會員自己的 Rooms 總時間、安靜在場與純音訊無限。",
     benefits: [
       "個人 Rooms 總時間無限",
@@ -388,8 +404,12 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     valueMetric: "個人 Rooms 使用時間、視覺分鐘、成功完成場次。",
     upgradeTrigger: "同時需要 Buddies 專業，或需要建立活動房與房主經營工具。",
     antiCannibalizationFence: "不能建立 90 分鐘活動房，不含 Buddies 專業與全房無限贊助。",
-    disabledReason: "需等 P0 Presence／Summary、視覺 usage ledger、訂閱與 entitlement E2E 完成。",
-    userFriendlyNotice: "Pricing v2 最終規格，尚未開放付款。",
+    disabledReason: ROOMS_299_PUBLIC_PILOT_ENABLED
+      ? undefined
+      : "需完成 P2 migration、wallet、recurring callback 與 staging E2E，並同時開啟 public/server feature gate。",
+    userFriendlyNotice: ROOMS_299_PUBLIC_PILOT_ENABLED
+      ? "Rooms 299 受控試營運已開放；付款前請確認自動續扣、取消與額度規則。"
+      : "Pricing v2 最終規格，尚未開放付款。",
     allowedGeneralDurations: [25, 50, 75],
     allowedActivityDurations: [90],
     canCreateGeneralRooms: true,
@@ -637,6 +657,14 @@ export const PRODUCT_ADD_ONS: ProductAddOn[] = [
   },
 ];
 
+export const ACTIVE_PURCHASABLE_PLANS = PRODUCT_PLANS.filter(
+  (plan) =>
+    plan.purchaseStatus === "active" &&
+    plan.purchaseEnabled &&
+    Boolean(plan.checkoutPlanCode) &&
+    plan.amountTwd !== null,
+);
+
 export const ACTIVE_PURCHASABLE_PLAN = PRODUCT_PLANS.find(
   (plan) => plan.code === "vip_month",
 )!;
@@ -646,7 +674,7 @@ export function getProductPlan(code: string | null | undefined) {
 }
 
 export function getPurchasablePlan(code: string | null | undefined) {
-  const plan = getProductPlan(code) ?? ACTIVE_PURCHASABLE_PLAN;
+  const plan = getProductPlan(code);
 
   if (
     !plan ||
@@ -705,8 +733,9 @@ export function publicProductCatalogPayload() {
     production_fact: {
       active_paid_plan_code: ACTIVE_PURCHASABLE_PLAN.code,
       active_paid_plan_label: ACTIVE_PURCHASABLE_PLAN.priceLabel,
-      warning:
-        "目前 production 只開放 NT$199／30 天一次性 VIP；NT$299／399／599／999 與延長點商品是 Pricing v2 最終規格，尚未開放付款。",
+      warning: ROOMS_299_PUBLIC_PILOT_ENABLED
+        ? "目前開放 NT$199 一次性 VIP 與 Rooms 299 受控訂閱；399／599／999 與延長點加購仍未開放。"
+        : "目前 production 只開放 NT$199／30 天一次性 VIP；NT$299／399／599／999 與延長點商品是 Pricing v2 最終規格，尚未開放付款。",
     },
     pricing_v2_policy: PRICING_V2_POLICY,
     ai_policy: AI_PRICING_POLICY,
@@ -717,4 +746,8 @@ export function publicProductCatalogPayload() {
     plans: PRODUCT_PLANS,
     add_ons: PRODUCT_ADD_ONS,
   };
+}
+
+export function isRooms299PublicPilotEnabled() {
+  return ROOMS_299_PUBLIC_PILOT_ENABLED;
 }

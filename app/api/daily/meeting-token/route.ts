@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROOM_TOKEN_BUILD_TAG =
-  "daily-meeting-token-p0-safe-media-v128-2026-07-18";
+  "daily-meeting-token-commercial-entitlement-v130-2026-07-20";
 const FREE_MONTHLY_CREDITS = 4;
 const ACCESS_SESSION_PENDING_RETRY_MS = 90_000;
 
@@ -32,6 +32,7 @@ type AccessSessionInput = {
   durationMinutes: number;
   costCredits: number;
   entitlementSource: string;
+  commercialPlanCode: string | null;
   allowedByPairVipCarry: boolean;
 };
 
@@ -86,6 +87,7 @@ async function getRoomAccessSession(input: AccessSessionInput) {
       cost_credits: input.costCredits,
       charge_status: "pending",
       entitlement_source: input.entitlementSource,
+      commercial_plan_code: input.commercialPlanCode,
       allowed_by_pair_vip_carry: input.allowedByPairVipCarry,
       status: "active",
       provider_payload: {},
@@ -263,7 +265,7 @@ export async function POST(req: Request) {
     }
 
     const entitlementSource = selfIsVip
-      ? "vip"
+      ? selfEntitlement.plan
       : allowedByPairVipCarry
         ? "pair_vip_carry"
         : "free_credits";
@@ -287,6 +289,10 @@ export async function POST(req: Request) {
       durationMinutes,
       costCredits,
       entitlementSource,
+      commercialPlanCode:
+        selfEntitlement.plan === "rooms_unlimited_299"
+          ? selfEntitlement.plan
+          : null,
       allowedByPairVipCarry,
     });
 
@@ -386,8 +392,13 @@ export async function POST(req: Request) {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const durationSeconds = Math.max(15 * 60, durationMinutes * 60 + 90);
-    const expiresAt = now + durationSeconds;
+    const scheduledEndSeconds = room.scheduled_end_at
+      ? Math.floor(new Date(room.scheduled_end_at).getTime() / 1000)
+      : now + durationMinutes * 60;
+    // Token stays short-lived and follows the authoritative room end. After a
+    // P2 extension, a controlled reload obtains a new token without recharging
+    // because buildBillingSessionKey is stable across scheduled_end_at changes.
+    const expiresAt = Math.max(now + 15 * 60, scheduledEndSeconds + 90);
     const userName =
       (email && email.split("@")[0]) || `u_${userId.slice(0, 8)}`;
 
@@ -478,6 +489,10 @@ export async function POST(req: Request) {
       is_vip: selfIsVip,
       allowed_by_pair_vip_carry: allowedByPairVipCarry,
       plan: selfEntitlement.plan,
+      commercial_plan_code:
+        selfEntitlement.plan === "rooms_unlimited_299"
+          ? selfEntitlement.plan
+          : null,
       vip_until: selfEntitlement.vipUntil,
       access_session_id: accessSession.id,
       charge_status: accessSession.charge_status,

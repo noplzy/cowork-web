@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { insertReliabilityEvent } from "@/lib/server/safety";
 import { P0_BUILD_TAGS } from "@/lib/p0Status";
+import { getCommercialEntitlementSnapshot } from "@/lib/server/commercialEntitlements";
 
 export const ROOM_PRESENCE_BUILD_TAG = P0_BUILD_TAGS.presence;
 
@@ -182,18 +183,6 @@ function upgradeBillingMediaClass(
     : normalizedPrevious;
 }
 
-function isRoomsEntitlementPlan(plan: string, vipUntil?: string | null) {
-  const active = !vipUntil || new Date(vipUntil).getTime() > Date.now();
-  if (!active) return false;
-  return [
-    "vip",
-    "vip_month",
-    "rooms_unlimited_299",
-    "whole_site_599",
-    "host_999",
-  ].includes(plan);
-}
-
 async function roomMembership(roomId: string, userId: string) {
   const roomResult = await supabaseAdmin
     .from("rooms")
@@ -294,15 +283,8 @@ async function writeExtensionConfirmation(input: {
   accessSessionId: string | null;
   decision: "continue" | "leave";
 }) {
-  const entitlement = await supabaseAdmin
-    .from("user_entitlements")
-    .select("plan,vip_until")
-    .eq("user_id", input.userId)
-    .maybeSingle();
-
-  const plan = String(entitlement.data?.plan || "free");
-  const vipUntil = (entitlement.data?.vip_until ?? null) as string | null;
-  const roomsEntitled = isRoomsEntitlementPlan(plan, vipUntil);
+  const entitlement = await getCommercialEntitlementSnapshot(input.userId);
+  const roomsEntitled = entitlement.roomsEntitled;
   const scheduledEnd =
     input.room.scheduled_end_at ||
     new Date(
@@ -578,6 +560,7 @@ export async function recordRoomPresence(input: RecordPresenceInput) {
     access_session_id: accessSession?.id ?? null,
     delta_seconds_applied: deltaSeconds,
     billing_media_class: billingMediaClass,
+    interval_media_class: intervalMediaClass,
     build_tag: ROOM_PRESENCE_BUILD_TAG,
   };
 }
@@ -614,7 +597,7 @@ export async function getRoomPresenceState(roomId: string, userId: string) {
     },
     states: statesResult.data ?? [],
     extension_confirmations: confirmationsResult.data ?? [],
-    commercial_extension_finalization: "blocked_until_entitlement_wallet_and_token_refresh_are_complete",
+    commercial_extension_finalization: "server_gated_by_p2_wallet_and_one_extension_pilot",
     build_tag: ROOM_PRESENCE_BUILD_TAG,
   };
 }

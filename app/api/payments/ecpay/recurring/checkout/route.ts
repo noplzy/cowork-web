@@ -12,12 +12,12 @@ import {
   normalizeInvoicePreference,
 } from "@/lib/invoicePreferences";
 import { getProductPlan } from "@/lib/productCatalog";
+import { isRooms299ServerPilotEnabled, P2_BUILD_TAGS } from "@/lib/p2Status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const RECURRING_CHECKOUT_BUILD_TAG =
-  "ecpay-recurring-checkout-v128-pricing-v2-guard-2026-07-18";
+const RECURRING_CHECKOUT_BUILD_TAG = P2_BUILD_TAGS.recurringCheckout;
 
 type RecurringProductPlan = {
   code: string;
@@ -80,10 +80,11 @@ function recurringAllowlist() {
 function canUseRecurringPlan(plan: RecurringProductPlan) {
   return (
     envFlag("ECPAY_RECURRING_ENABLED") &&
-    envFlag("PRICING_V2_COMMERCIAL_ENABLED") &&
+    isRooms299ServerPilotEnabled() &&
+    plan.code === "rooms_unlimited_299" &&
     plan.purchaseStatus === "active" &&
     plan.purchaseEnabled === true &&
-    Boolean(plan.checkoutPlanCode) &&
+    plan.checkoutPlanCode === "rooms_unlimited_299" &&
     recurringAllowlist().includes(plan.code)
   );
 }
@@ -162,6 +163,7 @@ export async function POST(req: Request) {
             pricing_v2_commercial_enabled: envFlag(
               "PRICING_V2_COMMERCIAL_ENABLED",
             ),
+            rooms_299_server_enabled: isRooms299ServerPilotEnabled(),
             plan_purchase_status: plan.purchaseStatus || null,
             plan_purchase_enabled: plan.purchaseEnabled === true,
             plan_in_allowlist: recurringAllowlist().includes(plan.code),
@@ -170,6 +172,44 @@ export async function POST(req: Request) {
         },
         { status: 400 },
       );
+    }
+
+    const existingProfile = await supabaseAdmin
+      .from("subscription_profiles")
+      .select("id,status,current_period_end,cancel_requested_at,created_at")
+      .eq("user_id", userId)
+      .eq("plan_code", plan.code)
+      .in("status", ["pending", "active", "past_due", "cancel_pending"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingProfile.error) throw existingProfile.error;
+    if (existingProfile.data) {
+      const pendingExpired =
+        existingProfile.data.status === "pending" &&
+        new Date(existingProfile.data.created_at).getTime() <
+          Date.now() - 30 * 60 * 1000;
+      if (pendingExpired) {
+        await supabaseAdmin
+          .from("subscription_profiles")
+          .update({
+            status: "failed",
+            last_provider_error: "checkout_abandoned_after_30_minutes",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingProfile.data.id)
+          .eq("user_id", userId);
+      } else {
+        return NextResponse.json(
+          {
+            error: "你已經有這個方案的有效或處理中訂閱，請先到訂閱管理查看。",
+            code: "SUBSCRIPTION_ALREADY_EXISTS",
+            subscription: existingProfile.data,
+            build_tag: RECURRING_CHECKOUT_BUILD_TAG,
+          },
+          { status: 409 },
+        );
+      }
     }
 
     const invoicePreference = await resolveInvoicePreference(
@@ -197,9 +237,10 @@ export async function POST(req: Request) {
         frequency: 1,
         exec_times: 999,
         auto_renew: true,
+        commercial_entitlement_status: "pending",
         raw_payload: {
           plan,
-          source: "recurring_checkout_v128",
+          source: "recurring_checkout_v130",
           invoice_preference: invoicePreference,
           build_tag: RECURRING_CHECKOUT_BUILD_TAG,
         },
@@ -239,7 +280,7 @@ export async function POST(req: Request) {
       PeriodType: "M",
       Frequency: "1",
       ExecTimes: "999",
-      Remark: "SUBSCRIPTION_PROFILE_V128",
+      Remark: "ROOMS_299_SUBSCRIPTION_V130",
     };
     if (paymentConfig.storeId) ecpayFields.StoreID = paymentConfig.storeId;
     ecpayFields.CheckMacValue = createCheckMacValue(

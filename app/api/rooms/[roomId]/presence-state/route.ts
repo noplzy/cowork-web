@@ -4,6 +4,8 @@ import {
   ROOM_PRESENCE_BUILD_TAG,
   getRoomPresenceState,
 } from "@/lib/server/roomPresence";
+import { getRoomCommercialState } from "@/lib/server/commercialEntitlements";
+import { P2_BUILD_TAGS } from "@/lib/p2Status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,10 +16,18 @@ export async function GET(req: Request, context: Context) {
   try {
     const { userId } = await getAuthUserFromRequest(req);
     const { roomId } = await context.params;
-    const result = await getRoomPresenceState(roomId, userId);
-    return NextResponse.json(result, {
-      headers: { "Cache-Control": "no-store" },
-    });
+    const [presence, commercial] = await Promise.all([
+      getRoomPresenceState(roomId, userId),
+      getRoomCommercialState(roomId, userId),
+    ]);
+    return NextResponse.json(
+      {
+        ...presence,
+        commercial_state: commercial,
+        p2_build_tag: P2_BUILD_TAGS.entitlement,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected server error";
     const status =

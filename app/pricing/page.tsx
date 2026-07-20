@@ -184,10 +184,15 @@ function PlanCard({ plan }: { plan: ProductPlan }) {
       </div>
       <PricingCheckoutButton
         planCode={plan.code}
+        billingMode={plan.billingMode}
         disabled={!plan.purchaseEnabled}
         disabledReason={plan.disabledReason}
       >
-        {plan.purchaseEnabled ? "購買此方案" : "最終規格・尚未開放"}
+        {plan.purchaseEnabled
+          ? plan.billingMode === "subscription"
+            ? "建立每月訂閱"
+            : "購買此方案"
+          : "最終規格・尚未開放"}
       </PricingCheckoutButton>
     </article>
   );
@@ -195,7 +200,7 @@ function PlanCard({ plan }: { plan: ProductPlan }) {
 
 export default function PricingPage() {
   return (
-    <main className="i20-root" data-image20-dom-page="pricing-v128-final-no-ai-p0">
+    <main className="i20-root" data-image20-dom-page="pricing-v130-rooms-299-commercial-pilot">
       <section className={styles.pricingHero}>
         <div className={styles.pricingHeroBackdrop} aria-hidden="true" />
         <Image20TopNav dark />
@@ -214,12 +219,15 @@ export default function PricingPage() {
             <span className="i20-kicker">Production Fact</span>
             <h2>目前正式可付款：{ACTIVE_PURCHASABLE_PLAN.title}</h2>
             <p>
-              {ACTIVE_PURCHASABLE_PLAN.priceLabel}，一次性付款、不自動續扣。下方 NT$299／399／599／999
-              是已定案的 Pricing v2 規格，但尚未接通正式訂閱與新權益。
+              {ACTIVE_PURCHASABLE_PLAN.priceLabel} 維持一次性付款、不自動續扣。
+              {PRICING_V2_POLICY.rooms299ControlledPilotEnabled
+                ? "Rooms 299 已進入受控訂閱試營運；399／599／999 仍等待 P3 結算閉環。"
+                : "下方 NT$299／399／599／999 是已定案規格，目前仍未開放新訂閱。"}
             </p>
           </div>
           <PricingCheckoutButton
             planCode={ACTIVE_PURCHASABLE_PLAN.code}
+            billingMode={ACTIVE_PURCHASABLE_PLAN.billingMode}
             disabled={!ACTIVE_PURCHASABLE_PLAN.purchaseEnabled}
             disabledReason={ACTIVE_PURCHASABLE_PLAN.disabledReason}
           >
@@ -230,10 +238,10 @@ export default function PricingPage() {
         <div className="pricing-v128-intro">
           <div>
             <span className="i20-kicker">Pricing v2 Final Spec</span>
-            <h2 className="i20-serif">四個方案，四種不同工作</h2>
+            <h2 className="i20-serif">Rooms 299 先試營運，其他方案不提前收款</h2>
           </div>
           <p>
-            NT$599 不是 Rooms 299 的加價版，而是 Rooms 299＋Buddies 399 的組合。主理人販售的是帶人、辦活動與經營能力。
+            P2 只驗證 Rooms 訂閱、視覺額度與延長點。NT$599／999 涉及 Buddies 或主理人能力，必須等 P3 payment、payout、settlement。
           </p>
         </div>
 
@@ -307,7 +315,7 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
-            <p className="pricing-v128-warning">延長點尚未開放購買，必須先完成 server wallet、ledger、退款與 idempotency。</p>
+            <p className="pricing-v128-warning">P2 先發放方案內含延長點；延長點加購仍未開放，需完成購買、退款反轉與效期 E2E。</p>
           </article>
 
           <article className="pricing-v128-info-card">
