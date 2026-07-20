@@ -38,9 +38,9 @@ export type BillingPlan = {
 };
 
 export const BILLING_SCOPE_LABEL =
-  "Pricing v128｜Pricing v2 最終規格與 production 商品隔離";
+  "Pricing v130｜Rooms 299 受控商業試營運";
 export const BILLING_SCOPE_DESCRIPTION =
-  "目前 production 只開放 VIP 月方案（一次性付款／30 天／不自動續扣）。Rooms 299、Buddies 399、全站 599、主理人 999 是 final next-spec，尚未開放付款。";
+  "NT$199 一次性 VIP 維持可購買；Rooms 299 只有在 public/server/ECPAY 三層 gate 同時開啟時可建立訂閱。399／599／999 仍等待 P3。";
 
 function toBillingPlan(code: BillingPlanCode): BillingPlan {
   const plan = getProductPlan(code);
@@ -86,12 +86,16 @@ export const BILLING_PLANS: BillingPlan[] = [
   toBillingPlan("host_999"),
 ];
 
+export const ACTIVE_BILLING_PLANS = BILLING_PLANS.filter(
+  (plan) => plan.purchaseEnabled && plan.availability === "active",
+);
+
 export const ACTIVE_BILLING_PLAN =
   BILLING_PLANS.find((plan) => plan.code === "vip_month") ??
   BILLING_PLANS[0];
 
 export const FUTURE_BILLING_PLANS = BILLING_PLANS.filter(
-  (plan) => plan.code !== ACTIVE_BILLING_PLAN.code,
+  (plan) => !plan.purchaseEnabled,
 );
 
 export function getBillingPlan(

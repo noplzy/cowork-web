@@ -44,6 +44,21 @@ type PresenceStatePayload = {
   }>;
   extension_confirmations?: Array<Record<string, unknown>>;
   commercial_extension_finalization?: string;
+  commercial_state?: {
+    entitlement?: {
+      planCode?: string;
+      roomsEntitled?: boolean;
+      visualWallet?: { remaining?: number; granted?: number; consumed?: number } | null;
+      extensionWallet?: { remaining?: number; granted?: number; consumed?: number } | null;
+    };
+    extensionGrants?: Array<{
+      id?: string;
+      new_scheduled_end_at?: string;
+      points_consumed?: number;
+      status?: string;
+    }>;
+    serverPilotEnabled?: boolean;
+  };
   build_tag?: string;
 };
 
@@ -147,6 +162,7 @@ export function RoomLifecycleBridge() {
   const roomId = getRoomIdFromParams(params?.roomId);
   const accessTokenRef = useRef("");
   const leaveSentRef = useRef(false);
+  const suppressLeaveRef = useRef(false);
   const modeRef = useRef<PresenceMode>("quiet");
   const dailyReadySeenRef = useRef(false);
   const lastRuntimeSnapshotRef = useRef<RuntimeSnapshot | null>(null);
@@ -156,6 +172,7 @@ export function RoomLifecycleBridge() {
   const [status, setStatus] = useState("正在建立 Presence 狀態…");
   const [expanded, setExpanded] = useState(true);
   const [extensionDecision, setExtensionDecision] = useState<"continue" | "leave" | null>(null);
+  const [extensionApplying, setExtensionApplying] = useState(false);
   const [clock, setClock] = useState(Date.now());
 
   const endInMinutes = useMemo(
@@ -164,6 +181,14 @@ export function RoomLifecycleBridge() {
   );
   const showExtensionPrompt =
     endInMinutes !== null && endInMinutes <= 5 && endInMinutes >= -3;
+  const commercialEntitlement = statePayload?.commercial_state?.entitlement;
+  const visualRemaining = commercialEntitlement?.visualWallet?.remaining ?? null;
+  const extensionPointsRemaining =
+    commercialEntitlement?.extensionWallet?.remaining ?? null;
+  const visualQuotaExhausted =
+    commercialEntitlement?.planCode === "rooms_unlimited_299" &&
+    visualRemaining !== null &&
+    visualRemaining <= 0;
 
   useEffect(() => {
     if (!roomId) return;
@@ -315,9 +340,18 @@ export function RoomLifecycleBridge() {
         }),
       });
       if (!disposed) {
-        setStatus(
-          `${payload?.state?.presence_status || "active"}・${payload?.billing_media_class || "unknown"}`,
-        );
+        const commercialUsage = payload?.commercial_usage || {};
+        if (commercialUsage.downgradeRequired === true) {
+          modeRef.current = "quiet";
+          setMode("quiet");
+          window.localStorage.setItem(`${STORAGE_KEY_PREFIX}${roomId}`, "quiet");
+          applyModeToOutgoingTracks("quiet");
+          setStatus("視覺額度已用完，已安全切回安靜在場。音訊／安靜仍可繼續使用。");
+        } else {
+          setStatus(
+            `${payload?.state?.presence_status || "active"}・${payload?.billing_media_class || "unknown"}`,
+          );
+        }
       }
       return payload;
     }
@@ -333,7 +367,7 @@ export function RoomLifecycleBridge() {
     }
 
     async function sendLeave(keepalive = true) {
-      if (leaveSentRef.current) return;
+      if (suppressLeaveRef.current || leaveSentRef.current) return;
       leaveSentRef.current = true;
       await sendPresence("left", { keepalive }).catch(() => undefined);
       await authedFetch("/api/rooms/leave", {
@@ -422,6 +456,10 @@ export function RoomLifecycleBridge() {
   }
 
   async function chooseMode(nextMode: PresenceMode) {
+    if ((nextMode === "mosaic" || nextMode === "camera") && visualQuotaExhausted) {
+      setStatus("本期視覺同行額度已用完；仍可使用安靜或音訊在場。");
+      return;
+    }
     modeRef.current = nextMode;
     setMode(nextMode);
     window.localStorage.setItem(`${STORAGE_KEY_PREFIX}${roomId}`, nextMode);
@@ -455,10 +493,61 @@ export function RoomLifecycleBridge() {
     }).catch((error) => setStatus(error.message));
   }
 
+  async function finalizeExtension() {
+    const scheduledEndAt = statePayload?.room?.scheduled_end_at;
+    if (!scheduledEndAt) {
+      setStatus("尚未取得房間結束時間，請先重新整理 Presence 狀態。");
+      return;
+    }
+    const token = accessTokenRef.current ||
+      (await getClientSessionSnapshot({ force: true }).catch(() => null))?.accessToken ||
+      "";
+    if (!token) {
+      setStatus("登入狀態尚未準備完成。");
+      return;
+    }
+
+    setExtensionApplying(true);
+    setStatus("正在核對所有人的延長決定與同行延長點…");
+    try {
+      const extensionWindowKey = `end:${scheduledEndAt}`;
+      const response = await fetch(
+        `/api/rooms/${encodeURIComponent(roomId)}/commercial-extension`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            extensionWindowKey,
+            idempotencyKey: `room:${roomId}:window:${extensionWindowKey}`,
+          }),
+          cache: "no-store",
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "套用延長失敗。");
+
+      setStatus("已延長 25 分鐘，正在安全更新短效 Daily token…");
+      // Short-term P2 MVP: controlled reload obtains a fresh short-lived token.
+      // suppressLeaveRef prevents the lifecycle cleanup from treating this as
+      // an explicit departure. The stable billing session key prevents recharge.
+      suppressLeaveRef.current = true;
+      window.setTimeout(() => window.location.reload(), 250);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "套用延長失敗。");
+      setExtensionApplying(false);
+      await (window as Window & { __calmcoPresenceActions?: { refresh: () => Promise<unknown> } })
+        .__calmcoPresenceActions?.refresh()
+        .catch(() => undefined);
+    }
+  }
+
   if (!roomId) return null;
 
   return (
-    <aside className="presence-v128-dock" data-presence-build="room-presence-state-closure-v128-2026-07-18">
+    <aside className="presence-v128-dock" data-presence-build="room-presence-commercial-v130-2026-07-20">
       <button
         type="button"
         className="presence-v128-toggle"
@@ -488,6 +577,10 @@ export function RoomLifecycleBridge() {
                 className={mode === item.code ? "active" : ""}
                 key={item.code}
                 onClick={() => void chooseMode(item.code)}
+                disabled={
+                  visualQuotaExhausted &&
+                  (item.code === "mosaic" || item.code === "camera")
+                }
               >
                 <b>{item.label}</b>
                 <span>{item.detail}</span>
@@ -497,6 +590,13 @@ export function RoomLifecycleBridge() {
 
           {mode === "mosaic" ? (
             <p className="presence-v128-note">柔焦模式會先確保鏡頭開啟；模糊強度仍由既有影像設定控制。</p>
+          ) : null}
+
+          {commercialEntitlement?.planCode === "rooms_unlimited_299" ? (
+            <div className="presence-v130-wallet">
+              <span>Rooms 299 本期額度</span>
+              <b>視覺 {visualRemaining === null ? "讀取中" : `${Math.floor(visualRemaining / 60)} 分`}・延長點 {extensionPointsRemaining ?? "—"}</b>
+            </div>
           ) : null}
 
           <div className="presence-v128-brb">
@@ -523,7 +623,7 @@ export function RoomLifecycleBridge() {
           {showExtensionPrompt ? (
             <div className="presence-v128-extension">
               <b>房間約 {endInMinutes && endInMinutes > 0 ? `${endInMinutes} 分鐘後` : "現在"}結束</b>
-              <span>本輪只記錄每位參與者是否想繼續；正式扣點與 token 延長仍維持 server blocked。</span>
+              <span>每位參與者先選擇是否留下；Rooms 會員本人不扣點，非會員由套用延長的人每位支付 1 點。</span>
               <div>
                 <button
                   type="button"
@@ -540,6 +640,16 @@ export function RoomLifecycleBridge() {
                   這次離開
                 </button>
               </div>
+              {extensionDecision === "continue" ? (
+                <button
+                  type="button"
+                  className="presence-v130-apply"
+                  disabled={extensionApplying}
+                  onClick={() => void finalizeExtension()}
+                >
+                  {extensionApplying ? "核對中…" : "核對所有人並套用延長"}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -601,6 +711,9 @@ export function RoomLifecycleBridge() {
         .presence-v128-modes button.active { border-color: #9d7b57; background: rgba(233, 207, 174, .48); }
         .presence-v128-modes span { color: rgba(22,48,57,.58); font-size: 11px; }
         .presence-v128-note { margin: 9px 0 0; color: rgba(22,48,57,.62); font-size: 12px; line-height: 1.55; }
+        .presence-v130-wallet { margin-top: 10px; display: grid; gap: 3px; padding: 10px 12px; border-radius: 14px; background: rgba(22,56,67,.07); }
+        .presence-v130-wallet span { color: rgba(22,48,57,.58); font-size: 11px; }
+        .presence-v130-wallet b { font-size: 13px; }
         .presence-v128-brb { margin-top: 12px; display: flex; align-items: center; gap: 7px; padding-top: 12px; border-top: 1px solid rgba(22,48,57,.1); }
         .presence-v128-brb span { margin-right: auto; color: rgba(22,48,57,.65); font-size: 12px; }
         .presence-v128-brb button, .presence-v128-extension button {
@@ -611,7 +724,9 @@ export function RoomLifecycleBridge() {
           color: #163039;
           cursor: pointer;
         }
-        .presence-v128-brb button.primary, .presence-v128-extension button.active { background: #163843; color: #fff0dc; }
+        .presence-v128-brb button.primary, .presence-v128-extension button.active, .presence-v130-apply { background: #163843; color: #fff0dc; }
+        .presence-v130-apply { justify-self: start; margin-top: 3px; }
+        .presence-v128-modes button:disabled { opacity: .45; cursor: not-allowed; }
         .presence-v128-extension { margin-top: 12px; padding: 13px; display: grid; gap: 7px; border-radius: 16px; background: rgba(149,116,82,.1); }
         .presence-v128-extension span { color: rgba(22,48,57,.62); font-size: 11px; line-height: 1.5; }
         .presence-v128-extension div { display: flex; gap: 8px; }

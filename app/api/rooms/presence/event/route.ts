@@ -5,6 +5,8 @@ import {
   recordRoomPresence,
   type RecordPresenceInput,
 } from "@/lib/server/roomPresence";
+import { consumeVisualSeconds } from "@/lib/server/commercialEntitlements";
+import { P2_BUILD_TAGS } from "@/lib/p2Status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,9 +29,40 @@ export async function POST(req: Request) {
       "userId"
     >;
     const result = await recordRoomPresence({ ...body, userId });
-    return NextResponse.json(result, {
-      headers: { "Cache-Control": "no-store" },
-    });
+
+    let commercialUsage: Record<string, unknown> | null = null;
+    try {
+      commercialUsage = await consumeVisualSeconds({
+        userId,
+        roomId: String(body.roomId || ""),
+        accessSessionId: result.access_session_id || null,
+        quantitySeconds: Number(result.delta_seconds_applied || 0),
+        intervalMediaClass: String(result.interval_media_class || "unknown"),
+        idempotencyKey: `presence:${result.event_id}:visual_seconds`,
+      });
+    } catch (error) {
+      // Presence/liveness must not fail because a commercial projection is
+      // temporarily unavailable. The response exposes a verifiable warning and
+      // the next heartbeat will retry with a different event id.
+      commercialUsage = {
+        applied: false,
+        allowed: true,
+        downgradeRequired: false,
+        warning:
+          error instanceof Error ? error.message : "visual_wallet_unavailable",
+        buildTag: P2_BUILD_TAGS.wallet,
+      };
+    }
+
+    return NextResponse.json(
+      {
+        ...result,
+        commercial_usage: commercialUsage,
+        build_tag: ROOM_PRESENCE_BUILD_TAG,
+        p2_build_tag: P2_BUILD_TAGS.wallet,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     return NextResponse.json(
       {

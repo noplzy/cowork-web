@@ -1,5 +1,6 @@
 import {
   ACTIVE_PURCHASABLE_PLAN,
+  ACTIVE_PURCHASABLE_PLANS,
   AI_PRICING_POLICY,
   PRICING_V2_POLICY,
   PRODUCT_CATALOG_BUILD_TAG,
@@ -8,9 +9,10 @@ import {
 } from "@/lib/productCatalog";
 import { P0_BUILD_TAGS, P0_IMPLEMENTATION_STATUS } from "@/lib/p0Status";
 import { P1_BUILD_TAGS, P1_IMPLEMENTATION_STATUS } from "@/lib/p1Status";
+import { P2_BUILD_TAGS, P2_IMPLEMENTATION_STATUS } from "@/lib/p2Status";
 
 export const RELEASE_BUILD_TAG =
-  "calmco-p1-trust-operations-v129-2026-07-18";
+  "calmco-p2-rooms-299-commercial-v130-2026-07-20";
 
 const SOURCE_REPOSITORY = "noplzy/cowork-web";
 const EXPECTED_PRODUCTION_BRANCH = "main";
@@ -118,12 +120,41 @@ export function getPublicReleaseInfo() {
         "appeals.manage",
       ],
     },
+    p2: {
+      build_tags: P2_BUILD_TAGS,
+      implementation_status: P2_IMPLEMENTATION_STATUS,
+      required_tables: [
+        "user_plan_entitlements",
+        "user_usage_wallets",
+        "user_usage_wallet_events",
+        "subscription_payment_applications",
+        "room_extension_grants",
+      ],
+      required_rpcs: [
+        "cowork_consume_usage_wallet_v2",
+        "cowork_apply_subscription_payment_v2",
+        "cowork_finalize_room_extension_v2",
+      ],
+      required_runtime_routes: [
+        "/api/account/entitlements",
+        "/api/payments/ecpay/recurring/checkout",
+        "/api/payments/ecpay/recurring/notify",
+        "/api/rooms/[roomId]/commercial-extension",
+      ],
+      launch_scope: "rooms_unlimited_299_only",
+      p3_plans_blocked: [
+        "buddies_pro_399",
+        "whole_site_599",
+        "host_999",
+      ],
+    },
     product: {
       product_catalog_build_tag: PRODUCT_CATALOG_BUILD_TAG,
       room_policy: ROOM_DURATION_POLICY,
       pricing_policy: {
         active_paid_plan_code: ACTIVE_PURCHASABLE_PLAN.code,
         active_paid_plan_label: ACTIVE_PURCHASABLE_PLAN.priceLabel,
+        active_paid_plan_codes: ACTIVE_PURCHASABLE_PLANS.map((plan) => plan.code),
         pricing_v2_status: PRICING_V2_POLICY.status,
         pricing_v2_commercial_launch_enabled:
           PRICING_V2_POLICY.commercialLaunchEnabled,

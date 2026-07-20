@@ -1,7 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getCommercialEntitlementSnapshot } from "@/lib/server/commercialEntitlements";
 
 export const ROOM_INFRA_BUILD_TAG =
-  "formal-room-lifecycle-p0-v128-2026-07-18";
+  "formal-room-lifecycle-commercial-v130-2026-07-20";
 
 export type RoomLifecycleStatus = "active" | "ended" | "expired" | "error";
 export type RoomVisibility = "public" | "members" | "friends" | "invited";
@@ -124,12 +125,13 @@ export function buildBillingSessionKey(
     "id" | "created_at" | "scheduled_end_at" | "duration_minutes"
   >,
 ) {
-  const endAt = getRoomScheduledEndAt({
-    createdAt: room.created_at,
-    scheduledEndAt: room.scheduled_end_at,
-    durationMinutes: room.duration_minutes,
-  });
-  return `room:${room.id}:end:${endAt || "legacy"}`;
+  // P2 invariant: extending scheduled_end_at must not create a second billing
+  // access session or charge free credits again. The session key is anchored to
+  // the room start/creation identity, not to the mutable scheduled end.
+  const startedAt = "started_at" in room
+    ? String((room as RoomInfraRow).started_at || room.created_at || "legacy")
+    : String(room.created_at || "legacy");
+  return `room:${room.id}:start:${startedAt}`;
 }
 
 export async function getVipStatus(userId: string): Promise<{
@@ -137,23 +139,16 @@ export async function getVipStatus(userId: string): Promise<{
   vipUntil: string | null;
   plan: string;
 }> {
-  const { data, error } = await supabaseAdmin
-    .from("user_entitlements")
-    .select("plan,vip_until")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
+  try {
+    const snapshot = await getCommercialEntitlementSnapshot(userId);
+    return {
+      isVip: snapshot.roomsEntitled,
+      vipUntil: snapshot.validUntil,
+      plan: snapshot.planCode,
+    };
+  } catch {
     return { isVip: false, vipUntil: null, plan: "free" };
   }
-
-  const plan = (data?.plan || "free") as string;
-  const vipUntil = (data?.vip_until ?? null) as string | null;
-  const isVip =
-    plan === "vip" &&
-    (!vipUntil || new Date(vipUntil).getTime() > Date.now());
-
-  return { isVip, vipUntil, plan };
 }
 
 export function maskUserId(userId?: string | null) {
