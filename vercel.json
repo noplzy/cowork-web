@@ -1,20 +1,9 @@
 {
   "crons": [
-    {
-      "path": "/api/internal/maintenance/cleanup-rooms",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/internal/rooms/cleanup",
-      "schedule": "10 17 * * *"
-    },
-    {
-      "path": "/api/internal/billing/cron",
-      "schedule": "20 17 * * *"
-    },
-    {
-      "path": "/api/internal/rooms/summarize-ended",
-      "schedule": "30 17 * * *"
-    }
+    { "path": "/api/internal/maintenance/cleanup-rooms", "schedule": "0 17 * * *" },
+    { "path": "/api/internal/rooms/cleanup", "schedule": "10 17 * * *" },
+    { "path": "/api/internal/billing/cron", "schedule": "20 17 * * *" },
+    { "path": "/api/internal/rooms/summarize-ended", "schedule": "30 17 * * *" },
+    { "path": "/api/internal/buddies/settlement/cron", "schedule": "40 17 * * *" }
   ]
 }
