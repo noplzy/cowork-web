@@ -14,6 +14,10 @@ import { P3_BUILD_TAGS } from "@/lib/p3Status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const BUDDY_ROOM_ROUTE_BUILD_TAG =
+  "p3-buddy-room-null-safe-v1312-2026-07-22";
+
 type Context = { params: Promise<{ bookingId: string }> };
 
 async function existingRoom(roomId: string) {
@@ -56,6 +60,7 @@ export async function POST(req: Request, context: Context) {
           error: claim.error.message,
           code,
           build_tag: P3_BUILD_TAGS.buddiesCommercial,
+          route_build_tag: BUDDY_ROOM_ROUTE_BUILD_TAG,
         },
         { status },
       );
@@ -65,7 +70,13 @@ export async function POST(req: Request, context: Context) {
     if (claimData?.ready && booking?.linked_room_id) {
       const room = await existingRoom(booking.linked_room_id);
       if (room?.status === "active" && room.daily_room_url) {
-        return NextResponse.json({ room, booking, created: false, build_tag: P3_BUILD_TAGS.buddiesCommercial });
+        return NextResponse.json({
+          room,
+          booking,
+          created: false,
+          build_tag: P3_BUILD_TAGS.buddiesCommercial,
+          route_build_tag: BUDDY_ROOM_ROUTE_BUILD_TAG,
+        });
       }
       await supabaseAdmin
         .from("buddy_bookings")
@@ -93,6 +104,7 @@ export async function POST(req: Request, context: Context) {
           error: "履約房正在由另一個請求建立，請稍後再試。",
           code: "BUDDY_ROOM_PROVISION_IN_PROGRESS",
           build_tag: P3_BUILD_TAGS.buddiesCommercial,
+          route_build_tag: BUDDY_ROOM_ROUTE_BUILD_TAG,
         },
         { status: 409 },
       );
@@ -131,20 +143,24 @@ export async function POST(req: Request, context: Context) {
     if (insertRoom.error || !insertRoom.data) {
       throw insertRoom.error || new Error("建立履約房失敗。");
     }
-    createdRoomId = insertRoom.data.id;
+    const provisionedRoomId = String(insertRoom.data.id ?? "").trim();
+    if (!provisionedRoomId) {
+      throw new Error("建立履約房失敗：rooms.id 缺失。");
+    }
+    createdRoomId = provisionedRoomId;
 
     const members = await supabaseAdmin.from("room_members").insert([
-      { room_id: createdRoomId, user_id: booking.provider_user_id },
-      { room_id: createdRoomId, user_id: booking.buyer_user_id },
+      { room_id: provisionedRoomId, user_id: booking.provider_user_id },
+      { room_id: provisionedRoomId, user_id: booking.buyer_user_id },
     ]);
     if (members.error) throw members.error;
 
-    const roomName = `buddy_${createdRoomId.replaceAll("-", "")}`;
+    const roomName = `buddy_${provisionedRoomId.replaceAll("-", "")}`;
     const daily = await createDailyPrivateRoom(roomName);
     const updatedRoom = await supabaseAdmin
       .from("rooms")
       .update({ daily_room_url: daily.url })
-      .eq("id", createdRoomId)
+      .eq("id", provisionedRoomId)
       .select("id,status,scheduled_end_at,daily_room_url")
       .single();
     if (updatedRoom.error || !updatedRoom.data) {
@@ -154,7 +170,7 @@ export async function POST(req: Request, context: Context) {
     const finished = await supabaseAdmin.rpc("cowork_finish_buddy_room_provision_v3", {
       p_booking_id: bookingId,
       p_actor_user_id: userId,
-      p_room_id: createdRoomId,
+      p_room_id: provisionedRoomId,
       p_invite_code: insertRoom.data.invite_code ?? null,
       p_error: null,
     });
@@ -166,6 +182,7 @@ export async function POST(req: Request, context: Context) {
       created: true,
       token_policy: "private_room_short_lived_meeting_token_issued_by_existing_route",
       build_tag: P3_BUILD_TAGS.buddiesCommercial,
+      route_build_tag: BUDDY_ROOM_ROUTE_BUILD_TAG,
     });
   } catch (error: any) {
     if (createdRoomId) {
@@ -188,7 +205,11 @@ export async function POST(req: Request, context: Context) {
     const mapped = identityAccessErrorResponse(error, P3_BUILD_TAGS.buddiesCommercial);
     if (mapped) return mapped;
     return NextResponse.json(
-      { error: error?.message || "建立履約房失敗。", build_tag: P3_BUILD_TAGS.buddiesCommercial },
+      {
+        error: error?.message || "建立履約房失敗。",
+        build_tag: P3_BUILD_TAGS.buddiesCommercial,
+        route_build_tag: BUDDY_ROOM_ROUTE_BUILD_TAG,
+      },
       { status: Number(error?.status || 500) },
     );
   }
