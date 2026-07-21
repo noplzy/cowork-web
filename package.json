@@ -10,7 +10,9 @@
     "verify:production": "node scripts/verify-production-release.mjs",
     "verify:p0-contracts": "node scripts/verify-p0-contracts.mjs",
     "verify:p1-contracts": "node scripts/verify-p1-contracts.mjs",
-    "verify:p2-contracts": "node scripts/verify-p2-contracts.mjs"
+    "verify:p2-contracts": "node scripts/verify-p2-contracts.mjs",
+    "verify:p3-contracts": "node scripts/verify-p3-contracts.mjs",
+    "verify:p3-production": "node scripts/verify-p3-production.mjs"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.87.0",

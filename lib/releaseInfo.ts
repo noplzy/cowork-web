@@ -10,9 +10,14 @@ import {
 import { P0_BUILD_TAGS, P0_IMPLEMENTATION_STATUS } from "@/lib/p0Status";
 import { P1_BUILD_TAGS, P1_IMPLEMENTATION_STATUS } from "@/lib/p1Status";
 import { P2_BUILD_TAGS, P2_IMPLEMENTATION_STATUS } from "@/lib/p2Status";
+import {
+  P3_BUILD_TAGS,
+  P3_IMPLEMENTATION_STATUS,
+  p3AttestationFlags,
+} from "@/lib/p3Status";
 
 export const RELEASE_BUILD_TAG =
-  "calmco-p2-rooms-299-commercial-v130-2026-07-20";
+  "calmco-p3-buddies-settlement-trial-v131-2026-07-21";
 
 const SOURCE_REPOSITORY = "noplzy/cowork-web";
 const EXPECTED_PRODUCTION_BRANCH = "main";
@@ -33,10 +38,8 @@ export function getPublicReleaseInfo() {
   const gitCommitSha =
     readEnv("VERCEL_GIT_COMMIT_SHA", "GIT_COMMIT_SHA", "SOURCE_VERSION") ??
     "unknown";
-  const gitBranch =
-    readEnv("VERCEL_GIT_COMMIT_REF", "GIT_BRANCH") ?? "unknown";
-  const environment =
-    readEnv("VERCEL_ENV", "NODE_ENV") ?? "development";
+  const gitBranch = readEnv("VERCEL_GIT_COMMIT_REF", "GIT_BRANCH") ?? "unknown";
+  const environment = readEnv("VERCEL_ENV", "NODE_ENV") ?? "development";
   const targetEnvironment = readEnv("VERCEL_TARGET_ENV") ?? environment;
   const deploymentUrl = httpsUrl(readEnv("VERCEL_URL"));
   const productionUrl =
@@ -53,8 +56,7 @@ export function getPublicReleaseInfo() {
     source_of_truth: {
       repository: SOURCE_REPOSITORY,
       expected_branch: EXPECTED_PRODUCTION_BRANCH,
-      rule:
-        "GitHub main 是程式 source of truth；公開 production 必須回報同一個 commit SHA。",
+      rule: "GitHub main 是程式 source of truth；公開 production 必須回報同一個 commit SHA。",
     },
     deployment: {
       environment,
@@ -78,75 +80,66 @@ export function getPublicReleaseInfo() {
     p0: {
       build_tags: P0_BUILD_TAGS,
       implementation_status: P0_IMPLEMENTATION_STATUS,
-      required_tables: [
-        "room_member_presence_state",
-        "room_extension_confirmations",
-        "room_session_summaries",
-        "room_participant_summaries",
-      ],
-      required_runtime_routes: [
-        "/api/daily/meeting-token",
-        "/api/rooms/presence/event",
-        "/api/rooms/presence/mode",
-        "/api/rooms/presence/brb",
-        "/api/rooms/presence/return",
-        "/api/rooms/[roomId]/presence-state",
-        "/api/internal/rooms/summarize-ended",
-        "/api/account/rooms/history",
-        "/api/admin/rooms/[roomId]/summary",
-      ],
     },
     p1: {
       build_tags: P1_BUILD_TAGS,
       implementation_status: P1_IMPLEMENTATION_STATUS,
-      required_tables: ["appeal_messages", "appeal_events"],
-      required_rpcs: [
-        "cowork_create_appeal",
-        "cowork_append_appeal_message",
-        "cowork_close_appeal",
-        "cowork_transition_appeal",
-      ],
-      required_runtime_routes: [
-        "/api/account/moderation/actions",
-        "/api/appeals",
-        "/api/appeals/[appealId]",
-        "/api/appeals/[appealId]/messages",
-        "/api/admin/appeals",
-        "/api/admin/appeals/[appealId]",
-      ],
-      required_admin_permissions: [
-        "support.manage",
-        "safety.manage",
-        "appeals.manage",
-      ],
     },
     p2: {
       build_tags: P2_BUILD_TAGS,
       implementation_status: P2_IMPLEMENTATION_STATUS,
+      launch_scope: "rooms_unlimited_299_only",
+    },
+    p3: {
+      build_tags: P3_BUILD_TAGS,
+      implementation_status: P3_IMPLEMENTATION_STATUS,
+      launch_scope: "remote_buddies_invite_trial_manual_verified_payout",
       required_tables: [
-        "user_plan_entitlements",
-        "user_usage_wallets",
-        "user_usage_wallet_events",
-        "subscription_payment_applications",
-        "room_extension_grants",
+        "buddy_booking_payment_applications",
+        "buddy_settlements",
+        "buddy_settlement_events",
+        "buddy_payout_accounts",
+        "buddy_payout_batches",
+        "buddy_payout_items",
       ],
       required_rpcs: [
-        "cowork_consume_usage_wallet_v2",
-        "cowork_apply_subscription_payment_v2",
-        "cowork_finalize_room_extension_v2",
+        "cowork_create_buddy_booking_v3",
+        "cowork_apply_buddy_payment_v3",
+        "cowork_transition_buddy_booking_v3",
+        "cowork_confirm_buddy_completion_v3",
+        "cowork_claim_buddy_room_provision_v3",
+        "cowork_finish_buddy_room_provision_v3",
+        "cowork_hold_buddy_settlement_v3",
+        "cowork_release_buddy_settlement_v3",
+        "cowork_reverse_buddy_payment_v3",
+        "cowork_resolve_buddy_dispute_v3",
+        "cowork_expire_unpaid_buddy_bookings_v3",
+        "cowork_promote_buddy_settlements_v3",
+        "cowork_create_buddy_payout_batch_v3",
+        "cowork_transition_buddy_payout_batch_v3",
       ],
       required_runtime_routes: [
-        "/api/account/entitlements",
-        "/api/payments/ecpay/recurring/checkout",
-        "/api/payments/ecpay/recurring/notify",
-        "/api/rooms/[roomId]/commercial-extension",
+        "/api/payments/ecpay/buddies/checkout",
+        "/api/payments/ecpay/buddies/notify",
+        "/api/buddies/bookings/[bookingId]/room",
+        "/api/buddies/bookings/[bookingId]/completion",
+        "/api/buddies/bookings/[bookingId]/dispute",
+        "/api/buddies/bookings/[bookingId]/settlement",
+        "/api/account/buddies/payout-account",
+        "/api/account/buddies/earnings",
+        "/api/admin/buddies/settlements",
+        "/api/admin/buddies/payout-batches",
+        "/api/internal/buddies/settlement/cron",
+        "/api/internal/launch/readiness",
       ],
-      launch_scope: "rooms_unlimited_299_only",
-      p3_plans_blocked: [
-        "buddies_pro_399",
-        "whole_site_599",
-        "host_999",
-      ],
+      attestations: p3AttestationFlags(),
+      safety_boundaries: {
+        legal_escrow_claimed: false,
+        raw_bank_account_in_application_db: false,
+        in_person_commercial_trial: false,
+        automated_bank_payout: false,
+        ai_enabled: false,
+      },
     },
     product: {
       product_catalog_build_tag: PRODUCT_CATALOG_BUILD_TAG,
@@ -164,6 +157,6 @@ export function getPublicReleaseInfo() {
       },
       ai_policy: AI_PRICING_POLICY,
     },
-    public_pages_checked_by_p0: ["/", "/rooms", "/pricing"],
+    public_pages_checked_by_release: ["/", "/rooms", "/pricing", "/buddies"],
   };
 }
