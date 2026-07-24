@@ -19,9 +19,13 @@ import {
   P4A_BUILD_TAGS,
   P4A_IMPLEMENTATION_STATUS,
 } from "@/lib/p4aStatus";
+import {
+  P4B_BUILD_TAGS,
+  P4B_IMPLEMENTATION_STATUS,
+} from "@/lib/p4bStatus";
 
 export const RELEASE_BUILD_TAG =
-  "calmco-p4a-rooms-operational-ux-v140-2026-07-24";
+  "calmco-p4b-buddies-operational-workspaces-v141-2026-07-24";
 
 const SOURCE_REPOSITORY = "noplzy/cowork-web";
 const EXPECTED_PRODUCTION_BRANCH = "main";
@@ -165,6 +169,34 @@ export function getPublicReleaseInfo() {
         forced_camera_required: false,
         raw_media_stored: false,
         social_actions_room_scoped: true,
+      },
+    },
+    p4b: {
+      build_tags: P4B_BUILD_TAGS,
+      implementation_status: P4B_IMPLEMENTATION_STATUS,
+      launch_scope: "buddies_buyer_provider_payout_operational_workspaces",
+      dependency: "p3_remote_buddies_commercial_foundation",
+      required_runtime_routes: [
+        "/api/account/buddies/workspace",
+        "/api/buddies/bookings/[bookingId]",
+        "/api/buddies/bookings/[bookingId]/room",
+        "/api/buddies/bookings/[bookingId]/dispute",
+        "/api/account/buddies/payout-account",
+      ],
+      required_pages: [
+        "/account/buddies/workspace",
+        "/account/buddies/bookings",
+        "/account/buddies/earnings",
+      ],
+      safety_boundaries: {
+        new_payment_command_path: false,
+        new_refund_command_path: false,
+        new_settlement_command_path: false,
+        service_role_in_browser: false,
+        automated_bank_payout: false,
+        raw_bank_account_stored: false,
+        in_person_commercial_trial: false,
+        ai_enabled: false,
       },
     },
     product: {

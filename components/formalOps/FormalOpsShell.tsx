@@ -47,13 +47,20 @@ export function FormalOpsShell({
         </nav>
         <div className={styles.accountSidebarNote}>
           <b>安感島正式營運</b>
-          <span>個人檔案、身分、客服、帳務、Rooms、Buddies 付款、結算與撥款都需要可追蹤紀錄。</span>
+          <span>
+            個人檔案、身分、客服、帳務、Rooms、Buddies 付款、履約、爭議、結算與撥款都需要可追蹤紀錄。
+          </span>
         </div>
       </aside>
       <section className={styles.accountMain}>
         <header className={styles.accountTopbar}>
-          <div><span>{eyebrow}</span><b>{title}</b></div>
-          {topActions ? <div className={styles.accountTopActions}>{topActions}</div> : null}
+          <div>
+            <span>{eyebrow}</span>
+            <b>{title}</b>
+          </div>
+          {topActions ? (
+            <div className={styles.accountTopActions}>{topActions}</div>
+          ) : null}
         </header>
         <section className={styles.accountHero}>
           <div className={styles.accountHeroBackdrop} aria-hidden="true" />
@@ -85,7 +92,7 @@ export const accountOpsNav = [
   ["/account/rooms", "Rooms 歷史"],
   ["/account/billing", "帳務紀錄"],
   ["/account/subscriptions", "訂閱管理"],
-  ["/account/buddies/bookings", "Buddies 預約"],
+  ["/account/buddies/workspace", "Buddies 工作台"],
   ["/account/buddies/earnings", "Buddies 收益"],
   ["/account/support", "客服紀錄"],
   ["/account/appeals", "申訴紀錄"],

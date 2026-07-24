@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
--- \restrict eupakcAJ1YpjPnUYkb6qQBk1ovtnknkPKh7fHfHQfMzeyNnQkK5IxJl3bxqR0ss
+-- \restrict knwOr4Adi7z0QcJr0toB9v4nw6e7ou2ZXnPRsUSEimHius9bvq17fe1un3yO0tx
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -7431,6 +7431,48 @@ CREATE INDEX "idx_p4a_wallet_user_resource_period" ON "public"."user_usage_walle
 
 
 --
+-- Name: idx_p4b_buddy_bookings_buyer_schedule; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "idx_p4b_buddy_bookings_buyer_schedule" ON "public"."buddy_bookings" USING "btree" ("buyer_user_id", "scheduled_start_at" DESC, "booking_status", "payment_status");
+
+
+--
+-- Name: idx_p4b_buddy_bookings_provider_schedule; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "idx_p4b_buddy_bookings_provider_schedule" ON "public"."buddy_bookings" USING "btree" ("provider_user_id", "scheduled_start_at" DESC, "booking_status", "payment_status");
+
+
+--
+-- Name: idx_p4b_buddy_disputes_booking_status; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "idx_p4b_buddy_disputes_booking_status" ON "public"."buddy_disputes" USING "btree" ("booking_id", "dispute_status", "created_at" DESC);
+
+
+--
+-- Name: idx_p4b_buddy_services_provider_status; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "idx_p4b_buddy_services_provider_status" ON "public"."buddy_services" USING "btree" ("provider_user_id", "status", "updated_at" DESC);
+
+
+--
+-- Name: idx_p4b_buddy_slots_provider_schedule; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "idx_p4b_buddy_slots_provider_schedule" ON "public"."buddy_service_slots" USING "btree" ("provider_user_id", "starts_at", "slot_status");
+
+
+--
+-- Name: idx_p4b_settlement_events_booking_created; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "idx_p4b_settlement_events_booking_created" ON "public"."buddy_settlement_events" USING "btree" ("booking_id", "created_at" DESC);
+
+
+--
 -- Name: idx_payment_events_merchant_event_created; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -12255,5 +12297,5 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 -- PostgreSQL database dump complete
 --
 
--- \unrestrict eupakcAJ1YpjPnUYkb6qQBk1ovtnknkPKh7fHfHQfMzeyNnQkK5IxJl3bxqR0ss
+-- \unrestrict knwOr4Adi7z0QcJr0toB9v4nw6e7ou2ZXnPRsUSEimHius9bvq17fe1un3yO0tx
 

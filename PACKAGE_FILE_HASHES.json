@@ -1,0 +1,33 @@
+{
+  "package": "CALMCO_P4B_BUDDIES_OPERATIONAL_WORKSPACES_v141_2026-07-24",
+  "file_count_before_manifest": 27,
+  "files": {
+    "FILE_INDEX.md": "a49bd417ae56ac44e3c18f2ad74e092969e1d33682e00f58dc60ca66e7db7a3f",
+    "P4B_DELIVERY_MANIFEST.md": "9c74a1592b78bc5e28ce54bdc674165803c847628a111ee960b600af316b76e5",
+    "README.md": "fb118db33f88154888151c66d4077993d21ba82a068111de0b07a9fe80ce758c",
+    "VALIDATION_REPORT.md": "f0627e49f99a79fd7c318500a6dbb2a6e9122c460568affc5e7e72e8d84f833e",
+    "app/account/buddies/bookings/page.tsx": "a650e8a5d38578ca0124c492e418ee157b5b119fae594c3fab4d846d2f9f47f4",
+    "app/account/buddies/earnings/page.tsx": "b71ce02f6d31f9b5c2fa9b639cfe8704964f7da6cb24b756ef92fd9446b21c8f",
+    "app/account/buddies/workspace/page.tsx": "1df5d80a81800eadef55d9d85bf38ee79de36fd669f606be0d3226f1748dde90",
+    "app/api/account/buddies/workspace/route.ts": "e77bb8dff8ac4ff92e0ec158a81c49abc5a9de5058ba9789490d1427aa808d3d",
+    "components/buddies/BuddyOperationalWorkspace.module.css": "aeb7632fd1c36d9621012f73e6c452377972d3f95e5ad60a3fba9fa2b3a09b35",
+    "components/buddies/BuddyOperationalWorkspace.tsx": "84af51ba5b236d40196b34865b02687d01efc4f1cf9fd129d50dc37d8ef76118",
+    "components/formalOps/FormalOpsShell.tsx": "6f964f6ac90d4dce1f788cea21e5eeab44f3d8bc142fd9166e6a5106879ee5c7",
+    "docs/CURRENT_PROGRESS.md": "c9f9cd2e15e1aa54394a7b537e1d10013c94209e4ac5290135c0445dfc310d90",
+    "docs/EXECUTION_PATH_AND_ROOT_CAUSES.md": "4a26d5156679326fbd4bc8ea039141d6f37dfaedfd792d03ec83fba49ebd553e",
+    "docs/P4B_ARCHITECTURE_DECISION.md": "221b296c6a2251ee452797ca5606bf99cd4e93fedbe7f93674a431434ad2f313",
+    "docs/P4B_VALIDATION_RUNBOOK.md": "ab493f4f2622f6b13f5c2413ca5c69ca05d939f5273d47a730104e04e1e7c02b",
+    "docs/RISKS_AND_LIMITATIONS.md": "749c3049292af0cb74736f567f12645d4fed79540e8ace782e42e7b2f7711ccf",
+    "lib/buddyWorkspaceTypes.ts": "cccf30fcdf01e835abc39fa2afa051f96d1746bfd4076e96627af125fdf72e12",
+    "lib/p4bStatus.ts": "67ea3704670987964ad73b5776ce9dd35b4176bb88c9bceaeba39af14721780e",
+    "lib/releaseInfo.ts": "81cbbf553077ca729ec81ba941f42aeb7f2fc5d3dd5bc9f7736a9f1e78d60fb9",
+    "lib/server/buddyOperationalWorkspace.ts": "af03ab3cb36eca6120d682e5dd7c918328d7cd934ddfac7991c30e2441de1617",
+    "package.json": "b5fdc31a4ec786a24c352b6823eefc283004b5330987bb3cca4929e6ccb00d94",
+    "scripts/verify-p4b-contracts.mjs": "cf0f81eda2ae7297cac1fd79a08945899257fab533e966ee88be9af97fc8f918",
+    "scripts/verify-p4b-production.mjs": "c1e64dbf1d69fdfac96d043e012bc34f448b9e2da39a7d86e48cc490318af0de",
+    "supabase/migrations/20260724193000_p4b_buddies_operational_workspaces.sql": "74877d746e9cd46badf51a5b6a9847a93afec23723253f183e562c62b337f24d",
+    "supabase/rollback/20260724193000_p4b_buddies_operational_workspaces_rollback.sql": "29cac939594ae373b0a427963134ee6c7dfab7487cc7932a021cba88712446a9",
+    "supabase/validation/P4B_SUPABASE_RUNTIME_ACCEPTANCE_CHECK.sql": "1621ac9297732d3cbb14fc53e8a42b621d1b3c666f30832ee76d19711c4a34a0",
+    "supabase/validation/P4B_SUPABASE_SCHEMA_ACCEPTANCE_CHECK.sql": "b6f9e51fc31c4306d48606e1b1f1827a0dd7d8211a5b7bb4ef8c766200c5faa3"
+  }
+}
