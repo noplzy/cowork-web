@@ -4946,6 +4946,26 @@ export type Database = {
         }
         Returns: Json
       }
+      cowork_room_friend_action_v4a: {
+        Args: {
+          p_action: string
+          p_actor_user_id: string
+          p_message?: string
+          p_room_id: string
+          p_target_user_id: string
+        }
+        Returns: Json
+      }
+      cowork_room_owner_action_v4a: {
+        Args: {
+          p_action: string
+          p_client_eject_confirmed?: boolean
+          p_owner_user_id: string
+          p_room_id: string
+          p_target_user_id?: string
+        }
+        Returns: Json
+      }
       cowork_transition_appeal: {
         Args: {
           p_admin_response: string

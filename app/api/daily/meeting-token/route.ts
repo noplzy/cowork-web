@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROOM_TOKEN_BUILD_TAG =
-  "daily-meeting-token-commercial-entitlement-v130-2026-07-20";
+  "daily-room-user-identity-v140-2026-07-24";
 const FREE_MONTHLY_CREDITS = 4;
 const ACCESS_SESSION_PENDING_RETRY_MS = 90_000;
 
@@ -399,8 +399,15 @@ export async function POST(req: Request) {
     // P2 extension, a controlled reload obtains a new token without recharging
     // because buildBillingSessionKey is stable across scheduled_end_at changes.
     const expiresAt = Math.max(now + 15 * 60, scheduledEndSeconds + 90);
+    const profileResult = await supabaseAdmin
+      .from("profiles")
+      .select("display_name")
+      .eq("user_id", userId)
+      .maybeSingle();
     const userName =
-      (email && email.split("@")[0]) || `u_${userId.slice(0, 8)}`;
+      String(profileResult.data?.display_name || "").trim() ||
+      (email && email.split("@")[0]) ||
+      `u_${userId.slice(0, 8)}`;
 
     const dailyResponse = await fetch(`${dailyApiBase}/meeting-tokens`, {
       method: "POST",
@@ -414,6 +421,9 @@ export async function POST(req: Request) {
           exp: expiresAt,
           eject_at_token_exp: true,
           user_name: userName,
+          // P4-A invariant: Daily session identity must map back to the
+          // authenticated Supabase user for roster, profile and safety actions.
+          user_id: userId,
           is_owner: Boolean(isOwner),
           enable_screenshare: true,
           // P0 safety invariant: no participant sends camera or microphone
@@ -467,6 +477,7 @@ export async function POST(req: Request) {
       status: "active",
       provider_payload: {
         room_name: dailyRoomName,
+        daily_user_id: userId,
         token_exp: expiresAt,
         start_video_off: true,
         start_audio_off: true,
@@ -481,6 +492,7 @@ export async function POST(req: Request) {
       token,
       exp: expiresAt,
       room_name: dailyRoomName,
+      daily_user_id: userId,
       is_owner: Boolean(isOwner),
       duration_minutes: durationMinutes,
       cost_credits: Number(accessSession.cost_credits ?? costCredits),
