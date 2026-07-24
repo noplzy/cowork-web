@@ -15,9 +15,13 @@ import {
   P3_IMPLEMENTATION_STATUS,
   p3AttestationFlags,
 } from "@/lib/p3Status";
+import {
+  P4A_BUILD_TAGS,
+  P4A_IMPLEMENTATION_STATUS,
+} from "@/lib/p4aStatus";
 
 export const RELEASE_BUILD_TAG =
-  "calmco-p3-buddies-settlement-trial-v131-2026-07-21";
+  "calmco-p4a-rooms-operational-ux-v140-2026-07-24";
 
 const SOURCE_REPOSITORY = "noplzy/cowork-web";
 const EXPECTED_PRODUCTION_BRANCH = "main";
@@ -139,6 +143,28 @@ export function getPublicReleaseInfo() {
         in_person_commercial_trial: false,
         automated_bank_payout: false,
         ai_enabled: false,
+      },
+    },
+    p4a: {
+      build_tags: P4A_BUILD_TAGS,
+      implementation_status: P4A_IMPLEMENTATION_STATUS,
+      launch_scope: "rooms_operational_readability_social_safety_owner_controls",
+      required_rpcs: [
+        "cowork_room_friend_action_v4a",
+        "cowork_room_owner_action_v4a",
+      ],
+      required_runtime_routes: [
+        "/api/rooms/[roomId]/operations",
+        "/api/rooms/[roomId]/relationships",
+        "/api/rooms/[roomId]/moderation",
+        "/api/rooms/[roomId]/owner",
+      ],
+      safety_boundaries: {
+        daily_user_id_from_authenticated_user: true,
+        browser_service_role_exposed: false,
+        forced_camera_required: false,
+        raw_media_stored: false,
+        social_actions_room_scoped: true,
       },
     },
     product: {
